@@ -2,7 +2,11 @@
   "name": "mizchi/game_engine",
   "version": "0.1.0",
   "deps": {
-    "mizchi/image": "0.1.1"
+    "mizchi/image": "0.1.1",
+    "mizchi/font": "0.3.1",
+    "mizchi/layout": "0.1.2",
+    "mizchi/audio": "0.1.0",
+    "mizchi/svg": "0.1.9"
   },
   "readme": "README.mbt.md",
   "repository": "https://github.com/mizchi/game_engine",

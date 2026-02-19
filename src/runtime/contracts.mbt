@@ -21,13 +21,22 @@ pub struct FramePlan {
 ///|
 pub struct RuntimeHooks {
   on_input_captured : (Int, @core.InputSnapshot) -> Unit
+  on_post_update : (Int, @core.FrameBudget) -> Unit
 }
 
 ///|
 pub fn new_runtime_hooks(
   on_input_captured : (Int, @core.InputSnapshot) -> Unit,
 ) -> RuntimeHooks {
-  { on_input_captured, }
+  { on_input_captured, on_post_update: fn(_tick, _frame) { () } }
+}
+
+///|
+pub fn new_runtime_hooks_full(
+  on_input_captured : (Int, @core.InputSnapshot) -> Unit,
+  on_post_update : (Int, @core.FrameBudget) -> Unit,
+) -> RuntimeHooks {
+  { on_input_captured, on_post_update }
 }
 
 ///|
@@ -114,6 +123,12 @@ pub fn[G : @core.Game, P : @platform.PlatformDriver, R : @gfx.GraphicsDriver] ru
         Some(@core.EngineTermination::Fatal(_)) => should_stop = true
         None => ()
       }
+      let frame_budget = @core.new_frame_budget(
+        frame_plan.updates,
+        step.alpha,
+        fixed_state.tick,
+      )
+      (runtime_hooks.on_post_update)(fixed_state.tick, frame_budget)
     }
 
     if frame_plan.should_draw {

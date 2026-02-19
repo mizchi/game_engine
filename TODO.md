@@ -6,10 +6,10 @@
 - 優先は「ブラウザ(WebGPU/WebGL) と Native(macOS wgpu) の両方で早期に同じゲームロジックを動かすこと」。
 - 3D 拡張は 2D の API/実装が安定してから着手する。
 
-## 実装状況スナップショット (2026-02-19)
+## 実装状況スナップショット (2026-02-20)
 
-- `moon test --target native`: 135 passed / 0 failed
-- `moon test --target js`: 130 passed / 0 failed
+- `moon test --target native`: 235 passed / 0 failed
+- `moon test --target js`: 230 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
 - `moon run src/examples/runtime_smoke_native --target native`: pass (`runtime_smoke_native: ok (real)`)
 - `pnpm e2e:smoke` (Playwright wasm/wasm-gc parity + native runtime smoke + cross-backend probe parity): 5 passed / 0 failed
@@ -41,12 +41,13 @@
 | Builtin shader source | `internal/builtinshader/shader.go` | filter/address/color_m 差分の WGSL source 生成 + lazy cache + clear/evict を実装 | 部分 |
 | Input snapshot 一貫性 | `internal/inputstate/inputstate.go` | Platform hook から tick ごとに取得する経路を追加。Web(JS hooks) は cursor/wheel/pressed_keys/mouse buttons/touches/gamepads の最小実装、Native(GLFW hooks) は cursor/wheel/pressed_keys/mouse buttons + gamepads + Cocoa touch 取得（touch 無効環境では left-click fallback）まで接続済み | 部分 |
 | 共通 2D payload decoder | `internal/graphicscommand/command.go` | `src/payload2d` に頂点/indices/uniform/src_image_id の decode 契約を分離。native hook に加え web/js/wasm hooks でも利用開始（後で独立 repo へ切り出し可能） | 部分 |
-| Text rendering | `text/v2` | `src/text/contracts.mbt` 契約のみ | 未着手 |
-| UI レイアウト統合 | Ebiten外 (拡張) | `src/ui/contracts.mbt` 契約のみ | 未着手 |
-| AI tick 実行基盤 | Ebiten外 (拡張) | `run_ai_tick` とテストあり (`src/ai/contracts*.mbt`) | 部分 |
-| Audio | `audio/*` | 対応モジュールなし | 未着手 |
+| Text rendering | `text/v2` | `mizchi/font` を依存追加し `SimpleFontEngine`（measure/shape）+ `GlyphCache`（atlas 領域割当）+ `SimpleTextBatchBuilder`（glyph quad → draw command）を実装。wbtest でキャッシュ割当・行折返し・バッチ生成を検証 | 部分 |
+| UI レイアウト統合 | Ebiten外 (拡張) | `mizchi/layout` を依存追加し `UITree`（ノード木）+ `SimpleLayoutEngine`（Row/Column/Auto/Fixed/Percent/padding/gap）+ `SimpleUIInputAdapter`（InputSnapshot → UIEvent 差分変換）+ `SimpleUIRenderAdapter`（layout → draw command）を実装。wbtest で single/row/column/padding レイアウトと input/render adapter を検証 | 部分 |
+| AI tick 実行基盤 | Ebiten外 (拡張) | `run_ai_tick` とテストあり (`src/ai/contracts*.mbt`)。`AIRuntimeState` + `create_ai_post_update_hook` で runtime ループの `on_post_update` に接続可能。wbtest で blackboard 蓄積・hook 経由の decision 追跡を検証 | 部分 |
+| Audio | `audio/*` | `AudioFormat`/`AudioClip`/`PlayerState`/`PlayerId` + `AudioStream`/`AudioContext` trait を定義。`SimpleAudioContext` で create/play/pause/stop/volume/seek/dispose/tick（ループ対応）を実装。`mizchi/audio` を依存追加し WAV/OGG コーデック（`decode_wav_clip`/`decode_ogg_clip`/`decode_audio_clip_auto`）+ `MixerAudioContext`（real mixer wrapper）+ `audio_buffer_to_clip`/`clip_to_audio_buffer` 変換を実装。wbtest 16 テストで検証 | 部分 |
+| SVG 描画 | Ebiten外 (拡張) | `mizchi/svg` を依存追加し `src/svg` に SVG → RGBA pixel 変換（`render_svg`/`render_svg_to_rgba`）+ SVG path → vector.Path 変換（`svg_path_to_vector_path`）+ SVG path → stroke/fill 頂点変換を実装。wbtest 9 テストで検証 | 部分 |
 | Mobile ターゲット | `mobile/*` | ターゲット/実装とも未着手 | 未着手 |
-| Utility 系 (`vector`, `colorm`, `ebitenutil`, `inpututil`) | 各 package | `inpututil` 相当で key/mouse button/touch/gamepad の JustPressed/JustReleased/Duration/Append（id 単位）を実装。`runtime` 側に input edge observer を追加しループ観測へ接続可能にした。他は未着手 | 部分 |
+| Utility 系 (`vector`, `colorm`, `debugutil`, `inpututil`) | 各 package | `inpututil` 相当で key/mouse button/touch/gamepad の JustPressed/JustReleased/Duration/Append（id 単位）を実装。`runtime` 側に input edge observer を追加しループ観測へ接続可能にした。`src/vector` に Vec2 + Path（moveTo/lineTo/quadTo/cubicTo/arcTo/close + flatten + stroke_path/fill_path）を追加。`src/colorm` に ColorM（5x4 行列）を追加。`src/debugutil` に color helpers + line/rect/fill + `build_input_debug_overlay`（crosshair/pressed keys/mouse buttons 表示）を追加。`src/ui` に `ui_events_from_input_edge`（inpututil edge → UIEvent 変換）を追加。全テスト付き | 部分 |
 
 ## 優先 TODO (実装順)
 
@@ -106,10 +107,11 @@
 11. 入力 snapshot を実デバイス連動にする  
    - keyboard/cursor/wheel/mouse buttons は Web + Native で最小接続済み。gamepad は Web + Native で最小接続済み。  
    - native touch は Cocoa event からの取得を追加済み。gesture/trackpad 以外の環境では left-click fallback が残るため、実機差分を詰める。
-12. `inpututil` 相当 API を追加する  
-   - key/mouse button/touch/gamepad の差分 API は実装済み。  
-   - runtime ループ側の利用導線（`run_loop_with_hooks` + input edge observer + 履歴保持）は追加済み。  
-   - UI/デバッグ表示への接続は未実装。
+12. `inpututil` 相当 API を追加する
+   - key/mouse button/touch/gamepad の差分 API は実装済み。
+   - runtime ループ側の利用導線（`run_loop_with_hooks` + input edge observer + 履歴保持）は追加済み。
+   - `ui.ui_events_from_input_edge` で inpututil edge → UIEvent 変換を実装済み。
+   - `debugutil.build_input_debug_overlay` でカーソル crosshair + pressed keys/mouse buttons のデバッグ表示を実装済み。
 13. window/system API を本実装レベルに引き上げる  
    - fullscreen, cursor, monitor, deviceScale, vsync, close/requestAttention は契約 + 部分実装まで完了。  
    - GLFW / browser での edge-case（非同期 fullscreen 反映、pointer lock 状態同期、vsync 実反映）を詰める。
@@ -117,13 +119,23 @@
 ### P2: 周辺機能と拡張層
 
 14. `text` に `mizchi/font` を接続し glyph cache + draw command 化する。
+   - `SimpleFontEngine`（TTFont wrapper）、`GlyphCache`（atlas 割当）、`SimpleTextBatchBuilder`（draw command 生成）を実装済み。
+   - 残タスク: glyph outline → atlas pixel rasterization パイプライン、フォントファイルの動的ロード。
 15. `ui` に `mizchi/layout` を接続し input/render bridge を実装する。
+   - `UITree` + `SimpleLayoutEngine`（Row/Column 方向、Auto/Fixed/Percent サイジング、padding/gap）を実装済み。
+   - `SimpleUIInputAdapter`（InputSnapshot → UIEvent 差分）+ `SimpleUIRenderAdapter`（layout → draw command）を実装済み。
+   - `point_in_rect`/`hit_test`/`hit_test_all` によるヒットテストを実装済み。
+   - `UIFocusManager`（focus/blur/focus_next/focus_prev/handle_pointer_down）によるフォーカス管理を実装済み。
+   - `ui_events_from_input_edge` で inpututil edge → UIEvent 変換を実装済み。
+   - 残タスク: Flex wrap、align-items/justify-content の拡張。
 16. `ai.run_ai_tick` を `runtime.run_loop` に統合する  
    - budget、deterministic seed、trace を runtime から制御。
-17. audio サブシステムを追加する  
-   - PCM/stream/player、最低限 WAV/OGG 互換を目標。
-18. utility レイヤーを追加する  
-   - `vector`, `colorm`, `ebitenutil` 相当の薄い API を整備。
+17. audio サブシステムを追加する
+   - `SimpleAudioContext`（PCM ベース契約テスト用）+ `MixerAudioContext`（mizchi/audio Mixer wrapper）を実装済み。
+   - `mizchi/audio` の WAV/OGG コーデックを統合し `decode_wav_clip`/`decode_ogg_clip`/`decode_audio_clip_auto` を追加済み。
+   - 残タスク: Web Audio API / native audio backend への接続、streaming 対応。
+18. utility レイヤーを追加する
+   - `src/vector`（Vec2 2D ベクトル数学 + Path ベースの弧/ベジェ曲線描画）、`src/colorm`（ColorM 5x4 カラー行列）、`src/debugutil`（色ヘルパー + 線/矩形 draw command builder + input debug overlay）を実装済み。
 19. mobile ターゲット戦略を定義する  
    - iOS/Android は Web か Native どちらの backend を使うか確定する。
 

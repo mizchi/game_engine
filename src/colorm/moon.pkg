@@ -1,4 +1,3 @@
 import {
   "mizchi/game_engine/gfx" @gfx,
-  "mizchi/font" @font,
 }

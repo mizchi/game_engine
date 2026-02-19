@@ -80,3 +80,48 @@ test "run_ai_tick updates blackboard and applies actions" {
   assert_eq(next.entries.length(), 2)
   assert_eq(actuator.applied, 2)
 }
+
+///|
+test "AIRuntimeState tracks decisions" {
+  let state = AIRuntimeState::new()
+  assert_eq!(state.total_decisions(), 0)
+  assert_eq!(state.trace_count(), 0)
+
+  let sensor : TestSensor = { id: 0 }
+  let actuator : TestActuator = { applied: 0 }
+  let scheduler : TestScheduler = { id: 0 }
+  let policy : TestPolicy = { id: 0 }
+  let hook = create_ai_post_update_hook(
+    policy, sensor, actuator, scheduler, state,
+  )
+
+  // Simulate two ticks
+  let frame = @core.new_frame_budget(1, 0.0, 10)
+  hook(10, frame)
+  assert_eq!(state.total_decisions(), 1)
+
+  let frame2 = @core.new_frame_budget(1, 0.0, 11)
+  hook(11, frame2)
+  assert_eq!(state.total_decisions(), 2)
+  // Blackboard should have accumulated entries
+  assert_true!(state.current_blackboard().entries.length() > 0)
+}
+
+///|
+test "AIRuntimeState with initial blackboard" {
+  let initial : BlackboardSnapshot = {
+    entries: [{ key: "init", value: "yes" }],
+  }
+  let state = AIRuntimeState::new_with_blackboard(initial)
+  assert_eq!(state.current_blackboard().entries.length(), 1)
+  assert_eq!(state.current_blackboard().entries[0].key, "init")
+}
+
+///|
+test "AIRuntimeState clear_traces" {
+  let state = AIRuntimeState::new()
+  state.traces.push([{ stage: "test", score: 1.0, note: "ok" }])
+  assert_eq!(state.trace_count(), 1)
+  state.clear_traces()
+  assert_eq!(state.trace_count(), 0)
+}

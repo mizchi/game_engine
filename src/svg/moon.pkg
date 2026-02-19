@@ -1,0 +1,4 @@
+import {
+  "mizchi/game_engine/vector" @vector,
+  "mizchi/svg" @msvg,
+}
