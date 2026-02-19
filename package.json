@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "e2e": "playwright test",
-    "e2e:smoke": "playwright test e2e/runtime_smoke_wasm.spec.ts",
+    "e2e:smoke": "playwright test e2e/runtime_smoke_wasm.spec.ts e2e/runtime_smoke_native.spec.ts",
     "e2e:install": "playwright install --with-deps chromium"
   },
   "devDependencies": {

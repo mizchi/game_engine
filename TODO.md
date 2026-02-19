@@ -12,7 +12,7 @@
 - `moon test --target js`: 113 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
 - `moon run src/examples/runtime_smoke_native --target native`: pass (`runtime_smoke_native: ok (real)`)
-- `pnpm e2e:smoke` (Playwright wasm/wasm-gc + force-webgl): 4 passed / 0 failed
+- `pnpm e2e:smoke` (Playwright wasm/wasm-gc parity + native runtime smoke): 4 passed / 0 failed
 
 判定基準:
 
@@ -81,7 +81,9 @@
    - 実 backend ごとの最適化（不要 reconfigure 抑制・再作成コスト計測）は未実装。
 5. 同一ロジックの cross-backend 検証テストを追加する  
    - `runtime/contracts_wbtest` に `run_loop termination and minimal render summary match between native and webgpu` を追加済み。`should_close` による終了条件、`run_loop_with_hooks` の tick 観測数、render pass の clear 有無・clear 色、`graphics.end(true)` の present が一致することを検証。
-   - 残タスク: 実 backend（native/web wasm host）でのピクセル同値比較を e2e で追加する。
+   - Playwright e2e に backend ピクセル比較（webgpu/webgl2, pixelmatch 許容差分）を追加済み。
+   - Playwright e2e から `moon run ... --target native` を実行する native smoke を追加済み。
+   - 残タスク: 実 backend（native vs web）間の直接ピクセル同値比較を自動化する。
 
 ### P1: Ebiten の中核描画機能へ寄せる
 
