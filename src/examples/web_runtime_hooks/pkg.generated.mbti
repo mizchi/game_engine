@@ -23,6 +23,16 @@ pub fn register_source_image_solid_color(Int, @image_palette.Rgba) -> Unit
 
 pub fn shutdown() -> Unit
 
+pub fn source_image_cache_count() -> Int
+
+pub fn source_image_generation(Int) -> Int
+
+pub fn source_image_height(Int) -> Int
+
+pub fn source_image_pixel_channel(Int, Int, Int, Int) -> Int
+
+pub fn source_image_width(Int) -> Int
+
 pub fn sync_dirty_atlas_pages_from_repository(@asset.SimpleAtlasImageRepository) -> Int
 
 pub fn sync_dirty_source_images_from_repository(@asset.SimpleImageRepository) -> Int

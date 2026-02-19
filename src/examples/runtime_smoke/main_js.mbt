@@ -17,6 +17,19 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Unit raise {
   if resynced != 0 {
     panic()
   }
+  let atlas_page_id = 801
+  if @web_hooks.source_image_generation(atlas_page_id) != 2 {
+    panic()
+  }
+  if @web_hooks.source_image_width(atlas_page_id) != 4 ||
+    @web_hooks.source_image_height(atlas_page_id) != 4 {
+    panic()
+  }
+  if @web_hooks.source_image_pixel_channel(atlas_page_id, 1, 0, 0) != 42 ||
+    @web_hooks.source_image_pixel_channel(atlas_page_id, 1, 0, 1) != 43 ||
+    @web_hooks.source_image_pixel_channel(atlas_page_id, 1, 0, 2) != 44 {
+    panic()
+  }
   let command = plan.commands[0]
   graphics.begin(pass)
   graphics.draw_triangles(command)

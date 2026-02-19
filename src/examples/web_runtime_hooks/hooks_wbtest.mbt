@@ -113,3 +113,44 @@ test "sync dirty source/atlas bindings only once per dirty generation" {
   assert_eq(atlas_third, 1)
   assert_eq(atlas_fourth, 0)
 }
+
+///|
+test "source image debug APIs expose synced atlas generation and pixels" {
+  clear_source_image_palettes()
+  let atlas_repo = @asset.new_simple_atlas_image_repository(4, 4, 901)
+  let atlas_key = @asset.new_asset_key("web/debug")
+  let atlas_created = @asset.create_atlas_image(
+    atlas_repo,
+    atlas_key,
+    @asset.image_spec_with_rgba8(2, 2, [
+      1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255,
+    ]),
+  )
+  match atlas_created {
+    Some(_) => ()
+    None => panic()
+  }
+  let atlas_updated = @asset.update_atlas_image_spec(
+    atlas_repo,
+    atlas_key,
+    @asset.image_spec_with_rgba8(2, 2, [
+      1, 2, 3, 255, 42, 43, 44, 255, 7, 8, 9, 255, 10, 11, 12, 255,
+    ]),
+  )
+  match atlas_updated {
+    Some(_) => ()
+    None => panic()
+  }
+
+  let synced = sync_dirty_atlas_pages_from_repository(atlas_repo)
+  assert_eq(synced, 1)
+
+  assert_eq(source_image_cache_count(), 1)
+  assert_eq(source_image_generation(901), 2)
+  assert_eq(source_image_width(901), 4)
+  assert_eq(source_image_height(901), 4)
+  assert_eq(source_image_pixel_channel(901, 1, 0, 0), 42)
+  assert_eq(source_image_pixel_channel(901, 1, 0, 1), 43)
+  assert_eq(source_image_pixel_channel(901, 1, 0, 2), 44)
+  assert_eq(source_image_pixel_channel(901, 9, 9, 0), -1)
+}

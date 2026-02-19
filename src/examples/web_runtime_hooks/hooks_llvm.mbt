@@ -440,3 +440,56 @@ pub fn sync_dirty_atlas_pages_from_repository(
   let _ = @asset.clear_dirty_atlas_page_flags(repository)
   count
 }
+
+///|
+pub fn source_image_cache_count() -> Int {
+  source_image_cache.val.length()
+}
+
+///|
+pub fn source_image_generation(image_id : Int) -> Int {
+  synced_source_generation_at(image_id)
+}
+
+///|
+pub fn source_image_width(image_id : Int) -> Int {
+  match source_image_cache_entry_at(image_id) {
+    Some(entry) => entry.width
+    None => 0
+  }
+}
+
+///|
+pub fn source_image_height(image_id : Int) -> Int {
+  match source_image_cache_entry_at(image_id) {
+    Some(entry) => entry.height
+    None => 0
+  }
+}
+
+///|
+pub fn source_image_pixel_channel(
+  image_id : Int,
+  x : Int,
+  y : Int,
+  channel_index : Int,
+) -> Int {
+  if channel_index < 0 || channel_index > 3 {
+    return -1
+  }
+  match source_image_cache_entry_at(image_id) {
+    Some(entry) =>
+      if x < 0 || y < 0 || x >= entry.width || y >= entry.height {
+        -1
+      } else {
+        let base = (y * entry.width + x) * 4
+        let offset = base + channel_index
+        if offset < 0 || offset >= entry.pixels_rgba8.length() {
+          -1
+        } else {
+          entry.pixels_rgba8[offset]
+        }
+      }
+    None => -1
+  }
+}
