@@ -670,9 +670,7 @@ pub fn register_source_image_rgba8(
   let safe_width = normalized_size(width)
   let safe_height = normalized_size(height)
   let pixels_rgba8 = normalized_rgba8_channels(
-    rgba8_channels,
-    safe_width,
-    safe_height,
+    rgba8_channels, safe_width, safe_height,
   )
   if pixels_rgba8.length() == 0 {
     return
@@ -706,7 +704,7 @@ pub fn patch_source_image_rgba8(
     return false
   }
   match source_image_cache_entry_at(source_image_id) {
-    Some(entry) => {
+    Some(entry) =>
       if entry.width != safe_width ||
         entry.height != safe_height ||
         !has_valid_rgba8_payload(entry.pixels_rgba8, safe_width, safe_height) {
@@ -765,7 +763,6 @@ pub fn patch_source_image_rgba8(
           true
         }
       }
-    }
     None => false
   }
 }
@@ -864,7 +861,9 @@ pub fn sync_source_images_from_repository(
 pub fn sync_dirty_source_images_from_repository(
   repository : @asset.SimpleImageRepository,
 ) -> Int {
-  let count = sync_source_images(@asset.list_dirty_source_image_bindings(repository))
+  let count = sync_source_images(
+    @asset.list_dirty_source_image_bindings(repository),
+  )
   let _ = @asset.clear_source_image_dirty_flags(repository)
   count
 }
@@ -873,7 +872,9 @@ pub fn sync_dirty_source_images_from_repository(
 pub fn sync_dirty_atlas_pages_from_repository(
   repository : @asset.SimpleAtlasImageRepository,
 ) -> Int {
-  let count = sync_source_images(@asset.list_dirty_atlas_page_bindings(repository))
+  let count = sync_source_images(
+    @asset.list_dirty_atlas_page_bindings(repository),
+  )
   let _ = @asset.clear_dirty_atlas_page_flags(repository)
   count
 }

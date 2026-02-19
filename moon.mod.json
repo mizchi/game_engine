@@ -1,12 +1,20 @@
 {
   "name": "mizchi/game_engine",
   "version": "0.1.0",
-  "source": "src",
-  "preferred-target": "js",
+  "deps": {
+    "mizchi/image": "0.1.1"
+  },
   "readme": "README.mbt.md",
   "repository": "https://github.com/mizchi/game_engine",
   "license": "Apache-2.0",
-  "keywords": ["game-engine", "wgpu", "webgl", "moonbit"],
+  "keywords": [
+    "game-engine",
+    "wgpu",
+    "webgl",
+    "moonbit"
+  ],
   "description": "2D-first game engine for MoonBit inspired by Ebiten",
-  "warn-list": "-6-53-68"
+  "source": "src",
+  "warn-list": "-6-53-68",
+  "preferred-target": "js"
 }

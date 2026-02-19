@@ -18,7 +18,9 @@ fn test_source_repository() -> @asset.SimpleImageRepository {
     @asset.image_spec_with_rgba8(2, 2, [
       10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255,
     ]),
-  ) catch { _ => panic() }
+  ) catch {
+    _ => panic()
+  }
   repo
 }
 
