@@ -209,6 +209,33 @@ fn queue_test_command_with_source_ids(
 }
 
 ///|
+fn queue_test_command_with_sources_and_uniforms(
+  dst_id : Int,
+  shader_id : Int,
+  blend : BlendMode,
+  index_offset : Int,
+  pipeline_id : Int,
+  uniform_hash : Int,
+  region_x : Int,
+  src_image_ids : Array[Int],
+  uniform_dwords : Array[Int],
+) -> DrawTrianglesCommand {
+  {
+    dst: { id: dst_id, width: 64, height: 64 },
+    shader: { id: shader_id, source: "shader-\{shader_id}" },
+    dst_regions: [{ x: region_x, y: 0, width: 32, height: 32, index_count: 3 }],
+    index_offset,
+    pipeline_id,
+    uniform_hash,
+    blend,
+    vertex_data: [],
+    indices: [],
+    src_image_ids,
+    uniform_dwords,
+  }
+}
+
+///|
 test "native graphics hooks can be overridden and reset" {
   reset_native_graphics_hooks()
   test_native_gfx_init_calls.val = 0
@@ -555,6 +582,76 @@ test "command queue does not merge when source image ids differ" {
       7,
       32,
       [802],
+    ),
+  )
+
+  let commands = queue.flush()
+  assert_eq(commands.length(), 2)
+}
+
+///|
+test "command queue merges compatible commands with same uniform dwords" {
+  let queue = new_simple_command_queue()
+  queue.enqueue_draw_triangles(
+    queue_test_command_with_sources_and_uniforms(
+      1,
+      1,
+      BlendMode::Alpha,
+      0,
+      1,
+      7,
+      0,
+      [801],
+      [1, 2, 3, 4],
+    ),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_command_with_sources_and_uniforms(
+      1,
+      1,
+      BlendMode::Alpha,
+      0,
+      1,
+      7,
+      32,
+      [801],
+      [1, 2, 3, 4],
+    ),
+  )
+
+  let commands = queue.flush()
+  assert_eq(commands.length(), 1)
+  assert_eq(commands[0].uniform_dwords.length(), 4)
+  assert_eq(commands[0].uniform_dwords[0], 1)
+}
+
+///|
+test "command queue does not merge when uniform dwords differ" {
+  let queue = new_simple_command_queue()
+  queue.enqueue_draw_triangles(
+    queue_test_command_with_sources_and_uniforms(
+      1,
+      1,
+      BlendMode::Alpha,
+      0,
+      1,
+      7,
+      0,
+      [801],
+      [1, 2, 3, 4],
+    ),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_command_with_sources_and_uniforms(
+      1,
+      1,
+      BlendMode::Alpha,
+      0,
+      1,
+      7,
+      32,
+      [801],
+      [5, 6, 7, 8],
     ),
   )
 

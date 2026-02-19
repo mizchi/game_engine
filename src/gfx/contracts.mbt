@@ -352,11 +352,9 @@ fn can_merge_draw_triangles(
   rhs : DrawTrianglesCommand,
 ) -> Bool {
   let lhs_has_explicit_geometry = lhs.vertex_data.length() > 0 ||
-    lhs.indices.length() > 0 ||
-    lhs.uniform_dwords.length() > 0
+    lhs.indices.length() > 0
   let rhs_has_explicit_geometry = rhs.vertex_data.length() > 0 ||
-    rhs.indices.length() > 0 ||
-    rhs.uniform_dwords.length() > 0
+    rhs.indices.length() > 0
   lhs.dst.id == rhs.dst.id &&
   lhs.shader.id == rhs.shader.id &&
   blend_mode_eq(lhs.blend, rhs.blend) &&
@@ -364,6 +362,7 @@ fn can_merge_draw_triangles(
   lhs.uniform_hash == rhs.uniform_hash &&
   lhs.index_offset == rhs.index_offset &&
   int_array_eq(lhs.src_image_ids, rhs.src_image_ids) &&
+  int_array_eq(lhs.uniform_dwords, rhs.uniform_dwords) &&
   !lhs_has_explicit_geometry &&
   !rhs_has_explicit_geometry
 }
@@ -388,7 +387,7 @@ fn merge_draw_triangles_commands(
     vertex_data: [],
     indices: [],
     src_image_ids: lhs.src_image_ids,
-    uniform_dwords: [],
+    uniform_dwords: lhs.uniform_dwords,
   }
 }
 
