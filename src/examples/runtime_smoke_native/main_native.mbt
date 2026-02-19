@@ -261,10 +261,16 @@ fn run_with_real_native_hooks() -> Bool {
     payload_uniform_a <= 1.0 &&
     payload_uniform_a > 0.0 &&
     payload_uniform_r + payload_uniform_g + payload_uniform_b > 0.0
-  let atlas_draw_path_active = @wgpu_native.runtime_payload_texture_seed() ==
+  let payload_texture_seed = @wgpu_native.runtime_payload_texture_seed()
+  let atlas_draw_path_active = payload_texture_seed ==
     runtime_smoke_atlas_page_id
+  let source_generation = if source_image_id >= 0 {
+    @wgpu_native.runtime_source_image_generation(source_image_id)
+  } else {
+    -1
+  }
   let source_image_synced = source_image_id >= 0 &&
-    @wgpu_native.runtime_source_image_generation(source_image_id) == 2 &&
+    source_generation == 2 &&
     @wgpu_native.planned_source_image_width(source_image_id) == 2 &&
     @wgpu_native.planned_source_image_height(source_image_id) == 2 &&
     @wgpu_native.planned_source_image_pixel_channel(source_image_id, 0, 0, 0) ==
@@ -275,24 +281,24 @@ fn run_with_real_native_hooks() -> Bool {
     255 &&
     @wgpu_native.planned_source_image_pixel_channel(source_image_id, 0, 0, 3) ==
     255
-  let atlas_page_synced = @wgpu_native.runtime_source_image_generation(
-      runtime_smoke_atlas_page_id,
-    ) ==
-    2 &&
+  let atlas_generation = @wgpu_native.runtime_source_image_generation(
+    runtime_smoke_atlas_page_id,
+  )
+  let atlas_pixel_r = @wgpu_native.planned_source_image_pixel_channel(
+    runtime_smoke_atlas_page_id, 1, 0, 0,
+  )
+  let atlas_pixel_g = @wgpu_native.planned_source_image_pixel_channel(
+    runtime_smoke_atlas_page_id, 1, 0, 1,
+  )
+  let atlas_pixel_b = @wgpu_native.planned_source_image_pixel_channel(
+    runtime_smoke_atlas_page_id, 1, 0, 2,
+  )
+  let atlas_page_synced = atlas_generation == 2 &&
     @wgpu_native.planned_source_image_width(runtime_smoke_atlas_page_id) == 4 &&
     @wgpu_native.planned_source_image_height(runtime_smoke_atlas_page_id) == 4 &&
-    @wgpu_native.planned_source_image_pixel_channel(
-      runtime_smoke_atlas_page_id, 1, 0, 0,
-    ) ==
-    42 &&
-    @wgpu_native.planned_source_image_pixel_channel(
-      runtime_smoke_atlas_page_id, 1, 0, 1,
-    ) ==
-    43 &&
-    @wgpu_native.planned_source_image_pixel_channel(
-      runtime_smoke_atlas_page_id, 1, 0, 2,
-    ) ==
-    44 &&
+    atlas_pixel_r == 42 &&
+    atlas_pixel_g == 43 &&
+    atlas_pixel_b == 44 &&
     @wgpu_native.planned_source_image_pixel_channel(
       runtime_smoke_atlas_page_id, 3, 3, 0,
     ) ==
@@ -321,6 +327,9 @@ fn run_with_real_native_hooks() -> Bool {
   if !atlas_page_synced {
     return false
   }
+  println(
+    "runtime_smoke_native_probe: tex_seed=\{payload_texture_seed} source_gen=\{source_generation} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b}",
+  )
   true
 }
 
