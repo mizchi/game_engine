@@ -307,3 +307,71 @@ pub fn render_frame_with_plan(
     surface, device, queue, pipeline, clear_r, clear_g, clear_b, clear_a, draw_calls,
   )
 }
+
+///|
+extern "C" fn moonbit_render_frame_with_plan_payload(
+  surface : WGPUSurface,
+  device : WGPUDevice,
+  queue : WGPUQueue,
+  pipeline : WGPURenderPipeline,
+  clear_r : Double,
+  clear_g : Double,
+  clear_b : Double,
+  clear_a : Double,
+  draw_calls : Int,
+  has_triangle_payload : Int,
+  ax : Double,
+  ay : Double,
+  bx : Double,
+  by : Double,
+  cx : Double,
+  cy : Double,
+  au : Double,
+  av : Double,
+  bu : Double,
+  bv : Double,
+  cu : Double,
+  cv : Double,
+  uniform_r : Double,
+  uniform_g : Double,
+  uniform_b : Double,
+  uniform_a : Double,
+  texture_seed : Int,
+) -> Unit = "moonbit_render_frame_with_plan_payload"
+
+///|
+pub fn render_frame_with_plan_payload(
+  surface : WGPUSurface,
+  device : WGPUDevice,
+  queue : WGPUQueue,
+  pipeline : WGPURenderPipeline,
+  clear_r : Double,
+  clear_g : Double,
+  clear_b : Double,
+  clear_a : Double,
+  draw_calls : Int,
+  has_triangle_payload : Int,
+  ax : Double,
+  ay : Double,
+  bx : Double,
+  by : Double,
+  cx : Double,
+  cy : Double,
+  au : Double,
+  av : Double,
+  bu : Double,
+  bv : Double,
+  cu : Double,
+  cv : Double,
+  uniform_r : Double,
+  uniform_g : Double,
+  uniform_b : Double,
+  uniform_a : Double,
+  texture_seed : Int,
+) -> Unit {
+  moonbit_render_frame_with_plan_payload(
+    surface, device, queue, pipeline, clear_r, clear_g, clear_b, clear_a, draw_calls,
+    has_triangle_payload, ax, ay, bx, by, cx, cy, au, av, bu, bv, cu, cv, uniform_r,
+    uniform_g, uniform_b, uniform_a, texture_seed,
+  )
+}

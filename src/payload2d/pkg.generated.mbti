@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/game_engine/payload2d"
+
+// Values
+pub fn clamp_unit(Double) -> Double
+
+pub fn decode_triangle_payload(Array[Double], Array[Int], Array[Int], Array[Int]) -> TrianglePayload
+
+pub fn default_triangle_payload() -> TrianglePayload
+
+// Errors
+
+// Types and methods
+pub struct TrianglePayload {
+  has_payload : Bool
+  ax : Double
+  ay : Double
+  bx : Double
+  by : Double
+  cx : Double
+  cy : Double
+  au : Double
+  av : Double
+  bu : Double
+  bv : Double
+  cu : Double
+  cv : Double
+  uniform_r : Double
+  uniform_g : Double
+  uniform_b : Double
+  uniform_a : Double
+  texture_seed : Int
+}
+pub impl Show for TrianglePayload
+
+// Type aliases
+
+// Traits
+

@@ -63,6 +63,60 @@ let planned_last_src_image_count : Ref[Int] = Ref::new(0)
 let planned_last_uniform_dword_count : Ref[Int] = Ref::new(0)
 
 ///|
+let planned_has_triangle_payload : Ref[Bool] = Ref::new(false)
+
+///|
+let planned_triangle_ax : Ref[Double] = Ref::new(0.0)
+
+///|
+let planned_triangle_ay : Ref[Double] = Ref::new(0.5)
+
+///|
+let planned_triangle_bx : Ref[Double] = Ref::new(-0.5)
+
+///|
+let planned_triangle_by : Ref[Double] = Ref::new(-0.5)
+
+///|
+let planned_triangle_cx : Ref[Double] = Ref::new(0.5)
+
+///|
+let planned_triangle_cy : Ref[Double] = Ref::new(-0.5)
+
+///|
+let planned_uv_au : Ref[Double] = Ref::new(0.0)
+
+///|
+let planned_uv_av : Ref[Double] = Ref::new(0.0)
+
+///|
+let planned_uv_bu : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_uv_bv : Ref[Double] = Ref::new(0.0)
+
+///|
+let planned_uv_cu : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_uv_cv : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_uniform_r : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_uniform_g : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_uniform_b : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_uniform_a : Ref[Double] = Ref::new(1.0)
+
+///|
+let planned_texture_seed : Ref[Int] = Ref::new(0)
+
+///|
 let configured_surface_width : Ref[Int] = Ref::new(0)
 
 ///|
@@ -198,6 +252,213 @@ pub fn runtime_cursor_mode() -> Int {
 }
 
 ///|
+pub fn runtime_cursor_x() -> Double {
+  match runtime_context.val {
+    Some(ctx) => get_cursor_x(ctx.window)
+    None => 0.0
+  }
+}
+
+///|
+pub fn runtime_cursor_y() -> Double {
+  match runtime_context.val {
+    Some(ctx) => get_cursor_y(ctx.window)
+    None => 0.0
+  }
+}
+
+///|
+pub fn runtime_take_wheel_x() -> Double {
+  match runtime_context.val {
+    Some(ctx) => take_scroll_x(ctx.window)
+    None => 0.0
+  }
+}
+
+///|
+pub fn runtime_take_wheel_y() -> Double {
+  match runtime_context.val {
+    Some(ctx) => take_scroll_y(ctx.window)
+    None => 0.0
+  }
+}
+
+///|
+pub fn runtime_pressed_key_count() -> Int {
+  match runtime_context.val {
+    Some(ctx) => pressed_key_count(ctx.window)
+    None => 0
+  }
+}
+
+///|
+pub fn runtime_pressed_key_at(index : Int) -> Int {
+  if index < 0 {
+    -1
+  } else {
+    match runtime_context.val {
+      Some(ctx) => pressed_key_at(ctx.window, index)
+      None => -1
+    }
+  }
+}
+
+///|
+pub fn runtime_pressed_mouse_button_count() -> Int {
+  match runtime_context.val {
+    Some(ctx) => pressed_mouse_button_count(ctx.window)
+    None => 0
+  }
+}
+
+///|
+pub fn runtime_pressed_mouse_button_at(index : Int) -> Int {
+  if index < 0 {
+    -1
+  } else {
+    match runtime_context.val {
+      Some(ctx) => pressed_mouse_button_at(ctx.window, index)
+      None => -1
+    }
+  }
+}
+
+///|
+pub fn runtime_touch_count() -> Int {
+  match runtime_context.val {
+    Some(ctx) => touch_count(ctx.window)
+    None => 0
+  }
+}
+
+///|
+pub fn runtime_touch_id_at(index : Int) -> Int {
+  if index < 0 {
+    -1
+  } else {
+    match runtime_context.val {
+      Some(ctx) => touch_id_at(ctx.window, index)
+      None => -1
+    }
+  }
+}
+
+///|
+pub fn runtime_touch_x_at(index : Int) -> Double {
+  if index < 0 {
+    0.0
+  } else {
+    match runtime_context.val {
+      Some(ctx) => touch_x_at(ctx.window, index)
+      None => 0.0
+    }
+  }
+}
+
+///|
+pub fn runtime_touch_y_at(index : Int) -> Double {
+  if index < 0 {
+    0.0
+  } else {
+    match runtime_context.val {
+      Some(ctx) => touch_y_at(ctx.window, index)
+      None => 0.0
+    }
+  }
+}
+
+///|
+pub fn runtime_gamepad_count() -> Int {
+  match runtime_context.val {
+    Some(_) => gamepad_count()
+    None => 0
+  }
+}
+
+///|
+pub fn runtime_gamepad_id_at(index : Int) -> Int {
+  if index < 0 {
+    -1
+  } else {
+    match runtime_context.val {
+      Some(_) => gamepad_id_at(index)
+      None => -1
+    }
+  }
+}
+
+///|
+pub fn runtime_gamepad_axis_count(index : Int) -> Int {
+  if index < 0 {
+    0
+  } else {
+    match runtime_context.val {
+      Some(_) =>
+        if gamepad_id_at(index) < 0 {
+          0
+        } else {
+          gamepad_axis_count(index)
+        }
+      None => 0
+    }
+  }
+}
+
+///|
+pub fn runtime_gamepad_axis_at(gamepad_index : Int, axis_index : Int) -> Double {
+  if gamepad_index < 0 || axis_index < 0 {
+    0.0
+  } else {
+    match runtime_context.val {
+      Some(_) =>
+        if gamepad_id_at(gamepad_index) < 0 {
+          0.0
+        } else {
+          gamepad_axis_at(gamepad_index, axis_index)
+        }
+      None => 0.0
+    }
+  }
+}
+
+///|
+pub fn runtime_gamepad_pressed_button_count(index : Int) -> Int {
+  if index < 0 {
+    0
+  } else {
+    match runtime_context.val {
+      Some(_) =>
+        if gamepad_id_at(index) < 0 {
+          0
+        } else {
+          gamepad_pressed_button_count(index)
+        }
+      None => 0
+    }
+  }
+}
+
+///|
+pub fn runtime_gamepad_pressed_button_at(
+  gamepad_index : Int,
+  button_index : Int,
+) -> Int {
+  if gamepad_index < 0 || button_index < 0 {
+    -1
+  } else {
+    match runtime_context.val {
+      Some(_) =>
+        if gamepad_id_at(gamepad_index) < 0 {
+          -1
+        } else {
+          gamepad_pressed_button_at(gamepad_index, button_index)
+        }
+      None => -1
+    }
+  }
+}
+
+///|
 pub fn runtime_set_device_scale_factor(scale : Double) -> Double {
   runtime_device_scale_override.val = if scale <= 0.0 { 1.0 } else { scale }
   runtime_device_scale_override.val
@@ -271,6 +532,24 @@ pub fn runtime_begin_frame(
   planned_last_index_count.val = 0
   planned_last_src_image_count.val = 0
   planned_last_uniform_dword_count.val = 0
+  planned_has_triangle_payload.val = false
+  planned_triangle_ax.val = 0.0
+  planned_triangle_ay.val = 0.5
+  planned_triangle_bx.val = -0.5
+  planned_triangle_by.val = -0.5
+  planned_triangle_cx.val = 0.5
+  planned_triangle_cy.val = -0.5
+  planned_uv_au.val = 0.0
+  planned_uv_av.val = 0.0
+  planned_uv_bu.val = 1.0
+  planned_uv_bv.val = 0.0
+  planned_uv_cu.val = 1.0
+  planned_uv_cv.val = 1.0
+  planned_uniform_r.val = 1.0
+  planned_uniform_g.val = 1.0
+  planned_uniform_b.val = 1.0
+  planned_uniform_a.val = 1.0
+  planned_texture_seed.val = 0
 }
 
 ///|
@@ -355,6 +634,136 @@ pub fn runtime_record_draw_region_count(region_count : Int) -> Unit {
     0,
     0,
   )
+}
+
+///|
+pub fn runtime_record_draw_triangle_payload(
+  ax : Double,
+  ay : Double,
+  bx : Double,
+  by : Double,
+  cx : Double,
+  cy : Double,
+  au : Double,
+  av : Double,
+  bu : Double,
+  bv : Double,
+  cu : Double,
+  cv : Double,
+  uniform_r : Double,
+  uniform_g : Double,
+  uniform_b : Double,
+  uniform_a : Double,
+  texture_seed : Int,
+) -> Unit {
+  planned_has_triangle_payload.val = true
+  planned_triangle_ax.val = ax
+  planned_triangle_ay.val = ay
+  planned_triangle_bx.val = bx
+  planned_triangle_by.val = by
+  planned_triangle_cx.val = cx
+  planned_triangle_cy.val = cy
+  planned_uv_au.val = au
+  planned_uv_av.val = av
+  planned_uv_bu.val = bu
+  planned_uv_bv.val = bv
+  planned_uv_cu.val = cu
+  planned_uv_cv.val = cv
+  planned_uniform_r.val = uniform_r
+  planned_uniform_g.val = uniform_g
+  planned_uniform_b.val = uniform_b
+  planned_uniform_a.val = uniform_a
+  planned_texture_seed.val = if texture_seed < 0 { 0 } else { texture_seed }
+}
+
+///|
+pub fn runtime_has_triangle_payload() -> Bool {
+  planned_has_triangle_payload.val
+}
+
+///|
+pub fn runtime_payload_triangle_ax() -> Double {
+  planned_triangle_ax.val
+}
+
+///|
+pub fn runtime_payload_triangle_ay() -> Double {
+  planned_triangle_ay.val
+}
+
+///|
+pub fn runtime_payload_triangle_bx() -> Double {
+  planned_triangle_bx.val
+}
+
+///|
+pub fn runtime_payload_triangle_by() -> Double {
+  planned_triangle_by.val
+}
+
+///|
+pub fn runtime_payload_triangle_cx() -> Double {
+  planned_triangle_cx.val
+}
+
+///|
+pub fn runtime_payload_triangle_cy() -> Double {
+  planned_triangle_cy.val
+}
+
+///|
+pub fn runtime_payload_uv_au() -> Double {
+  planned_uv_au.val
+}
+
+///|
+pub fn runtime_payload_uv_av() -> Double {
+  planned_uv_av.val
+}
+
+///|
+pub fn runtime_payload_uv_bu() -> Double {
+  planned_uv_bu.val
+}
+
+///|
+pub fn runtime_payload_uv_bv() -> Double {
+  planned_uv_bv.val
+}
+
+///|
+pub fn runtime_payload_uv_cu() -> Double {
+  planned_uv_cu.val
+}
+
+///|
+pub fn runtime_payload_uv_cv() -> Double {
+  planned_uv_cv.val
+}
+
+///|
+pub fn runtime_payload_uniform_r() -> Double {
+  planned_uniform_r.val
+}
+
+///|
+pub fn runtime_payload_uniform_g() -> Double {
+  planned_uniform_g.val
+}
+
+///|
+pub fn runtime_payload_uniform_b() -> Double {
+  planned_uniform_b.val
+}
+
+///|
+pub fn runtime_payload_uniform_a() -> Double {
+  planned_uniform_a.val
+}
+
+///|
+pub fn runtime_payload_texture_seed() -> Int {
+  planned_texture_seed.val
 }
 
 ///|
@@ -446,13 +855,31 @@ pub fn runtime_present_planned_frame() -> Bool {
     Some(ctx) => {
       let size = get_window_size(ctx.window)
       let _ = ensure_runtime_surface_size(ctx, size.width, size.height)
-      render_triangle_frame_with_plan(
+      render_triangle_frame_with_plan_payload(
         ctx,
         planned_clear_r.val,
         planned_clear_g.val,
         planned_clear_b.val,
         planned_clear_a.val,
         planned_draw_calls.val,
+        planned_has_triangle_payload.val,
+        planned_triangle_ax.val,
+        planned_triangle_ay.val,
+        planned_triangle_bx.val,
+        planned_triangle_by.val,
+        planned_triangle_cx.val,
+        planned_triangle_cy.val,
+        planned_uv_au.val,
+        planned_uv_av.val,
+        planned_uv_bu.val,
+        planned_uv_bv.val,
+        planned_uv_cu.val,
+        planned_uv_cv.val,
+        planned_uniform_r.val,
+        planned_uniform_g.val,
+        planned_uniform_b.val,
+        planned_uniform_a.val,
+        planned_texture_seed.val,
       )
       planned_draw_calls.val = 0
       true

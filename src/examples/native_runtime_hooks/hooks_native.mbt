@@ -30,10 +30,89 @@ fn bridge_desktop_outside_size(width : Int, height : Int) -> @core.OutsideSize {
 
 ///|
 fn bridge_desktop_capture_input(
-  _active : Bool,
+  active : Bool,
   _tick : Int,
 ) -> @core.InputSnapshot {
-  @core.empty_input_snapshot()
+  if active {
+    let cursor_x = @wgpu_native.runtime_cursor_x()
+    let cursor_y = @wgpu_native.runtime_cursor_y()
+    let wheel_x = @wgpu_native.runtime_take_wheel_x()
+    let wheel_y = @wgpu_native.runtime_take_wheel_y()
+
+    let pressed_keys : Array[Int] = []
+    let key_count = @wgpu_native.runtime_pressed_key_count()
+    for i in 0..<key_count {
+      let key = @wgpu_native.runtime_pressed_key_at(i)
+      if key >= 0 {
+        pressed_keys.push(key)
+      }
+    }
+    let pressed_mouse_buttons : Array[Int] = []
+    let mouse_button_count = @wgpu_native.runtime_pressed_mouse_button_count()
+    for i in 0..<mouse_button_count {
+      let button = @wgpu_native.runtime_pressed_mouse_button_at(i)
+      if button >= 0 {
+        pressed_mouse_buttons.push(button)
+      }
+    }
+
+    let touches : Array[@core.TouchPoint] = []
+    let touch_count = @wgpu_native.runtime_touch_count()
+    for i in 0..<touch_count {
+      let touch_id = @wgpu_native.runtime_touch_id_at(i)
+      if touch_id >= 0 {
+        touches.push(
+          @core.new_touch_point(
+            touch_id,
+            @wgpu_native.runtime_touch_x_at(i),
+            @wgpu_native.runtime_touch_y_at(i),
+          ),
+        )
+      }
+    }
+    if touches.length() == 0 {
+      let mut left_button_pressed = false
+      for button in pressed_mouse_buttons {
+        if button == 0 {
+          left_button_pressed = true
+        }
+      }
+      if left_button_pressed {
+        touches.push(@core.new_touch_point(0, cursor_x, cursor_y))
+      }
+    }
+
+    let gamepads : Array[@core.GamepadSnapshot] = []
+    let gamepad_count = @wgpu_native.runtime_gamepad_count()
+    for i in 0..<gamepad_count {
+      let gamepad_id = @wgpu_native.runtime_gamepad_id_at(i)
+      if gamepad_id >= 0 {
+        let axes : Array[Double] = []
+        let axis_count = @wgpu_native.runtime_gamepad_axis_count(i)
+        for j in 0..<axis_count {
+          axes.push(@wgpu_native.runtime_gamepad_axis_at(i, j))
+        }
+        let pressed_buttons : Array[Int] = []
+        let button_count = @wgpu_native.runtime_gamepad_pressed_button_count(i)
+        for j in 0..<button_count {
+          let button = @wgpu_native.runtime_gamepad_pressed_button_at(i, j)
+          if button >= 0 {
+            pressed_buttons.push(button)
+          }
+        }
+        gamepads.push(
+          @core.new_gamepad_snapshot(gamepad_id, axes, pressed_buttons),
+        )
+      }
+    }
+
+    @core.new_input_snapshot_full(
+      cursor_x, cursor_y, wheel_x, wheel_y, pressed_keys, pressed_mouse_buttons,
+      touches, gamepads,
+    )
+  } else {
+    @core.empty_input_snapshot()
+  }
 }
 
 ///|
@@ -186,6 +265,33 @@ fn bridge_gfx_on_draw(
       dispatch.src_image_count,
       dispatch.uniform_dword_count,
     )
+    let payload = @payload2d.decode_triangle_payload(
+      command.vertex_data,
+      command.indices,
+      command.uniform_dwords,
+      command.src_image_ids,
+    )
+    if payload.has_payload {
+      @wgpu_native.runtime_record_draw_triangle_payload(
+        payload.ax,
+        payload.ay,
+        payload.bx,
+        payload.by,
+        payload.cx,
+        payload.cy,
+        payload.au,
+        payload.av,
+        payload.bu,
+        payload.bv,
+        payload.cu,
+        payload.cv,
+        payload.uniform_r,
+        payload.uniform_g,
+        payload.uniform_b,
+        payload.uniform_a,
+        payload.texture_seed,
+      )
+    }
   }
 }
 

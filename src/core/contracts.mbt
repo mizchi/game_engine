@@ -36,6 +36,23 @@ pub struct InputSnapshot {
   wheel_x : Double
   wheel_y : Double
   pressed_keys : Array[Int]
+  pressed_mouse_buttons : Array[Int]
+  touches : Array[TouchPoint]
+  gamepads : Array[GamepadSnapshot]
+} derive(Show)
+
+///|
+pub struct TouchPoint {
+  id : Int
+  x : Double
+  y : Double
+} derive(Show)
+
+///|
+pub struct GamepadSnapshot {
+  id : Int
+  axes : Array[Double]
+  pressed_buttons : Array[Int]
 } derive(Show)
 
 ///|
@@ -60,6 +77,43 @@ pub fn new_frame_budget(
 }
 
 ///|
+pub fn new_touch_point(id : Int, x : Double, y : Double) -> TouchPoint {
+  { id, x, y }
+}
+
+///|
+pub fn new_gamepad_snapshot(
+  id : Int,
+  axes : Array[Double],
+  pressed_buttons : Array[Int],
+) -> GamepadSnapshot {
+  { id, axes, pressed_buttons }
+}
+
+///|
+pub fn new_input_snapshot_full(
+  cursor_x : Double,
+  cursor_y : Double,
+  wheel_x : Double,
+  wheel_y : Double,
+  pressed_keys : Array[Int],
+  pressed_mouse_buttons : Array[Int],
+  touches : Array[TouchPoint],
+  gamepads : Array[GamepadSnapshot],
+) -> InputSnapshot {
+  {
+    cursor_x,
+    cursor_y,
+    wheel_x,
+    wheel_y,
+    pressed_keys,
+    pressed_mouse_buttons,
+    touches,
+    gamepads,
+  }
+}
+
+///|
 pub fn new_input_snapshot(
   cursor_x : Double,
   cursor_y : Double,
@@ -67,7 +121,16 @@ pub fn new_input_snapshot(
   wheel_y : Double,
   pressed_keys : Array[Int],
 ) -> InputSnapshot {
-  { cursor_x, cursor_y, wheel_x, wheel_y, pressed_keys }
+  new_input_snapshot_full(
+    cursor_x,
+    cursor_y,
+    wheel_x,
+    wheel_y,
+    pressed_keys,
+    [],
+    [],
+    [],
+  )
 }
 
 ///|

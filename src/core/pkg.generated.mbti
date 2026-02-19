@@ -14,11 +14,17 @@ pub fn new_fixed_step_config(Int, Int) -> FixedStepConfig
 
 pub fn new_frame_budget(Int, Double, Int) -> FrameBudget
 
+pub fn new_gamepad_snapshot(Int, Array[Double], Array[Int]) -> GamepadSnapshot
+
 pub fn new_input_snapshot(Double, Double, Double, Double, Array[Int]) -> InputSnapshot
+
+pub fn new_input_snapshot_full(Double, Double, Double, Double, Array[Int], Array[Int], Array[TouchPoint], Array[GamepadSnapshot]) -> InputSnapshot
 
 pub fn new_noop_game(Int, Int) -> NoopGame
 
 pub fn new_outside_size(Double, Double) -> OutsideSize
+
+pub fn new_touch_point(Int, Double, Double) -> TouchPoint
 
 pub fn[T : Game] run_game(T, RunOptions) -> Unit
 
@@ -52,12 +58,22 @@ pub struct FrameBudget {
 }
 pub impl Show for FrameBudget
 
+pub struct GamepadSnapshot {
+  id : Int
+  axes : Array[Double]
+  pressed_buttons : Array[Int]
+}
+pub impl Show for GamepadSnapshot
+
 pub struct InputSnapshot {
   cursor_x : Double
   cursor_y : Double
   wheel_x : Double
   wheel_y : Double
   pressed_keys : Array[Int]
+  pressed_mouse_buttons : Array[Int]
+  touches : Array[TouchPoint]
+  gamepads : Array[GamepadSnapshot]
 }
 pub impl Show for InputSnapshot
 
@@ -92,6 +108,13 @@ pub struct StepResult {
   next_state : FixedStepState
 }
 pub impl Show for StepResult
+
+pub struct TouchPoint {
+  id : Int
+  x : Double
+  y : Double
+}
+pub impl Show for TouchPoint
 
 // Type aliases
 

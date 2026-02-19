@@ -85,6 +85,101 @@ static int g_windowed_x = 100;
 static int g_windowed_y = 100;
 static int g_windowed_width = 800;
 static int g_windowed_height = 600;
+static GLFWwindow* g_input_window = NULL;
+static double g_scroll_x = 0.0;
+static double g_scroll_y = 0.0;
+#define MOONBIT_MAX_TOUCHES 16
+typedef struct {
+  int32_t id;
+  double x;
+  double y;
+} moonbit_touch_state;
+static moonbit_touch_state g_touches[MOONBIT_MAX_TOUCHES];
+static int32_t g_touch_count = 0;
+static WGPUTextureFormat g_configured_surface_format = WGPUTextureFormat_BGRA8Unorm;
+
+static void moonbit_glfw_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+  if (window == NULL || window != g_input_window) {
+    return;
+  }
+  g_scroll_x += xoffset;
+  g_scroll_y += yoffset;
+}
+
+static int32_t moonbit_touch_id_from_identity(id identity) {
+  if (identity == nil) {
+    return -1;
+  }
+  const NSUInteger hash_value = [identity hash];
+  return (int32_t)(hash_value & 0x7fffffffU);
+}
+
+static void moonbit_reset_touches(void) {
+  g_touch_count = 0;
+  for (int i = 0; i < MOONBIT_MAX_TOUCHES; i++) {
+    g_touches[i].id = -1;
+    g_touches[i].x = 0.0;
+    g_touches[i].y = 0.0;
+  }
+}
+
+static void moonbit_update_touches(GLFWwindow* window) {
+  moonbit_reset_touches();
+  if (window == NULL || window != g_input_window) {
+    return;
+  }
+  NSWindow* nswindow = glfwGetCocoaWindow(window);
+  if (nswindow == nil) {
+    return;
+  }
+  NSView* contentView = [nswindow contentView];
+  if (contentView == nil) {
+    return;
+  }
+  NSEvent* event = [NSApp currentEvent];
+  if (event == nil) {
+    return;
+  }
+
+  NSSet* touches = nil;
+  @try {
+    touches = [event touchesMatchingPhase:NSTouchPhaseTouching inView:contentView];
+  } @catch (NSException* exception) {
+    (void)exception;
+    return;
+  }
+  if (touches == nil || [touches count] == 0) {
+    return;
+  }
+
+  NSRect bounds = [contentView bounds];
+  const double width = bounds.size.width > 0.0 ? bounds.size.width : 1.0;
+  const double height = bounds.size.height > 0.0 ? bounds.size.height : 1.0;
+
+  int32_t index = 0;
+  for (NSTouch* touch in touches) {
+    if (index >= MOONBIT_MAX_TOUCHES) {
+      break;
+    }
+    const NSPoint normalized = [touch normalizedPosition];
+    double x = normalized.x * width;
+    double y = (1.0 - normalized.y) * height;
+    if (x < 0.0) {
+      x = 0.0;
+    }
+    if (y < 0.0) {
+      y = 0.0;
+    }
+    g_touches[index].id = moonbit_touch_id_from_identity([touch identity]);
+    if (g_touches[index].id < 0) {
+      g_touches[index].id = index;
+    }
+    g_touches[index].x = x;
+    g_touches[index].y = y;
+    index++;
+  }
+  g_touch_count = index;
+}
 
 int32_t moonbit_glfw_is_fullscreen(GLFWwindow* window) {
   if (window == NULL) {
@@ -183,6 +278,271 @@ int32_t moonbit_glfw_get_cursor_mode(GLFWwindow* window) {
   return moonbit_cursor_mode_from_glfw(current);
 }
 
+double moonbit_glfw_get_cursor_x(GLFWwindow* window) {
+  if (window == NULL) {
+    return 0.0;
+  }
+  double cursor_x = 0.0;
+  double cursor_y = 0.0;
+  glfwGetCursorPos(window, &cursor_x, &cursor_y);
+  return cursor_x;
+}
+
+double moonbit_glfw_get_cursor_y(GLFWwindow* window) {
+  if (window == NULL) {
+    return 0.0;
+  }
+  double cursor_x = 0.0;
+  double cursor_y = 0.0;
+  glfwGetCursorPos(window, &cursor_x, &cursor_y);
+  return cursor_y;
+}
+
+double moonbit_glfw_take_scroll_x(GLFWwindow* window) {
+  if (window == NULL || window != g_input_window) {
+    return 0.0;
+  }
+  const double current = g_scroll_x;
+  g_scroll_x = 0.0;
+  return current;
+}
+
+double moonbit_glfw_take_scroll_y(GLFWwindow* window) {
+  if (window == NULL || window != g_input_window) {
+    return 0.0;
+  }
+  const double current = g_scroll_y;
+  g_scroll_y = 0.0;
+  return current;
+}
+
+int32_t moonbit_glfw_pressed_key_count(GLFWwindow* window) {
+  if (window == NULL) {
+    return 0;
+  }
+  int32_t count = 0;
+  for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++) {
+    const int state = glfwGetKey(window, key);
+    if (state == GLFW_PRESS || state == GLFW_REPEAT) {
+      count++;
+    }
+  }
+  return count;
+}
+
+int32_t moonbit_glfw_pressed_key_at(GLFWwindow* window, int32_t index) {
+  if (window == NULL || index < 0) {
+    return -1;
+  }
+  int32_t current_index = 0;
+  for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++) {
+    const int state = glfwGetKey(window, key);
+    if (state == GLFW_PRESS || state == GLFW_REPEAT) {
+      if (current_index == index) {
+        return key;
+      }
+      current_index++;
+    }
+  }
+  return -1;
+}
+
+int32_t moonbit_glfw_pressed_mouse_button_count(GLFWwindow* window) {
+  if (window == NULL) {
+    return 0;
+  }
+  int32_t count = 0;
+  for (int button = GLFW_MOUSE_BUTTON_1; button <= GLFW_MOUSE_BUTTON_LAST; button++) {
+    const int state = glfwGetMouseButton(window, button);
+    if (state == GLFW_PRESS) {
+      count++;
+    }
+  }
+  return count;
+}
+
+int32_t moonbit_glfw_pressed_mouse_button_at(GLFWwindow* window, int32_t index) {
+  if (window == NULL || index < 0) {
+    return -1;
+  }
+  int32_t current_index = 0;
+  for (int button = GLFW_MOUSE_BUTTON_1; button <= GLFW_MOUSE_BUTTON_LAST; button++) {
+    const int state = glfwGetMouseButton(window, button);
+    if (state == GLFW_PRESS) {
+      if (current_index == index) {
+        return button;
+      }
+      current_index++;
+    }
+  }
+  return -1;
+}
+
+int32_t moonbit_glfw_touch_count(GLFWwindow* window) {
+  moonbit_update_touches(window);
+  return g_touch_count;
+}
+
+int32_t moonbit_glfw_touch_id_at(GLFWwindow* window, int32_t index) {
+  moonbit_update_touches(window);
+  if (index < 0 || index >= g_touch_count) {
+    return -1;
+  }
+  return g_touches[index].id;
+}
+
+double moonbit_glfw_touch_x_at(GLFWwindow* window, int32_t index) {
+  moonbit_update_touches(window);
+  if (index < 0 || index >= g_touch_count) {
+    return 0.0;
+  }
+  return g_touches[index].x;
+}
+
+double moonbit_glfw_touch_y_at(GLFWwindow* window, int32_t index) {
+  moonbit_update_touches(window);
+  if (index < 0 || index >= g_touch_count) {
+    return 0.0;
+  }
+  return g_touches[index].y;
+}
+
+#if defined(GLFW_GAMEPAD_AXIS_LAST) && defined(GLFW_GAMEPAD_BUTTON_LAST)
+static int32_t moonbit_glfw_gamepad_jid_at(int32_t index) {
+  if (index < 0) {
+    return -1;
+  }
+  int32_t current_index = 0;
+  for (int jid = GLFW_JOYSTICK_1; jid <= GLFW_JOYSTICK_LAST; jid++) {
+    if (glfwJoystickPresent(jid) != GLFW_TRUE) {
+      continue;
+    }
+    if (glfwJoystickIsGamepad(jid) != GLFW_TRUE) {
+      continue;
+    }
+    if (current_index == index) {
+      return (int32_t)jid;
+    }
+    current_index++;
+  }
+  return -1;
+}
+
+int32_t moonbit_glfw_gamepad_count(void) {
+  int32_t count = 0;
+  for (int jid = GLFW_JOYSTICK_1; jid <= GLFW_JOYSTICK_LAST; jid++) {
+    if (glfwJoystickPresent(jid) == GLFW_TRUE && glfwJoystickIsGamepad(jid) == GLFW_TRUE) {
+      count++;
+    }
+  }
+  return count;
+}
+
+int32_t moonbit_glfw_gamepad_id_at(int32_t index) {
+  return moonbit_glfw_gamepad_jid_at(index);
+}
+
+int32_t moonbit_glfw_gamepad_axis_count(int32_t index) {
+  const int32_t jid = moonbit_glfw_gamepad_jid_at(index);
+  if (jid < 0) {
+    return 0;
+  }
+  GLFWgamepadstate state;
+  if (glfwGetGamepadState((int)jid, &state) != GLFW_TRUE) {
+    return 0;
+  }
+  return (int32_t)(GLFW_GAMEPAD_AXIS_LAST + 1);
+}
+
+double moonbit_glfw_gamepad_axis_at(int32_t gamepad_index, int32_t axis_index) {
+  if (axis_index < 0 || axis_index > GLFW_GAMEPAD_AXIS_LAST) {
+    return 0.0;
+  }
+  const int32_t jid = moonbit_glfw_gamepad_jid_at(gamepad_index);
+  if (jid < 0) {
+    return 0.0;
+  }
+  GLFWgamepadstate state;
+  if (glfwGetGamepadState((int)jid, &state) != GLFW_TRUE) {
+    return 0.0;
+  }
+  return (double)state.axes[axis_index];
+}
+
+int32_t moonbit_glfw_gamepad_pressed_button_count(int32_t index) {
+  const int32_t jid = moonbit_glfw_gamepad_jid_at(index);
+  if (jid < 0) {
+    return 0;
+  }
+  GLFWgamepadstate state;
+  if (glfwGetGamepadState((int)jid, &state) != GLFW_TRUE) {
+    return 0;
+  }
+  int32_t count = 0;
+  for (int button = 0; button <= GLFW_GAMEPAD_BUTTON_LAST; button++) {
+    if (state.buttons[button] == GLFW_PRESS) {
+      count++;
+    }
+  }
+  return count;
+}
+
+int32_t moonbit_glfw_gamepad_pressed_button_at(int32_t gamepad_index, int32_t button_index) {
+  if (button_index < 0) {
+    return -1;
+  }
+  const int32_t jid = moonbit_glfw_gamepad_jid_at(gamepad_index);
+  if (jid < 0) {
+    return -1;
+  }
+  GLFWgamepadstate state;
+  if (glfwGetGamepadState((int)jid, &state) != GLFW_TRUE) {
+    return -1;
+  }
+  int32_t current_index = 0;
+  for (int button = 0; button <= GLFW_GAMEPAD_BUTTON_LAST; button++) {
+    if (state.buttons[button] == GLFW_PRESS) {
+      if (current_index == button_index) {
+        return (int32_t)button;
+      }
+      current_index++;
+    }
+  }
+  return -1;
+}
+#else
+int32_t moonbit_glfw_gamepad_count(void) {
+  return 0;
+}
+
+int32_t moonbit_glfw_gamepad_id_at(int32_t index) {
+  (void)index;
+  return -1;
+}
+
+int32_t moonbit_glfw_gamepad_axis_count(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+double moonbit_glfw_gamepad_axis_at(int32_t gamepad_index, int32_t axis_index) {
+  (void)gamepad_index;
+  (void)axis_index;
+  return 0.0;
+}
+
+int32_t moonbit_glfw_gamepad_pressed_button_count(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+int32_t moonbit_glfw_gamepad_pressed_button_at(int32_t gamepad_index, int32_t button_index) {
+  (void)gamepad_index;
+  (void)button_index;
+  return -1;
+}
+#endif
+
 double moonbit_glfw_get_window_content_scale(GLFWwindow* window) {
   if (window == NULL) {
     return 1.0;
@@ -232,6 +592,31 @@ GLFWwindow* moonbit_glfw_create_window_safe(int32_t width, int32_t height, uint1
 
   // ウィンドウ作成
   GLFWwindow* window = glfwCreateWindow(width, height, title_utf8, NULL, NULL);
+  g_input_window = window;
+  g_scroll_x = 0.0;
+  g_scroll_y = 0.0;
+  if (window != NULL) {
+    glfwSetScrollCallback(window, moonbit_glfw_scroll_callback);
+    NSWindow* nswindow = glfwGetCocoaWindow(window);
+    if (nswindow != nil) {
+      NSView* contentView = [nswindow contentView];
+      if (contentView != nil) {
+        if ([contentView respondsToSelector:@selector(setAllowedTouchTypes:)]) {
+          [contentView setAllowedTouchTypes:(NSTouchTypeMaskDirect | NSTouchTypeMaskIndirect)];
+        }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        if ([contentView respondsToSelector:@selector(setAcceptsTouchEvents:)]) {
+          [contentView setAcceptsTouchEvents:YES];
+        }
+#pragma clang diagnostic pop
+        if ([contentView respondsToSelector:@selector(setWantsRestingTouches:)]) {
+          [contentView setWantsRestingTouches:YES];
+        }
+      }
+    }
+  }
+  moonbit_reset_touches();
 
   return window;
 }
@@ -523,6 +908,7 @@ void moonbit_configure_surface(
   WGPUTextureFormat format = capabilities.formatCount > 0
     ? capabilities.formats[0]
     : WGPUTextureFormat_BGRA8Unorm;
+  g_configured_surface_format = format;
 
   printf("[C] Using format: %d\n", format);
 
@@ -572,6 +958,33 @@ char* utf16_to_utf8(uint16_t* utf16_str) {
   utf8_str[len] = '\0';
 
   return utf8_str;
+}
+
+static WGPUShaderModule moonbit_create_shader_module_from_utf8(
+    WGPUDevice device,
+    const char* wgsl_code
+) {
+  if (device == NULL || wgsl_code == NULL) {
+    return NULL;
+  }
+
+  WGPUShaderSourceWGSL wgslDesc = {
+    .chain = {
+      .next = NULL,
+      .sType = WGPUSType_ShaderSourceWGSL
+    },
+    .code = {
+      .data = wgsl_code,
+      .length = strlen(wgsl_code)
+    }
+  };
+
+  WGPUShaderModuleDescriptor descriptor = {
+    .nextInChain = (WGPUChainedStruct*)&wgslDesc,
+    .label = "Dynamic Payload Shader"
+  };
+
+  return wgpuDeviceCreateShaderModule(device, &descriptor);
 }
 
 // ShaderModule を作成（WGSL シェーダーコードから）
@@ -694,7 +1107,25 @@ static void moonbit_render_frame_impl(
     double clear_g,
     double clear_b,
     double clear_a,
-    int32_t draw_calls
+    int32_t draw_calls,
+    int32_t has_triangle_payload,
+    double ax,
+    double ay,
+    double bx,
+    double by,
+    double cx,
+    double cy,
+    double au,
+    double av,
+    double bu,
+    double bv,
+    double cu,
+    double cv,
+    double uniform_r,
+    double uniform_g,
+    double uniform_b,
+    double uniform_a,
+    int32_t texture_seed
 ) {
   if (draw_calls < 0) {
     draw_calls = 0;
@@ -753,10 +1184,76 @@ static void moonbit_render_frame_impl(
   };
 
   WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
+  WGPUShaderModule payload_shader = NULL;
+  WGPURenderPipeline payload_pipeline = NULL;
+  WGPURenderPipeline active_pipeline = pipeline;
 
   if (draw_calls > 0) {
+    if (has_triangle_payload != 0) {
+      const double texture_frequency = (double)((texture_seed % 11) + 1);
+      char wgsl[2048];
+      const int n = snprintf(
+        wgsl,
+        sizeof(wgsl),
+        "struct VsOut {\n"
+        "  @builtin(position) position: vec4f,\n"
+        "  @location(0) uv: vec2f,\n"
+        "};\n\n"
+        "@vertex\n"
+        "fn vs_main(@builtin(vertex_index) idx: u32) -> VsOut {\n"
+        "  let i = idx %% 3u;\n"
+        "  var pos = array<vec2f, 3>(vec2f(%f, %f), vec2f(%f, %f), vec2f(%f, %f));\n"
+        "  var uv = array<vec2f, 3>(vec2f(%f, %f), vec2f(%f, %f), vec2f(%f, %f));\n"
+        "  var out : VsOut;\n"
+        "  out.position = vec4f(pos[i], 0.0, 1.0);\n"
+        "  out.uv = uv[i];\n"
+        "  return out;\n"
+        "}\n\n"
+        "@fragment\n"
+        "fn fs_main(@location(0) in_uv: vec2f) -> @location(0) vec4f {\n"
+        "  let fu = floor(in_uv.x * %f);\n"
+        "  let fv = floor(in_uv.y * %f);\n"
+        "  let checker = step(0.5, fract((fu + fv) * 0.5));\n"
+        "  let tex = vec3f(0.15 + checker * 0.85, 0.2 + checker * 0.8, 0.25 + checker * 0.75);\n"
+        "  let tint = vec3f(%f, %f, %f);\n"
+        "  return vec4f(tex * tint, %f);\n"
+        "}\n",
+        ax,
+        ay,
+        bx,
+        by,
+        cx,
+        cy,
+        au,
+        av,
+        bu,
+        bv,
+        cu,
+        cv,
+        texture_frequency,
+        texture_frequency,
+        uniform_r,
+        uniform_g,
+        uniform_b,
+        uniform_a
+      );
+      if (n > 0 && (size_t)n < sizeof(wgsl)) {
+        payload_shader = moonbit_create_shader_module_from_utf8(device, wgsl);
+        if (payload_shader != NULL) {
+          payload_pipeline = moonbit_create_render_pipeline(
+            device,
+            payload_shader,
+            g_configured_surface_format
+          );
+          if (payload_pipeline != NULL) {
+            active_pipeline = payload_pipeline;
+          }
+        }
+      }
+    }
+
     // Pipeline を設定して三角形を描画
-    wgpuRenderPassEncoderSetPipeline(pass, pipeline);
+    wgpuRenderPassEncoderSetPipeline(pass, active_pipeline);
     for (int32_t i = 0; i < draw_calls; i++) {
       wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);  // 3 vertices
     }
@@ -784,6 +1281,12 @@ static void moonbit_render_frame_impl(
 
   // Texture を解放
   wgpuTextureRelease(surfaceTexture.texture);
+  if (payload_pipeline != NULL) {
+    wgpuRenderPipelineRelease(payload_pipeline);
+  }
+  if (payload_shader != NULL) {
+    wgpuShaderModuleRelease(payload_shader);
+  }
 }
 
 // 1フレーム描画（後方互換 API）
@@ -793,7 +1296,35 @@ void moonbit_render_frame(
     WGPUQueue queue,
     WGPURenderPipeline pipeline
 ) {
-  moonbit_render_frame_impl(surface, device, queue, pipeline, 0.1, 0.2, 0.3, 1.0, 1);
+  moonbit_render_frame_impl(
+    surface,
+    device,
+    queue,
+    pipeline,
+    0.1,
+    0.2,
+    0.3,
+    1.0,
+    1,
+    0,
+    0.0,
+    0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.5,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0
+  );
 }
 
 // 1フレーム描画（clear 色・draw 回数を指定）
@@ -817,6 +1348,84 @@ void moonbit_render_frame_with_plan(
     clear_g,
     clear_b,
     clear_a,
-    draw_calls
+    draw_calls,
+    0,
+    0.0,
+    0.5,
+    -0.5,
+    -0.5,
+    0.5,
+    -0.5,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0
+  );
+}
+
+void moonbit_render_frame_with_plan_payload(
+    WGPUSurface surface,
+    WGPUDevice device,
+    WGPUQueue queue,
+    WGPURenderPipeline pipeline,
+    double clear_r,
+    double clear_g,
+    double clear_b,
+    double clear_a,
+    int32_t draw_calls,
+    int32_t has_triangle_payload,
+    double ax,
+    double ay,
+    double bx,
+    double by,
+    double cx,
+    double cy,
+    double au,
+    double av,
+    double bu,
+    double bv,
+    double cu,
+    double cv,
+    double uniform_r,
+    double uniform_g,
+    double uniform_b,
+    double uniform_a,
+    int32_t texture_seed
+) {
+  moonbit_render_frame_impl(
+    surface,
+    device,
+    queue,
+    pipeline,
+    clear_r,
+    clear_g,
+    clear_b,
+    clear_a,
+    draw_calls,
+    has_triangle_payload,
+    ax,
+    ay,
+    bx,
+    by,
+    cx,
+    cy,
+    au,
+    av,
+    bu,
+    bv,
+    cu,
+    cv,
+    uniform_r,
+    uniform_g,
+    uniform_b,
+    uniform_a,
+    texture_seed
   );
 }

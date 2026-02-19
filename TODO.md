@@ -8,8 +8,8 @@
 
 ## 実装状況スナップショット (2026-02-19)
 
-- `moon test --target js`: 59 passed / 0 failed
-- `moon test --target native`: 55 passed / 0 failed
+- `moon test --target native`: 62 passed / 0 failed
+- `moon test --target js`: 65 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
 - `moon run src/examples/runtime_smoke_native --target native`: pass (`runtime_smoke_native: ok (real)`)
 - `pnpm e2e:smoke` (Playwright wasm/wasm-gc): 2 passed / 0 failed
@@ -31,20 +31,21 @@
 | Window/System API (fullscreen/cursor/monitor/deviceScale/vsync/close) | `run.go`, `internal/ui/ui.go`, `internal/ui/ui_glfw.go` | `PlatformDriver` API + wbtest 契約固定。Desktop は runtime bridge 経由で GLFW(close/fullscreen/cursor/content-scale/attention) を部分接続、Web は js runtime hook で DOM(fullscreen/cursor/close/attention/dpr) を部分接続 | 部分 |
 | Platform-Gfx 境界 (SurfaceToken) | `ui_glfw.go`, `ui_js.go` | `src/platform/surface_contracts.mbt` で token 化済み | 部分 |
 | GraphicsDriver 抽象 | `internal/graphicsdriver/graphics.go` | begin/end/new_image/new_shader/draw_triangles 契約 + stub 実装 | 部分 |
-| Native backend (wgpu + GLFW) | graphics driver 実装群 | `src/gfx_wgpu_native` で三角形描画まで実装。draw command のメタデータ（drawCalls/pipeline/uniform/blend/dst/shader/index/region/payload-count）を runtime bridge に伝播済み。`runtime_smoke_native` で payload-count 経路を実行確認 | 部分 |
+| Native backend (wgpu + GLFW) | graphics driver 実装群 | `src/gfx_wgpu_native` で三角形描画まで実装。draw command のメタデータ（drawCalls/pipeline/uniform/blend/dst/shader/index/region/payload-count）を runtime bridge に伝播済み。先頭三角形について position/UV + uniform + src_image_id を dynamic WGSL pipeline へ反映する最小経路を追加。`runtime_smoke_native` で実行確認 | 部分 |
 | Web backend (WebGPU/WebGL) | JS backend 群 | hook 経由で canvas/context 初期化 + clear pass + drawCalls 分の三角形描画 + WebGPU→WebGL2 fallback まで接続。draw command のメタデータ（pipeline/uniform/blend/dst/shader/index/region/payload-count）伝播済み。`runtime_smoke` wasm e2e で payload-count 経路を確認。頂点/UV/texture/uniform を使う実 draw path は未実装 | 部分 |
 | CommandQueue 集約/flush | `internal/graphicscommand/commandqueue.go` | `SimpleCommandQueue` で pipeline/texture(blit先)/blend/uniform/index 条件の merge を実装 | 部分 |
 | Image/Atlas 管理 | `internal/atlas/image.go` | `SimpleImageRepository`/`SimpleShaderRepository`/`SimpleMaterialRepository` と `SimpleAtlasAllocator` の最小実装を追加（高度な管理戦略は未実装） | 部分 |
 | Shader Frontend/Hash | `internal/graphics/shader.go`, `internal/shader/shader.go` | source 前処理 + entrypoint/unit/src-image 含む hash を実装。`//kage:unit` directive（pixels/texels）の解釈を追加（Kage本体は未実装） | 部分 |
 | Uniform 正規化 | `internal/ui/shader.go`, `internal/shaderir/program.go` | layout 長（preserved/user）正規化 + source の識別子境界に基づく unused uniform 0化を実装 | 部分 |
 | Builtin shader source | `internal/builtinshader/shader.go` | filter/address/color_m 差分の WGSL source 生成 + lazy cache + clear/evict を実装 | 部分 |
-| Input snapshot 一貫性 | `internal/inputstate/inputstate.go` | Platform hook から tick ごとに取得する経路を追加。Web(JS hooks) は cursor/wheel/pressed_keys の最小実装まで接続済み（touch/gamepad/native実入力は未実装） | 部分 |
+| Input snapshot 一貫性 | `internal/inputstate/inputstate.go` | Platform hook から tick ごとに取得する経路を追加。Web(JS hooks) は cursor/wheel/pressed_keys/mouse buttons/touches/gamepads の最小実装、Native(GLFW hooks) は cursor/wheel/pressed_keys/mouse buttons + gamepads + Cocoa touch 取得（touch 無効環境では left-click fallback）まで接続済み | 部分 |
+| 共通 2D payload decoder | `internal/graphicscommand/command.go` | `src/payload2d` に頂点/indices/uniform/src_image_id の decode 契約を分離。native hook で利用開始（後で独立 repo へ切り出し可能） | 部分 |
 | Text rendering | `text/v2` | `src/text/contracts.mbt` 契約のみ | 未着手 |
 | UI レイアウト統合 | Ebiten外 (拡張) | `src/ui/contracts.mbt` 契約のみ | 未着手 |
 | AI tick 実行基盤 | Ebiten外 (拡張) | `run_ai_tick` とテストあり (`src/ai/contracts*.mbt`) | 部分 |
 | Audio | `audio/*` | 対応モジュールなし | 未着手 |
 | Mobile ターゲット | `mobile/*` | ターゲット/実装とも未着手 | 未着手 |
-| Utility 系 (`vector`, `colorm`, `ebitenutil`, `inpututil`) | 各 package | `inpututil` 相当（JustPressed/JustReleased/Duration/Append）を最小実装。他は未着手 | 部分 |
+| Utility 系 (`vector`, `colorm`, `ebitenutil`, `inpututil`) | 各 package | `inpututil` 相当で key + mouse button の JustPressed/JustReleased/Duration/Append を実装。他は未着手 | 部分 |
 
 ## 優先 TODO (実装順)
 
@@ -78,9 +79,11 @@
 ### P1: 入力/実行系の基本互換
 
 11. 入力 snapshot を実デバイス連動にする  
-   - keyboard/mouse/wheel/button/touch/gamepad を tick 一貫性で取得。
+   - keyboard/cursor/wheel/mouse buttons は Web + Native で最小接続済み。gamepad は Web + Native で最小接続済み。  
+   - native touch は Cocoa event からの取得を追加済み。gesture/trackpad 以外の環境では left-click fallback が残るため、実機差分を詰める。
 12. `inpututil` 相当 API を追加する  
-   - JustPressed/JustReleased などの差分 API を提供。
+   - key + mouse button の差分 API は実装済み。  
+   - touch/gamepad 向けの差分 API を追加する。
 13. window/system API を本実装レベルに引き上げる  
    - fullscreen, cursor, monitor, deviceScale, vsync, close/requestAttention は契約 + 部分実装まで完了。  
    - GLFW / browser での edge-case（非同期 fullscreen 反映、pointer lock 状態同期、vsync 実反映）を詰める。

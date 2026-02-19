@@ -8,9 +8,15 @@ import {
 // Values
 pub fn append_just_pressed_keys(KeyInputState, Array[Int]) -> Array[Int]
 
+pub fn append_just_pressed_mouse_buttons(MouseButtonInputState, Array[Int]) -> Array[Int]
+
 pub fn append_just_released_keys(KeyInputState, Array[Int]) -> Array[Int]
 
+pub fn append_just_released_mouse_buttons(MouseButtonInputState, Array[Int]) -> Array[Int]
+
 pub fn append_pressed_keys(KeyInputState, Array[Int]) -> Array[Int]
+
+pub fn append_pressed_mouse_buttons(MouseButtonInputState, Array[Int]) -> Array[Int]
 
 pub fn is_key_just_pressed(KeyInputState, Int) -> Bool
 
@@ -18,11 +24,23 @@ pub fn is_key_just_released(KeyInputState, Int) -> Bool
 
 pub fn is_key_pressed(KeyInputState, Int) -> Bool
 
+pub fn is_mouse_button_just_pressed(MouseButtonInputState, Int) -> Bool
+
+pub fn is_mouse_button_just_released(MouseButtonInputState, Int) -> Bool
+
+pub fn is_mouse_button_pressed(MouseButtonInputState, Int) -> Bool
+
 pub fn key_press_duration(KeyInputState, Int) -> Int
+
+pub fn mouse_button_press_duration(MouseButtonInputState, Int) -> Int
 
 pub fn new_key_input_state() -> KeyInputState
 
+pub fn new_mouse_input_state() -> MouseButtonInputState
+
 pub fn update_key_input_state(KeyInputState, @core.InputSnapshot) -> Unit
+
+pub fn update_mouse_input_state(MouseButtonInputState, @core.InputSnapshot) -> Unit
 
 // Errors
 
@@ -36,6 +54,17 @@ pub struct KeyInputState {
   mut just_pressed_keys : Array[Int]
   mut just_released_keys : Array[Int]
   mut durations : Array[KeyDurationEntry]
+}
+
+type MouseButtonDurationEntry
+pub impl Show for MouseButtonDurationEntry
+
+pub struct MouseButtonInputState {
+  mut prev_pressed_buttons : Array[Int]
+  mut pressed_buttons : Array[Int]
+  mut just_pressed_buttons : Array[Int]
+  mut just_released_buttons : Array[Int]
+  mut durations : Array[MouseButtonDurationEntry]
 }
 
 // Type aliases

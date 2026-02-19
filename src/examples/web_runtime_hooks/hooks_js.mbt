@@ -155,6 +155,9 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|     if (typeof state.wheelX !== "number") state.wheelX = 0;
   #|     if (typeof state.wheelY !== "number") state.wheelY = 0;
   #|     if (!Array.isArray(state.pressedKeys)) state.pressedKeys = [];
+  #|     if (!Array.isArray(state.pressedMouseButtons)) state.pressedMouseButtons = [];
+  #|     if (!Array.isArray(state.touches)) state.touches = [];
+  #|     if (!Array.isArray(state.testGamepads)) state.testGamepads = [];
   #|     if (state.inputHooksInstalled == null) state.inputHooksInstalled = false;
   #|     if (state.webgpu == null) {
   #|       state.webgpu = { context: null, device: null, format: "bgra8unorm", pending: null, pipeline: null, pipelineFormat: "", presentScheduled: false, clear: [0, 0, 0, 1], drawCalls: 0, commandCount: 0, lastPipelineId: 0, lastUniformHash: 0, lastBlendMode: 1, lastDstImageId: 0, lastShaderId: 0, lastIndexOffset: 0, lastRegionCount: 0, lastTotalIndexCount: 0, lastVertexFloatCount: 0, lastIndexCount: 0, lastSrcImageCount: 0, lastUniformDwordCount: 0, lastError: "" };
@@ -269,6 +272,58 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|           }
   #|           current.pressedKeys = next;
   #|         };
+  #|         const normalizeMouseButton = (event) => {
+  #|           if (event == null) return -1;
+  #|           const raw = Number(event.button ?? -1) | 0;
+  #|           return raw >= 0 ? raw : -1;
+  #|         };
+  #|         const addPressedMouseButton = (current, button) => {
+  #|           if (button < 0) return;
+  #|           if (!Array.isArray(current.pressedMouseButtons)) current.pressedMouseButtons = [];
+  #|           for (let i = 0; i < current.pressedMouseButtons.length; i++) {
+  #|             if ((Number(current.pressedMouseButtons[i]) | 0) === button) return;
+  #|           }
+  #|           current.pressedMouseButtons.push(button);
+  #|         };
+  #|         const removePressedMouseButton = (current, button) => {
+  #|           if (button < 0) return;
+  #|           if (!Array.isArray(current.pressedMouseButtons)) {
+  #|             current.pressedMouseButtons = [];
+  #|             return;
+  #|           }
+  #|           const next = [];
+  #|           for (let i = 0; i < current.pressedMouseButtons.length; i++) {
+  #|             const value = Number(current.pressedMouseButtons[i]) | 0;
+  #|             if (value !== button) next.push(value);
+  #|           }
+  #|           current.pressedMouseButtons = next;
+  #|         };
+  #|         const syncTouches = (current, event) => {
+  #|           if (current == null) return;
+  #|           const list = event?.touches;
+  #|           if (list == null || typeof list.length !== "number") {
+  #|             current.touches = [];
+  #|             return;
+  #|           }
+  #|           const next = [];
+  #|           for (let i = 0; i < list.length; i++) {
+  #|             const touch = list[i];
+  #|             if (touch == null) continue;
+  #|             let x = Number(touch.clientX ?? 0);
+  #|             let y = Number(touch.clientY ?? 0);
+  #|             if (current.canvas != null && typeof current.canvas.getBoundingClientRect === "function") {
+  #|               const rect = current.canvas.getBoundingClientRect();
+  #|               x = x - Number(rect.left ?? 0);
+  #|               y = y - Number(rect.top ?? 0);
+  #|             }
+  #|             next.push({
+  #|               id: Number(touch.identifier ?? 0) | 0,
+  #|               x: Number.isFinite(x) ? x : 0,
+  #|               y: Number.isFinite(y) ? y : 0,
+  #|             });
+  #|           }
+  #|           current.touches = next;
+  #|         };
   #|         const updateCursor = (current, event) => {
   #|           if (current == null || event == null) return;
   #|           let x = Number(event.clientX ?? 0);
@@ -286,6 +341,18 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|           if (current == null) return;
   #|           updateCursor(current, event);
   #|         });
+  #|         doc.addEventListener("mousedown", (event) => {
+  #|           const current = root.__gameEngineWebRuntime;
+  #|           if (current == null) return;
+  #|           updateCursor(current, event);
+  #|           addPressedMouseButton(current, normalizeMouseButton(event));
+  #|         });
+  #|         doc.addEventListener("mouseup", (event) => {
+  #|           const current = root.__gameEngineWebRuntime;
+  #|           if (current == null) return;
+  #|           updateCursor(current, event);
+  #|           removePressedMouseButton(current, normalizeMouseButton(event));
+  #|         });
   #|         doc.addEventListener("wheel", (event) => {
   #|           const current = root.__gameEngineWebRuntime;
   #|           if (current == null) return;
@@ -293,6 +360,26 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|           const dy = Number(event?.deltaY ?? 0);
   #|           current.wheelX = Number(current.wheelX ?? 0) + (Number.isFinite(dx) ? dx : 0);
   #|           current.wheelY = Number(current.wheelY ?? 0) + (Number.isFinite(dy) ? dy : 0);
+  #|         }, { passive: true });
+  #|         doc.addEventListener("touchstart", (event) => {
+  #|           const current = root.__gameEngineWebRuntime;
+  #|           if (current == null) return;
+  #|           syncTouches(current, event);
+  #|         }, { passive: true });
+  #|         doc.addEventListener("touchmove", (event) => {
+  #|           const current = root.__gameEngineWebRuntime;
+  #|           if (current == null) return;
+  #|           syncTouches(current, event);
+  #|         }, { passive: true });
+  #|         doc.addEventListener("touchend", (event) => {
+  #|           const current = root.__gameEngineWebRuntime;
+  #|           if (current == null) return;
+  #|           syncTouches(current, event);
+  #|         }, { passive: true });
+  #|         doc.addEventListener("touchcancel", (event) => {
+  #|           const current = root.__gameEngineWebRuntime;
+  #|           if (current == null) return;
+  #|           syncTouches(current, event);
   #|         }, { passive: true });
   #|         const targetWindow = typeof window === "undefined" ? null : window;
   #|         if (targetWindow != null && typeof targetWindow.addEventListener === "function") {
@@ -310,6 +397,8 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|             const current = root.__gameEngineWebRuntime;
   #|             if (current == null) return;
   #|             current.pressedKeys = [];
+  #|             current.pressedMouseButtons = [];
+  #|             current.touches = [];
   #|             current.wheelX = 0;
   #|             current.wheelY = 0;
   #|           });
@@ -570,6 +659,259 @@ extern "js" fn js_input_pressed_key_at(index : Int) -> Int =
   #|   const i = Number(index) | 0;
   #|   if (i < 0 || i >= state.pressedKeys.length) return 0;
   #|   return Number(state.pressedKeys[i] ?? 0) | 0;
+  #| }
+
+///|
+extern "js" fn js_input_pressed_mouse_button_count() -> Int =
+  #| () => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   if (state == null || !Array.isArray(state.pressedMouseButtons)) return 0;
+  #|   return Math.max(0, Number(state.pressedMouseButtons.length) | 0);
+  #| }
+
+///|
+extern "js" fn js_input_pressed_mouse_button_at(index : Int) -> Int =
+  #| (index) => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   if (state == null || !Array.isArray(state.pressedMouseButtons)) return -1;
+  #|   const i = Number(index) | 0;
+  #|   if (i < 0 || i >= state.pressedMouseButtons.length) return -1;
+  #|   return Number(state.pressedMouseButtons[i] ?? -1) | 0;
+  #| }
+
+///|
+extern "js" fn js_input_touch_count() -> Int =
+  #| () => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   if (state == null || !Array.isArray(state.touches)) return 0;
+  #|   return Math.max(0, Number(state.touches.length) | 0);
+  #| }
+
+///|
+extern "js" fn js_input_touch_id_at(index : Int) -> Int =
+  #| (index) => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   if (state == null || !Array.isArray(state.touches)) return 0;
+  #|   const i = Number(index) | 0;
+  #|   if (i < 0 || i >= state.touches.length) return 0;
+  #|   const touch = state.touches[i];
+  #|   return Number(touch?.id ?? 0) | 0;
+  #| }
+
+///|
+extern "js" fn js_input_touch_x_at(index : Int) -> Double =
+  #| (index) => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   if (state == null || !Array.isArray(state.touches)) return 0;
+  #|   const i = Number(index) | 0;
+  #|   if (i < 0 || i >= state.touches.length) return 0;
+  #|   const touch = state.touches[i];
+  #|   return Number(touch?.x ?? 0) || 0;
+  #| }
+
+///|
+extern "js" fn js_input_touch_y_at(index : Int) -> Double =
+  #| (index) => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   if (state == null || !Array.isArray(state.touches)) return 0;
+  #|   const i = Number(index) | 0;
+  #|   if (i < 0 || i >= state.touches.length) return 0;
+  #|   const touch = state.touches[i];
+  #|   return Number(touch?.y ?? 0) || 0;
+  #| }
+
+///|
+extern "js" fn js_input_gamepad_count() -> Int =
+  #| () => {
+  #|   const root = globalThis;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   if (state != null && Array.isArray(state.testGamepads) && state.testGamepads.length > 0) {
+  #|     return Math.max(0, Number(state.testGamepads.length) | 0);
+  #|   }
+  #|   const nav = root.navigator;
+  #|   if (nav == null || typeof nav.getGamepads !== "function") return 0;
+  #|   const pads = nav.getGamepads();
+  #|   if (pads == null || typeof pads.length !== "number") return 0;
+  #|   let count = 0;
+  #|   for (let i = 0; i < pads.length; i++) {
+  #|     if (pads[i] != null) count++;
+  #|   }
+  #|   return count | 0;
+  #| }
+
+///|
+extern "js" fn js_input_gamepad_id_at(index : Int) -> Int =
+  #| (index) => {
+  #|   const root = globalThis;
+  #|   const i = Number(index) | 0;
+  #|   if (i < 0) return -1;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
+  #|   if (testPads != null && testPads.length > 0) {
+  #|     if (i >= testPads.length || testPads[i] == null) return -1;
+  #|     return Number(testPads[i].id ?? i) | 0;
+  #|   }
+  #|   const nav = root.navigator;
+  #|   if (nav == null || typeof nav.getGamepads !== "function") return -1;
+  #|   const pads = nav.getGamepads();
+  #|   if (pads == null || typeof pads.length !== "number") return -1;
+  #|   let found = 0;
+  #|   for (let padIndex = 0; padIndex < pads.length; padIndex++) {
+  #|     const pad = pads[padIndex];
+  #|     if (pad == null) continue;
+  #|     if (found === i) {
+  #|       return Number(pad.index ?? padIndex) | 0;
+  #|     }
+  #|     found++;
+  #|   }
+  #|   return -1;
+  #| }
+
+///|
+extern "js" fn js_input_gamepad_pressed_button_count(
+  gamepad_index : Int,
+) -> Int =
+  #| (gamepadIndex) => {
+  #|   const root = globalThis;
+  #|   const gpIndex = Number(gamepadIndex) | 0;
+  #|   if (gpIndex < 0) return 0;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
+  #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
+  #|   if (target != null && Array.isArray(target.pressedButtons)) {
+  #|     return Math.max(0, Number(target.pressedButtons.length) | 0);
+  #|   }
+  #|   const nav = root.navigator;
+  #|   if (nav == null || typeof nav.getGamepads !== "function") return 0;
+  #|   const pads = nav.getGamepads();
+  #|   if (pads == null) return 0;
+  #|   let found = 0;
+  #|   let pad = null;
+  #|   for (let i = 0; i < pads.length; i++) {
+  #|     if (pads[i] == null) continue;
+  #|     if (found === gpIndex) {
+  #|       pad = pads[i];
+  #|       break;
+  #|     }
+  #|     found++;
+  #|   }
+  #|   if (pad == null || !Array.isArray(pad.buttons)) return 0;
+  #|   let count = 0;
+  #|   for (let i = 0; i < pad.buttons.length; i++) {
+  #|     const button = pad.buttons[i];
+  #|     if (button != null && !!button.pressed) count++;
+  #|   }
+  #|   return count | 0;
+  #| }
+
+///|
+extern "js" fn js_input_gamepad_pressed_button_at(
+  gamepad_index : Int,
+  button_index : Int,
+) -> Int =
+  #| (gamepadIndex, buttonIndex) => {
+  #|   const root = globalThis;
+  #|   const gpIndex = Number(gamepadIndex) | 0;
+  #|   const btnIndex = Number(buttonIndex) | 0;
+  #|   if (gpIndex < 0 || btnIndex < 0) return -1;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
+  #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
+  #|   if (target != null && Array.isArray(target.pressedButtons)) {
+  #|     if (btnIndex >= target.pressedButtons.length) return -1;
+  #|     return Number(target.pressedButtons[btnIndex] ?? -1) | 0;
+  #|   }
+  #|   const nav = root.navigator;
+  #|   if (nav == null || typeof nav.getGamepads !== "function") return -1;
+  #|   const pads = nav.getGamepads();
+  #|   if (pads == null) return -1;
+  #|   let foundPad = null;
+  #|   let found = 0;
+  #|   for (let i = 0; i < pads.length; i++) {
+  #|     if (pads[i] == null) continue;
+  #|     if (found === gpIndex) {
+  #|       foundPad = pads[i];
+  #|       break;
+  #|     }
+  #|     found++;
+  #|   }
+  #|   const pad = foundPad;
+  #|   if (pad == null || !Array.isArray(pad.buttons)) return -1;
+  #|   let pressedFound = 0;
+  #|   for (let i = 0; i < pad.buttons.length; i++) {
+  #|     const button = pad.buttons[i];
+  #|     if (button != null && !!button.pressed) {
+  #|       if (pressedFound === btnIndex) return i;
+  #|       pressedFound++;
+  #|     }
+  #|   }
+  #|   return -1;
+  #| }
+
+///|
+extern "js" fn js_input_gamepad_axis_count(gamepad_index : Int) -> Int =
+  #| (gamepadIndex) => {
+  #|   const root = globalThis;
+  #|   const gpIndex = Number(gamepadIndex) | 0;
+  #|   if (gpIndex < 0) return 0;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
+  #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
+  #|   if (target != null && Array.isArray(target.axes)) {
+  #|     return Math.max(0, Number(target.axes.length) | 0);
+  #|   }
+  #|   const nav = root.navigator;
+  #|   if (nav == null || typeof nav.getGamepads !== "function") return 0;
+  #|   const pads = nav.getGamepads();
+  #|   if (pads == null) return 0;
+  #|   let found = 0;
+  #|   let pad = null;
+  #|   for (let i = 0; i < pads.length; i++) {
+  #|     if (pads[i] == null) continue;
+  #|     if (found === gpIndex) {
+  #|       pad = pads[i];
+  #|       break;
+  #|     }
+  #|     found++;
+  #|   }
+  #|   if (pad == null || !Array.isArray(pad.axes)) return 0;
+  #|   return Math.max(0, Number(pad.axes.length) | 0);
+  #| }
+
+///|
+extern "js" fn js_input_gamepad_axis_at(
+  gamepad_index : Int,
+  axis_index : Int,
+) -> Double =
+  #| (gamepadIndex, axisIndex) => {
+  #|   const root = globalThis;
+  #|   const gpIndex = Number(gamepadIndex) | 0;
+  #|   const axIndex = Number(axisIndex) | 0;
+  #|   if (gpIndex < 0 || axIndex < 0) return 0;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
+  #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
+  #|   if (target != null && Array.isArray(target.axes)) {
+  #|     if (axIndex >= target.axes.length) return 0;
+  #|     return Number(target.axes[axIndex] ?? 0) || 0;
+  #|   }
+  #|   const nav = root.navigator;
+  #|   if (nav == null || typeof nav.getGamepads !== "function") return 0;
+  #|   const pads = nav.getGamepads();
+  #|   if (pads == null) return 0;
+  #|   let found = 0;
+  #|   let pad = null;
+  #|   for (let i = 0; i < pads.length; i++) {
+  #|     if (pads[i] == null) continue;
+  #|     if (found === gpIndex) {
+  #|       pad = pads[i];
+  #|       break;
+  #|     }
+  #|     found++;
+  #|   }
+  #|   if (pad == null || !Array.isArray(pad.axes)) return 0;
+  #|   if (axIndex >= pad.axes.length) return 0;
+  #|   return Number(pad.axes[axIndex] ?? 0) || 0;
   #| }
 
 ///|
@@ -1493,6 +1835,104 @@ extern "js" fn test_set_input_state(
   #|   if (count > 0) keys.push(Number(key0) | 0);
   #|   if (count > 1) keys.push(Number(key1) | 0);
   #|   state.pressedKeys = keys;
+  #|   state.pressedMouseButtons = [];
+  #|   state.touches = [];
+  #|   state.testGamepads = [];
+  #| }
+
+///|
+extern "js" fn test_set_extended_input_state(
+  cursor_x : Double,
+  cursor_y : Double,
+  wheel_x : Double,
+  wheel_y : Double,
+  key0 : Int,
+  key1 : Int,
+  key_count : Int,
+  mouse_button0 : Int,
+  mouse_button_count : Int,
+  _touch_count : Int,
+  touch0_id : Int,
+  touch0_x : Double,
+  touch0_y : Double,
+  gamepad_count : Int,
+  gamepad0_id : Int,
+  gamepad0_axis_count : Int,
+  gamepad0_axis0 : Double,
+  gamepad0_axis1 : Double,
+  gamepad0_button_count : Int,
+  gamepad0_button0 : Int,
+  gamepad0_button1 : Int,
+) -> Unit =
+  #| (
+  #|   cursorX,
+  #|   cursorY,
+  #|   wheelX,
+  #|   wheelY,
+  #|   key0,
+  #|   key1,
+  #|   keyCount,
+  #|   mouseButton0,
+  #|   mouseButtonCount,
+  #|   _touchCount,
+  #|   touch0Id,
+  #|   touch0X,
+  #|   touch0Y,
+  #|   gamepadCount,
+  #|   gamepad0Id,
+  #|   gamepad0AxisCount,
+  #|   gamepad0Axis0,
+  #|   gamepad0Axis1,
+  #|   gamepad0ButtonCount,
+  #|   gamepad0Button0,
+  #|   gamepad0Button1
+  #| ) => {
+  #|   const root = globalThis;
+  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
+  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   }
+  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   state.cursorX = Number(cursorX) || 0;
+  #|   state.cursorY = Number(cursorY) || 0;
+  #|   state.wheelX = Number(wheelX) || 0;
+  #|   state.wheelY = Number(wheelY) || 0;
+  #|   const count = Number(keyCount) | 0;
+  #|   const keys = [];
+  #|   if (count > 0) keys.push(Number(key0) | 0);
+  #|   if (count > 1) keys.push(Number(key1) | 0);
+  #|   state.pressedKeys = keys;
+  #|   const mouseCount = Number(mouseButtonCount) | 0;
+  #|   const mouseButtons = [];
+  #|   if (mouseCount > 0) mouseButtons.push(Number(mouseButton0) | 0);
+  #|   state.pressedMouseButtons = mouseButtons;
+  #|   state.touches = [{
+  #|     id: Number(touch0Id) | 0,
+  #|     x: Number(touch0X) || 0,
+  #|     y: Number(touch0Y) || 0,
+  #|   }];
+  #|   const gpCount = Number(gamepadCount) | 0;
+  #|   if (gpCount > 0) {
+  #|     const axes = [];
+  #|     const axisCount = Number(gamepad0AxisCount) | 0;
+  #|     if (axisCount > 0) axes.push(Number(gamepad0Axis0) || 0);
+  #|     if (axisCount > 1) axes.push(Number(gamepad0Axis1) || 0);
+  #|     const pressedButtons = [];
+  #|     const buttonCount = Number(gamepad0ButtonCount) | 0;
+  #|     if (buttonCount > 0) pressedButtons.push(Number(gamepad0Button0) | 0);
+  #|     if (buttonCount > 1) pressedButtons.push(Number(gamepad0Button1) | 0);
+  #|     state.testGamepads = [{ id: Number(gamepad0Id) | 0, axes, pressedButtons }];
+  #|   } else {
+  #|     state.testGamepads = [];
+  #|   }
+  #| }
+
+///|
+extern "js" fn test_reset_gamepad_state() -> Unit =
+  #| () => {
+  #|   const root = globalThis;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   if (state == null) return;
+  #|   state.testGamepads = [];
   #| }
 
 ///|
@@ -1622,6 +2062,9 @@ test "bridge_web_capture_input reads js input state and consumes wheel" {
   assert_eq(input2.wheel_x.to_int(), 0)
   assert_eq(input2.wheel_y.to_int(), 0)
   assert_eq(input2.pressed_keys.length(), 2)
+  assert_eq(input2.pressed_mouse_buttons.length(), 0)
+  assert_eq(input2.touches.length(), 0)
+  assert_eq(input2.gamepads.length(), 0)
 }
 
 ///|
@@ -1633,6 +2076,37 @@ test "bridge_web_capture_input returns empty snapshot when inactive" {
   assert_eq(input.wheel_x.to_int(), 0)
   assert_eq(input.wheel_y.to_int(), 0)
   assert_eq(input.pressed_keys.length(), 0)
+  assert_eq(input.pressed_mouse_buttons.length(), 0)
+  assert_eq(input.touches.length(), 0)
+  assert_eq(input.gamepads.length(), 0)
+}
+
+///|
+test "bridge_web_capture_input reads mouse touch and gamepad state" {
+  js_ensure_window_state("#app")
+  test_set_extended_input_state(
+    1.0, 2.0, 0.0, 0.0, 70, 71, 2, 1, 1, 0, 42, 88.0, 99.0, 1, 7, 2, 0.25, -0.5,
+    2, 0, 3,
+  )
+
+  let input = bridge_web_capture_input(true, 5)
+  assert_eq(input.pressed_keys.length(), 2)
+  assert_eq(input.pressed_mouse_buttons.length(), 1)
+  assert_eq(input.pressed_mouse_buttons[0], 1)
+  assert_eq(input.touches.length(), 1)
+  assert_eq(input.touches[0].id, 42)
+  assert_eq(input.touches[0].x.to_int(), 88)
+  assert_eq(input.touches[0].y.to_int(), 99)
+  assert_eq(input.gamepads.length(), 1)
+  assert_eq(input.gamepads[0].id, 7)
+  assert_eq(input.gamepads[0].axes.length(), 2)
+  assert_eq(input.gamepads[0].axes[0].to_int(), 0)
+  assert_eq(input.gamepads[0].axes[1].to_int(), 0)
+  assert_eq(input.gamepads[0].pressed_buttons.length(), 2)
+  assert_eq(input.gamepads[0].pressed_buttons[0], 0)
+  assert_eq(input.gamepads[0].pressed_buttons[1], 3)
+
+  test_reset_gamepad_state()
 }
 
 ///|
@@ -1861,12 +2335,63 @@ fn bridge_web_capture_input(active : Bool, _tick : Int) -> @core.InputSnapshot {
     for i in 0..<key_count {
       pressed_keys.push(js_input_pressed_key_at(i))
     }
-    let snapshot = @core.new_input_snapshot(
+    let pressed_mouse_buttons : Array[Int] = []
+    let mouse_button_count = js_input_pressed_mouse_button_count()
+    for i in 0..<mouse_button_count {
+      let button = js_input_pressed_mouse_button_at(i)
+      if button >= 0 {
+        pressed_mouse_buttons.push(button)
+      }
+    }
+
+    let touches : Array[@core.TouchPoint] = []
+    let touch_count = js_input_touch_count()
+    for i in 0..<touch_count {
+      touches.push(
+        @core.new_touch_point(
+          js_input_touch_id_at(i),
+          js_input_touch_x_at(i),
+          js_input_touch_y_at(i),
+        ),
+      )
+    }
+
+    let gamepads : Array[@core.GamepadSnapshot] = []
+    let gamepad_count = js_input_gamepad_count()
+    for i in 0..<gamepad_count {
+      let axes : Array[Double] = []
+      let axis_count = js_input_gamepad_axis_count(i)
+      for j in 0..<axis_count {
+        axes.push(js_input_gamepad_axis_at(i, j))
+      }
+
+      let pressed_buttons : Array[Int] = []
+      let button_count = js_input_gamepad_pressed_button_count(i)
+      for j in 0..<button_count {
+        let button_id = js_input_gamepad_pressed_button_at(i, j)
+        if button_id >= 0 {
+          pressed_buttons.push(button_id)
+        }
+      }
+
+      gamepads.push(
+        @core.new_gamepad_snapshot(
+          js_input_gamepad_id_at(i),
+          axes,
+          pressed_buttons,
+        ),
+      )
+    }
+
+    let snapshot = @core.new_input_snapshot_full(
       js_input_cursor_x(),
       js_input_cursor_y(),
       js_input_wheel_x(),
       js_input_wheel_y(),
       pressed_keys,
+      pressed_mouse_buttons,
+      touches,
+      gamepads,
     )
     js_clear_input_wheel()
     snapshot

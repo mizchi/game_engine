@@ -2,6 +2,7 @@ import {
   "mizchi/game_engine/core" @core,
   "mizchi/game_engine/gfx" @gfx,
   "mizchi/game_engine/gfx_wgpu_native" @wgpu_native,
+  "mizchi/game_engine/payload2d" @payload2d,
   "mizchi/game_engine/platform" @platform,
 }
 
