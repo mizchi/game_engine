@@ -175,6 +175,47 @@ fn run_with_real_native_hooks() -> Bool {
   let has_payload = @wgpu_native.runtime_last_index_count() > 0 &&
     @wgpu_native.runtime_last_vertex_float_count() > 0 &&
     @wgpu_native.runtime_last_uniform_dword_count() > 0
+  let payload_ax = @wgpu_native.runtime_payload_triangle_ax()
+  let payload_ay = @wgpu_native.runtime_payload_triangle_ay()
+  let payload_bx = @wgpu_native.runtime_payload_triangle_bx()
+  let payload_by = @wgpu_native.runtime_payload_triangle_by()
+  let payload_cx = @wgpu_native.runtime_payload_triangle_cx()
+  let payload_cy = @wgpu_native.runtime_payload_triangle_cy()
+  let payload_area2 = (payload_bx - payload_ax) * (payload_cy - payload_ay) -
+    (payload_by - payload_ay) * (payload_cx - payload_ax)
+  let payload_abs_area2 = if payload_area2 < 0.0 {
+    -payload_area2
+  } else {
+    payload_area2
+  }
+  let payload_geometry_valid = @wgpu_native.runtime_has_triangle_payload() &&
+    payload_ax >= -1.1 &&
+    payload_ax <= 1.1 &&
+    payload_ay >= -1.1 &&
+    payload_ay <= 1.1 &&
+    payload_bx >= -1.1 &&
+    payload_bx <= 1.1 &&
+    payload_by >= -1.1 &&
+    payload_by <= 1.1 &&
+    payload_cx >= -1.1 &&
+    payload_cx <= 1.1 &&
+    payload_cy >= -1.1 &&
+    payload_cy <= 1.1 &&
+    payload_abs_area2 > 0.05
+  let payload_uniform_r = @wgpu_native.runtime_payload_uniform_r()
+  let payload_uniform_g = @wgpu_native.runtime_payload_uniform_g()
+  let payload_uniform_b = @wgpu_native.runtime_payload_uniform_b()
+  let payload_uniform_a = @wgpu_native.runtime_payload_uniform_a()
+  let payload_uniform_valid = payload_uniform_r >= 0.0 &&
+    payload_uniform_r <= 1.0 &&
+    payload_uniform_g >= 0.0 &&
+    payload_uniform_g <= 1.0 &&
+    payload_uniform_b >= 0.0 &&
+    payload_uniform_b <= 1.0 &&
+    payload_uniform_a >= 0.0 &&
+    payload_uniform_a <= 1.0 &&
+    payload_uniform_a > 0.0 &&
+    payload_uniform_r + payload_uniform_g + payload_uniform_b > 0.0
   let atlas_draw_path_active = @wgpu_native.runtime_payload_texture_seed() ==
     runtime_smoke_atlas_page_id
   let source_image_synced = source_image_id >= 0 &&
@@ -214,11 +255,28 @@ fn run_with_real_native_hooks() -> Bool {
   let ready = @native_hooks.is_ready()
   @native_hooks.shutdown()
   @native_hooks.uninstall()
-  ready &&
-  has_payload &&
-  atlas_draw_path_active &&
-  source_image_synced &&
-  atlas_page_synced
+  if !ready {
+    return false
+  }
+  if !has_payload {
+    return false
+  }
+  if !payload_geometry_valid {
+    return false
+  }
+  if !payload_uniform_valid {
+    return false
+  }
+  if !atlas_draw_path_active {
+    return false
+  }
+  if !source_image_synced {
+    return false
+  }
+  if !atlas_page_synced {
+    return false
+  }
+  true
 }
 
 ///|
