@@ -9,16 +9,40 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Int raise {
   let repository = @asset.new_simple_image_repository()
   let source_key_0 = @asset.new_asset_key("runtime_smoke/source0")
   let source_key_1 = @asset.new_asset_key("runtime_smoke/source1")
-  let _ = repository.create_image(
-    source_key_0,
+  let source0_png = @asset.encode_png_image_spec(
     @asset.image_spec_with_rgba8(1, 1, [255, 255, 255, 255]),
-  )
-  let source = repository.create_image(
-    source_key_1,
+  ) catch {
+    _ => panic()
+  }
+  let source0 = @asset.create_image_from_raster_bytes(
+    repository,
+    source_key_0,
+    source0_png,
+  ) catch {
+    _ => None
+  }
+  match source0 {
+    Some(_) => ()
+    None => panic()
+  }
+  let source1_png = @asset.encode_png_image_spec(
     @asset.image_spec_with_rgba8(2, 2, [
       32, 200, 255, 255, 64, 128, 255, 255, 96, 64, 255, 255, 255, 255, 255, 255,
     ]),
-  )
+  ) catch {
+    _ => panic()
+  }
+  let source_created = @asset.create_image_from_raster_bytes(
+    repository,
+    source_key_1,
+    source1_png,
+  ) catch {
+    _ => None
+  }
+  let source = match source_created {
+    Some(handle) => handle
+    None => panic()
+  }
   let initial_synced = @native_hooks.sync_dirty_source_images_from_repository(
     repository,
   )
@@ -32,13 +56,20 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Int raise {
     panic()
   }
 
-  let updated = @asset.update_image_spec(
-    repository,
-    source_key_1,
+  let source_updated_png = @asset.encode_png_image_spec(
     @asset.image_spec_with_rgba8(2, 2, [
       33, 200, 255, 255, 64, 128, 255, 255, 96, 64, 255, 255, 255, 255, 255, 255,
     ]),
-  )
+  ) catch {
+    _ => panic()
+  }
+  let updated = @asset.update_image_from_raster_bytes(
+    repository,
+    source_key_1,
+    source_updated_png,
+  ) catch {
+    _ => None
+  }
   match updated {
     Some(handle) => if handle.id != source.id { panic() }
     None => panic()
@@ -56,13 +87,20 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Int raise {
     4, 4, runtime_smoke_atlas_page_id,
   )
   let atlas_key = @asset.new_asset_key("runtime_smoke/atlas")
-  let atlas_image = @asset.create_atlas_image(
-    atlas_repository,
-    atlas_key,
+  let atlas_png = @asset.encode_png_image_spec(
     @asset.image_spec_with_rgba8(2, 2, [
       1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255,
     ]),
-  )
+  ) catch {
+    _ => panic()
+  }
+  let atlas_image = @asset.create_atlas_image_from_raster_bytes(
+    atlas_repository,
+    atlas_key,
+    atlas_png,
+  ) catch {
+    _ => None
+  }
   match atlas_image {
     Some(_) => ()
     None => panic()
@@ -79,13 +117,20 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Int raise {
   if atlas_repeated_synced != 0 {
     panic()
   }
-  let atlas_updated = @asset.update_atlas_image_spec(
-    atlas_repository,
-    atlas_key,
+  let atlas_updated_png = @asset.encode_png_image_spec(
     @asset.image_spec_with_rgba8(2, 2, [
       1, 2, 3, 255, 42, 43, 44, 255, 7, 8, 9, 255, 10, 11, 12, 255,
     ]),
-  )
+  ) catch {
+    _ => panic()
+  }
+  let atlas_updated = @asset.update_atlas_image_from_raster_bytes(
+    atlas_repository,
+    atlas_key,
+    atlas_updated_png,
+  ) catch {
+    _ => None
+  }
   match atlas_updated {
     Some(_) => ()
     None => panic()
