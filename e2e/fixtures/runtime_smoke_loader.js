@@ -392,6 +392,18 @@ const run = async () => {
     lastIndexCount: webState.frame.lastIndexCount,
     lastSrcImageCount: webState.frame.lastSrcImageCount,
     lastUniformDwordCount: webState.frame.lastUniformDwordCount,
+    payloadHasTriangle: webState.frame.payloadHasTriangle,
+    payloadAx: webState.frame.payloadAx,
+    payloadAy: webState.frame.payloadAy,
+    payloadBx: webState.frame.payloadBx,
+    payloadBy: webState.frame.payloadBy,
+    payloadCx: webState.frame.payloadCx,
+    payloadCy: webState.frame.payloadCy,
+    payloadUniformR: webState.frame.payloadUniformR,
+    payloadUniformG: webState.frame.payloadUniformG,
+    payloadUniformB: webState.frame.payloadUniformB,
+    payloadUniformA: webState.frame.payloadUniformA,
+    payloadTextureSeed: webState.frame.payloadTextureSeed,
   };
 };
 

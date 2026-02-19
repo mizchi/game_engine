@@ -33,6 +33,18 @@ for (const item of CASES) {
             lastIndexCount: number;
             lastSrcImageCount: number;
             lastUniformDwordCount: number;
+            payloadHasTriangle: boolean;
+            payloadAx: number;
+            payloadAy: number;
+            payloadBx: number;
+            payloadBy: number;
+            payloadCx: number;
+            payloadCy: number;
+            payloadUniformR: number;
+            payloadUniformG: number;
+            payloadUniformB: number;
+            payloadUniformA: number;
+            payloadTextureSeed: number;
           };
         }
       ).__wasmSmoke;
@@ -47,5 +59,17 @@ for (const item of CASES) {
     expect((result?.lastIndexCount ?? 0) > 0).toBeTruthy();
     expect((result?.lastSrcImageCount ?? 0) > 0).toBeTruthy();
     expect((result?.lastUniformDwordCount ?? 0) > 0).toBeTruthy();
+    expect(result?.payloadHasTriangle).toBeTruthy();
+    expect((result?.payloadAx ?? 0) < -0.4).toBeTruthy();
+    expect((result?.payloadAy ?? 0) < -0.4).toBeTruthy();
+    expect((result?.payloadBx ?? 0) > 0.4).toBeTruthy();
+    expect((result?.payloadBy ?? 0) < -0.4).toBeTruthy();
+    expect((result?.payloadCx ?? 0) > 0.4).toBeTruthy();
+    expect((result?.payloadCy ?? 0) > 0.4).toBeTruthy();
+    expect((result?.payloadUniformR ?? 1) < 0.05).toBeTruthy();
+    expect((result?.payloadUniformG ?? 1) < 0.05).toBeTruthy();
+    expect((result?.payloadUniformB ?? 1) < 0.05).toBeTruthy();
+    expect((result?.payloadUniformA ?? 1) < 0.05).toBeTruthy();
+    expect((result?.payloadTextureSeed ?? 0) > 0).toBeTruthy();
   });
 }
