@@ -334,17 +334,28 @@ fn blend_mode_eq(lhs : BlendMode, rhs : BlendMode) -> Bool {
 }
 
 ///|
+fn int_array_eq(lhs : Array[Int], rhs : Array[Int]) -> Bool {
+  if lhs.length() != rhs.length() {
+    return false
+  }
+  for i in 0..<lhs.length() {
+    if lhs[i] != rhs[i] {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn can_merge_draw_triangles(
   lhs : DrawTrianglesCommand,
   rhs : DrawTrianglesCommand,
 ) -> Bool {
-  let lhs_has_explicit_payload = lhs.vertex_data.length() > 0 ||
+  let lhs_has_explicit_geometry = lhs.vertex_data.length() > 0 ||
     lhs.indices.length() > 0 ||
-    lhs.src_image_ids.length() > 0 ||
     lhs.uniform_dwords.length() > 0
-  let rhs_has_explicit_payload = rhs.vertex_data.length() > 0 ||
+  let rhs_has_explicit_geometry = rhs.vertex_data.length() > 0 ||
     rhs.indices.length() > 0 ||
-    rhs.src_image_ids.length() > 0 ||
     rhs.uniform_dwords.length() > 0
   lhs.dst.id == rhs.dst.id &&
   lhs.shader.id == rhs.shader.id &&
@@ -352,8 +363,9 @@ fn can_merge_draw_triangles(
   lhs.pipeline_id == rhs.pipeline_id &&
   lhs.uniform_hash == rhs.uniform_hash &&
   lhs.index_offset == rhs.index_offset &&
-  !lhs_has_explicit_payload &&
-  !rhs_has_explicit_payload
+  int_array_eq(lhs.src_image_ids, rhs.src_image_ids) &&
+  !lhs_has_explicit_geometry &&
+  !rhs_has_explicit_geometry
 }
 
 ///|
@@ -375,7 +387,7 @@ fn merge_draw_triangles_commands(
     blend: lhs.blend,
     vertex_data: [],
     indices: [],
-    src_image_ids: [],
+    src_image_ids: lhs.src_image_ids,
     uniform_dwords: [],
   }
 }
