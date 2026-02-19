@@ -2162,6 +2162,23 @@ extern "js" fn test_teardown_present_state() -> Unit =
   #| }
 
 ///|
+fn new_test_payload_draw_command() -> @gfx.DrawTrianglesCommand {
+  @gfx.new_draw_triangles_command(
+    @gfx.new_image_handle(101, 64, 64),
+    @gfx.new_shader_handle(201, "shader"),
+    [@gfx.new_dst_region(0, 0, 32, 32, 3)],
+    4,
+    7,
+    11,
+    @gfx.blend_mode_from_int(2),
+    [-0.8, 0.7, 0.0, 0.0, -0.2, -0.6, 1.0, 0.0, 0.9, -0.3, 1.0, 1.0],
+    [0, 1, 2],
+    [5],
+    [51, 102, 229, 255],
+  )
+}
+
+///|
 test "js_webgpu_present schedules once when vsync is enabled" {
   test_setup_present_state(true, true, true)
   let first = js_webgpu_present()
@@ -2272,6 +2289,38 @@ test "js_webgl2_present emits draw calls from recorded count" {
   assert_true(
     test_last_webgl2_fragment_shader_source().contains("vec4(0.3, 0.5, 0.8"),
   )
+  test_teardown_present_state()
+}
+
+///|
+test "bridge_web_gfx_on_draw decodes payload and routes webgpu/webgl fallback" {
+  test_setup_present_state(true, false, false)
+  js_ensure_window_state("#app")
+  install("#app")
+  let surface = @platform.create_webgpu_surface_token(1, 320, 240, 1.0)
+  let driver = @gfx.create_webgpu_graphics(
+    surface,
+    @gfx.default_graphics_backend_options(),
+  )
+  driver.initialize()
+  let command = new_test_payload_draw_command()
+
+  web_fallback_to_webgl.val = false
+  driver.draw_triangles(command)
+  assert_eq(test_last_payload_has_triangle(true), 1)
+  assert_true(test_last_payload_ax(true) < -0.7)
+  assert_true(test_last_payload_uniform_r(true) > 0.19)
+  assert_eq(test_last_payload_texture_seed(true), 5)
+
+  web_fallback_to_webgl.val = true
+  driver.draw_triangles(command)
+  assert_eq(test_last_payload_has_triangle(false), 1)
+  assert_true(test_last_payload_ax(false) < -0.7)
+  assert_true(test_last_payload_uniform_r(false) > 0.19)
+  assert_eq(test_last_payload_texture_seed(false), 5)
+
+  uninstall()
+  web_fallback_to_webgl.val = false
   test_teardown_present_state()
 }
 
