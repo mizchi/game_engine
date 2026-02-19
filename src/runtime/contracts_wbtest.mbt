@@ -167,6 +167,224 @@ fn reset_test_native_hooks() -> Unit {
 }
 
 ///|
+struct RunLoopProbeSummary {
+  update_count : Int
+  begin_count : Int
+  end_count : Int
+  last_update_tick : Int
+  last_begin_clear_enabled : Int
+  last_begin_clear_r : Double
+  last_end_present : Int
+} derive(Show)
+
+///|
+fn bool_to_int(value : Bool) -> Int {
+  if value {
+    1
+  } else {
+    0
+  }
+}
+
+///|
+fn last_or_default(values : Array[Int], fallback : Int) -> Int {
+  if values.length() == 0 {
+    fallback
+  } else {
+    values[values.length() - 1]
+  }
+}
+
+///|
+fn last_or_default_double(values : Array[Double], fallback : Double) -> Double {
+  if values.length() == 0 {
+    fallback
+  } else {
+    values[values.length() - 1]
+  }
+}
+
+///|
+fn run_terminating_probe_with_webgpu(
+  close_after_polls : Int,
+  clear_screen_every_frame : Bool,
+) -> RunLoopProbeSummary raise {
+  let safe_close_after = if close_after_polls <= 0 {
+    1
+  } else {
+    close_after_polls
+  }
+  let poll_count : Ref[Int] = Ref::new(0)
+  let observed_ticks : Ref[Array[Int]] = Ref::new([])
+  let begin_clear_enabled : Ref[Array[Int]] = Ref::new([])
+  let begin_clear_r : Ref[Array[Double]] = Ref::new([])
+  let end_present : Ref[Array[Int]] = Ref::new([])
+
+  @platform.set_web_canvas_hooks(
+    @platform.new_web_canvas_hooks(
+      fn(_canvas_selector, _options) { true },
+      fn(_active) { poll_count.val = poll_count.val + 1 },
+      fn() { poll_count.val >= safe_close_after },
+      fn(width, height) {
+        @core.new_outside_size(width.to_double(), height.to_double())
+      },
+      fn(_canvas_selector, options) {
+        @platform.create_webgpu_surface_token(
+          77,
+          options.width,
+          options.height,
+          1.0,
+        )
+      },
+      fn(_active, tick) {
+        @core.new_input_snapshot_full(0.0, 0.0, 0.0, 0.0, [tick], [], [], [])
+      },
+      fn(_canvas_selector, _active, enabled) { enabled },
+      fn(_canvas_selector, _active, current) { current },
+      fn(_canvas_selector, _active, mode) { mode },
+      fn(_canvas_selector, _active, current) { current },
+      fn(_canvas_selector, _active, scale) { scale },
+      fn(_canvas_selector, _active, current) { current },
+      fn(_canvas_selector, _active, enabled) { enabled },
+      fn(_canvas_selector, _active, current) { current },
+      fn(_canvas_selector, _active) { () },
+      fn(_canvas_selector, _active) { () },
+    ),
+  )
+  @gfx.set_web_graphics_hooks(
+    @gfx.new_web_graphics_hooks(
+      fn(_kind, _width, _height) { true },
+      fn(active, _kind, pass) {
+        if active {
+          begin_clear_enabled.val.push(bool_to_int(pass.present))
+          begin_clear_r.val.push(pass.clear_color.r)
+        }
+      },
+      fn(active, _kind, present) {
+        if active {
+          end_present.val.push(bool_to_int(present))
+        }
+      },
+      fn(_active, _kind, _command) { () },
+      fn(_active, _kind, _width, _height) { () },
+    ),
+  )
+
+  let hooks = new_runtime_hooks(fn(tick, _input) {
+    observed_ticks.val.push(tick)
+  })
+  let game = @core.new_noop_game(320, 240)
+  let platform = @platform.create_web_canvas_platform("#app")
+  let surface = platform.current_surface()
+  let gfx_options = @gfx.default_graphics_backend_options()
+  let graphics = @gfx.create_webgpu_graphics(surface, gfx_options)
+  let options = @core.default_run_options()
+  let runtime_config = {
+    max_skip_frames: 2,
+    enable_vsync: false,
+    clear_screen_every_frame,
+  }
+  run_loop_with_hooks(game, platform, graphics, options, runtime_config, hooks)
+  let summary : RunLoopProbeSummary = {
+    update_count: observed_ticks.val.length(),
+    begin_count: graphics.begin_count,
+    end_count: graphics.end_count,
+    last_update_tick: last_or_default(observed_ticks.val, -1),
+    last_begin_clear_enabled: last_or_default(begin_clear_enabled.val, -1),
+    last_begin_clear_r: last_or_default_double(begin_clear_r.val, -1.0),
+    last_end_present: last_or_default(end_present.val, -1),
+  }
+  reset_test_web_hooks()
+  summary
+}
+
+///|
+fn run_terminating_probe_with_native(
+  close_after_polls : Int,
+  clear_screen_every_frame : Bool,
+) -> RunLoopProbeSummary raise {
+  let safe_close_after = if close_after_polls <= 0 {
+    1
+  } else {
+    close_after_polls
+  }
+  let poll_count : Ref[Int] = Ref::new(0)
+  let observed_ticks : Ref[Array[Int]] = Ref::new([])
+  let begin_clear_enabled : Ref[Array[Int]] = Ref::new([])
+  let begin_clear_r : Ref[Array[Double]] = Ref::new([])
+  let end_present : Ref[Array[Int]] = Ref::new([])
+
+  @platform.set_desktop_native_hooks(
+    @platform.new_desktop_native_hooks(
+      fn(_options) { true },
+      fn(_active) { poll_count.val = poll_count.val + 1 },
+      fn() { poll_count.val >= safe_close_after },
+      fn(width, height) {
+        @core.new_outside_size(width.to_double(), height.to_double())
+      },
+      fn(_active, tick) {
+        @core.new_input_snapshot_full(0.0, 0.0, 0.0, 0.0, [tick], [], [], [])
+      },
+      fn(_active, enabled) { enabled },
+      fn(_active, current) { current },
+      fn(_active, mode) { mode },
+      fn(_active, current) { current },
+      fn(_active, scale) { scale },
+      fn(_active, current) { current },
+      fn(_active, enabled) { enabled },
+      fn(_active, current) { current },
+      fn(_active) { () },
+      fn(_active) { () },
+    ),
+  )
+  @gfx.set_native_graphics_hooks(
+    @gfx.new_native_graphics_hooks(
+      fn(_width, _height) { true },
+      fn(active, pass) {
+        if active {
+          begin_clear_enabled.val.push(bool_to_int(pass.present))
+          begin_clear_r.val.push(pass.clear_color.r)
+        }
+      },
+      fn(active, present) {
+        if active {
+          end_present.val.push(bool_to_int(present))
+        }
+      },
+      fn(_active, _command) { () },
+      fn(_active, _width, _height) { () },
+    ),
+  )
+
+  let hooks = new_runtime_hooks(fn(tick, _input) {
+    observed_ticks.val.push(tick)
+  })
+  let game = @core.new_noop_game(320, 240)
+  let platform = @platform.create_desktop_glfw_platform()
+  let surface = platform.current_surface()
+  let gfx_options = @gfx.default_graphics_backend_options()
+  let graphics = @gfx.create_wgpu_native_graphics(surface, gfx_options)
+  let options = @core.default_run_options()
+  let runtime_config = {
+    max_skip_frames: 2,
+    enable_vsync: false,
+    clear_screen_every_frame,
+  }
+  run_loop_with_hooks(game, platform, graphics, options, runtime_config, hooks)
+  let summary : RunLoopProbeSummary = {
+    update_count: observed_ticks.val.length(),
+    begin_count: graphics.begin_count,
+    end_count: graphics.end_count,
+    last_update_tick: last_or_default(observed_ticks.val, -1),
+    last_begin_clear_enabled: last_or_default(begin_clear_enabled.val, -1),
+    last_begin_clear_r: last_or_default_double(begin_clear_r.val, -1.0),
+    last_end_present: last_or_default(end_present.val, -1),
+  }
+  reset_test_native_hooks()
+  summary
+}
+
+///|
 fn run_counting_game_with_webgpu() -> (Int, Int) raise {
   install_test_web_hooks()
   let game = @core.new_noop_game(320, 240)
@@ -476,6 +694,29 @@ test "run_loop resize notifications match between native and webgpu" {
     assert_eq(native_widths[i], web_widths[i])
     assert_eq(native_heights[i], web_heights[i])
   }
+}
+
+///|
+test "run_loop termination and minimal render summary match between native and webgpu" {
+  let native = run_terminating_probe_with_native(3, false)
+  let webgpu = run_terminating_probe_with_webgpu(3, false)
+
+  assert_true(native.update_count > 0)
+  assert_true(webgpu.update_count > 0)
+  assert_eq(native.update_count, webgpu.update_count)
+  assert_eq(native.begin_count, webgpu.begin_count)
+  assert_eq(native.end_count, webgpu.end_count)
+  assert_eq(native.last_update_tick, webgpu.last_update_tick)
+  assert_eq(native.last_begin_clear_enabled, webgpu.last_begin_clear_enabled)
+  assert_eq(native.last_begin_clear_r, webgpu.last_begin_clear_r)
+  assert_eq(native.last_end_present, webgpu.last_end_present)
+
+  assert_eq(native.last_begin_clear_enabled, 0)
+  assert_eq(webgpu.last_begin_clear_enabled, 0)
+  assert_eq(native.last_end_present, 1)
+  assert_eq(webgpu.last_end_present, 1)
+  assert_eq(native.last_begin_clear_r, 0.0)
+  assert_eq(webgpu.last_begin_clear_r, 0.0)
 }
 
 ///|

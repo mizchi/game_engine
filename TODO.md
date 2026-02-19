@@ -8,8 +8,8 @@
 
 ## 実装状況スナップショット (2026-02-19)
 
-- `moon test --target native`: 120 passed / 0 failed
-- `moon test --target js`: 112 passed / 0 failed
+- `moon test --target native`: 121 passed / 0 failed
+- `moon test --target js`: 113 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
 - `moon run src/examples/runtime_smoke_native --target native`: pass (`runtime_smoke_native: ok (real)`)
 - `pnpm e2e:smoke` (Playwright wasm/wasm-gc): 2 passed / 0 failed
@@ -79,7 +79,8 @@
    - window/canvas サイズ変化時の surface 再構成は native/web の基礎 hook を接続済み。  
    - 実 backend ごとの最適化（不要 reconfigure 抑制・再作成コスト計測）は未実装。
 5. 同一ロジックの cross-backend 検証テストを追加する  
-   - js/native で tick 数、終了条件、最小描画結果が一致することを確認。
+   - `runtime/contracts_wbtest` に `run_loop termination and minimal render summary match between native and webgpu` を追加済み。`should_close` による終了条件、`run_loop_with_hooks` の tick 観測数、render pass の clear 有無・clear 色、`graphics.end(true)` の present が一致することを検証。
+   - 残タスク: 実 backend（native/web wasm host）でのピクセル同値比較を e2e で追加する。
 
 ### P1: Ebiten の中核描画機能へ寄せる
 
