@@ -27,6 +27,10 @@ fn install_test_web_hooks() -> Unit {
       fn(_canvas_selector, _active, current) { current },
       fn(_canvas_selector, _active) { () },
       fn(_canvas_selector, _active) { () },
+      fn(_s, _a, _e) { () },
+      fn(_s, _a) { false },
+      fn(_s, _a, c) { c },
+      fn(_s, _a, c) { c },
     ),
   )
   @gfx.set_web_graphics_hooks(
@@ -71,6 +75,10 @@ fn install_test_web_hooks_with_tick_input() -> Unit {
       fn(_canvas_selector, _active, current) { current },
       fn(_canvas_selector, _active) { () },
       fn(_canvas_selector, _active) { () },
+      fn(_s, _a, _e) { () },
+      fn(_s, _a) { false },
+      fn(_s, _a, c) { c },
+      fn(_s, _a, c) { c },
     ),
   )
   @gfx.set_web_graphics_hooks(
@@ -111,6 +119,8 @@ fn install_test_native_hooks() -> Unit {
       fn(_active, current) { current },
       fn(_active) { () },
       fn(_active) { () },
+      fn(_a, _e) { () },
+      fn(_a) { false },
     ),
   )
   @gfx.set_native_graphics_hooks(
@@ -147,6 +157,8 @@ fn install_test_native_hooks_with_tick_input() -> Unit {
       fn(_active, current) { current },
       fn(_active) { () },
       fn(_active) { () },
+      fn(_a, _e) { () },
+      fn(_a) { false },
     ),
   )
   @gfx.set_native_graphics_hooks(
@@ -249,6 +261,10 @@ fn run_terminating_probe_with_webgpu(
       fn(_canvas_selector, _active, current) { current },
       fn(_canvas_selector, _active) { () },
       fn(_canvas_selector, _active) { () },
+      fn(_s, _a, _e) { () },
+      fn(_s, _a) { false },
+      fn(_s, _a, c) { c },
+      fn(_s, _a, c) { c },
     ),
   )
   @gfx.set_web_graphics_hooks(
@@ -335,6 +351,8 @@ fn run_terminating_probe_with_native(
       fn(_active, current) { current },
       fn(_active) { () },
       fn(_active) { () },
+      fn(_a, _e) { () },
+      fn(_a) { false },
     ),
   )
   @gfx.set_native_graphics_hooks(
@@ -528,6 +546,10 @@ fn run_resized_frame_sizes_with_webgpu() -> (Array[Int], Array[Int]) raise {
       fn(_canvas_selector, _active, current) { current },
       fn(_canvas_selector, _active) { () },
       fn(_canvas_selector, _active) { () },
+      fn(_s, _a, _e) { () },
+      fn(_s, _a) { false },
+      fn(_s, _a, c) { c },
+      fn(_s, _a, c) { c },
     ),
   )
   @gfx.set_web_graphics_hooks(
@@ -590,6 +612,8 @@ fn run_resized_frame_sizes_with_native() -> (Array[Int], Array[Int]) raise {
       fn(_active, current) { current },
       fn(_active) { () },
       fn(_active) { () },
+      fn(_a, _e) { () },
+      fn(_a) { false },
     ),
   )
   @gfx.set_native_graphics_hooks(

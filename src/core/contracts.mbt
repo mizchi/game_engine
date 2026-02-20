@@ -42,10 +42,39 @@ pub struct InputSnapshot {
 } derive(Show)
 
 ///|
+pub enum TouchSource {
+  Direct
+  Indirect
+  Mouse
+  Unknown
+} derive(Show)
+
+///|
+pub fn touch_source_to_int(source : TouchSource) -> Int {
+  match source {
+    TouchSource::Direct => 0
+    TouchSource::Indirect => 1
+    TouchSource::Mouse => 2
+    TouchSource::Unknown => 3
+  }
+}
+
+///|
+pub fn touch_source_from_int(source : Int) -> TouchSource {
+  match source {
+    0 => TouchSource::Direct
+    1 => TouchSource::Indirect
+    2 => TouchSource::Mouse
+    _ => TouchSource::Unknown
+  }
+}
+
+///|
 pub struct TouchPoint {
   id : Int
   x : Double
   y : Double
+  source : TouchSource
 } derive(Show)
 
 ///|
@@ -78,7 +107,17 @@ pub fn new_frame_budget(
 
 ///|
 pub fn new_touch_point(id : Int, x : Double, y : Double) -> TouchPoint {
-  { id, x, y }
+  { id, x, y, source: TouchSource::Unknown }
+}
+
+///|
+pub fn new_touch_point_with_source(
+  id : Int,
+  x : Double,
+  y : Double,
+  source : TouchSource,
+) -> TouchPoint {
+  { id, x, y, source }
 }
 
 ///|
@@ -206,7 +245,7 @@ pub fn new_touch_point_ex_full(
 
 ///|
 pub fn touch_point_from_ex(ex : TouchPointEx) -> TouchPoint {
-  { id: ex.id, x: ex.x, y: ex.y }
+  { id: ex.id, x: ex.x, y: ex.y, source: TouchSource::Unknown }
 }
 
 ///|

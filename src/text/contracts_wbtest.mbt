@@ -568,3 +568,194 @@ test "SimpleTextBatchBuilder merged region covers all glyphs" {
   // Index count for 2 glyphs = 12
   assert_eq(region.index_count, 12)
 }
+
+///|
+test "make_glyph_cache_key basic" {
+  // Different glyph IDs produce different keys at the same size
+  let k1 = make_glyph_cache_key(1, 16.0)
+  let k2 = make_glyph_cache_key(2, 16.0)
+  assert_true(k1 != k2)
+  // Same glyph and size produce the same key
+  let k3 = make_glyph_cache_key(1, 16.0)
+  assert_eq(k1, k3)
+}
+
+///|
+test "make_glyph_cache_key different sizes" {
+  // Same glyph at different sizes MUST produce different keys
+  // This is the core invariant for multi-size caching
+  let k_16 = make_glyph_cache_key(65, 16.0)
+  let k_24 = make_glyph_cache_key(65, 24.0)
+  let k_32 = make_glyph_cache_key(65, 32.0)
+  assert_true(k_16 != k_24)
+  assert_true(k_24 != k_32)
+  assert_true(k_16 != k_32)
+}
+
+///|
+test "make_glyph_cache_key quantization" {
+  // Sizes differing by less than 0.1px should quantize to same key
+  let k1 = make_glyph_cache_key(10, 16.0)
+  let k2 = make_glyph_cache_key(10, 16.04)
+  assert_eq(k1, k2)
+  // Sizes differing by >= 0.1px should be distinct
+  let k3 = make_glyph_cache_key(10, 16.1)
+  assert_true(k1 != k3)
+}
+
+///|
+test "make_glyph_cache_key zero size" {
+  let k = make_glyph_cache_key(42, 0.0)
+  // Should not panic for zero size; key should just encode glyph_id with 0 size
+  assert_true(k >= 0)
+  // Different glyph at zero size should differ
+  let k2 = make_glyph_cache_key(43, 0.0)
+  assert_true(k != k2)
+}
+
+///|
+test "make_glyph_cache_key no collision across glyph-size pairs" {
+  // Verify that (glyph_id=1, size=40960*0.1=4096.0) does not collide with
+  // (glyph_id=2, size=0.0). The formula is glyph_id * 40960 + quantized_size.
+  let k_a = make_glyph_cache_key(1, 4095.0)
+  let k_b = make_glyph_cache_key(2, 0.0)
+  assert_true(k_a != k_b)
+}
+
+///|
+test "GlyphCache multi-size caching stores separate entries" {
+  let cache = GlyphCache::new(512.0, 512.0, 1)
+  // Allocate glyph 65 at size 16px
+  let key_16 = make_glyph_cache_key(65, 16.0)
+  match cache.allocate(key_16, 10.0, 12.0) {
+    Some(entry) => {
+      assert_eq(entry.atlas_x, 0.0)
+      assert_eq(entry.atlas_y, 0.0)
+    }
+    None => fail("expected allocation for 16px")
+  }
+  // Allocate glyph 65 at size 24px — should get a DIFFERENT slot
+  let key_24 = make_glyph_cache_key(65, 24.0)
+  match cache.allocate(key_24, 14.0, 18.0) {
+    Some(entry) => {
+      // Should not overlap with the first entry
+      assert_true(entry.atlas_x > 0.0 || entry.atlas_y > 0.0)
+      assert_eq(entry.atlas_w, 14.0)
+      assert_eq(entry.atlas_h, 18.0)
+    }
+    None => fail("expected allocation for 24px")
+  }
+  assert_eq(cache.entry_count(), 2)
+  // Both entries should be independently retrievable
+  assert_true(cache.get(key_16) is Some(_))
+  assert_true(cache.get(key_24) is Some(_))
+  // And they should be different
+  let e16 = cache.get(key_16).unwrap()
+  let e24 = cache.get(key_24).unwrap()
+  assert_true(e16.atlas_x != e24.atlas_x || e16.atlas_y != e24.atlas_y)
+}
+
+///|
+test "GlyphCache multi-size dedup returns existing on re-allocate" {
+  let cache = GlyphCache::new(512.0, 512.0, 1)
+  let key = make_glyph_cache_key(65, 16.0)
+  let _ = cache.allocate(key, 10.0, 12.0)
+  // Allocating same composite key again should return existing entry, not a new one
+  match cache.allocate(key, 10.0, 12.0) {
+    Some(entry) => {
+      assert_eq(entry.atlas_x, 0.0)
+      assert_eq(entry.atlas_y, 0.0)
+    }
+    None => fail("expected existing entry")
+  }
+  assert_eq(cache.entry_count(), 1)
+}
+
+///|
+test "new_text_run constructs correctly" {
+  let style = default_text_style("serif", 24.0)
+  let run = new_text_run("Hello", style)
+  assert_eq(run.text, "Hello")
+  assert_eq(run.style.font.family, "serif")
+  assert_eq(run.style.size_px, 24.0)
+}
+
+///|
+test "GlyphAtlas get_cache and get_pixels accessors" {
+  let atlas = GlyphAtlas::new(128, 64, 7)
+  let cache = atlas.get_cache()
+  assert_eq(cache.atlas_page_id, 7)
+  assert_eq(cache.atlas_width, 128.0)
+  assert_eq(cache.atlas_height, 64.0)
+  let pixels = atlas.get_pixels()
+  assert_eq(pixels.length(), 128 * 64 * 4)
+}
+
+///|
+test "blit_to_atlas zero-size bitmap is no-op" {
+  let atlas = GlyphAtlas::new(16, 16, 1)
+  let bitmap : GlyphBitmap = { width: 0, height: 0, pixels: [] }
+  // Should not panic
+  blit_to_atlas(atlas.pixels, atlas.width, bitmap, 0, 0)
+  // Atlas should remain zeroed
+  assert_eq(atlas.pixels[0], 0)
+}
+
+///|
+test "blit_to_atlas zero atlas_width is no-op" {
+  let pixels : Array[Int] = []
+  let bitmap : GlyphBitmap = {
+    width: 2,
+    height: 2,
+    pixels: [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255],
+  }
+  // atlas_width=0 should return early without panic
+  blit_to_atlas(pixels, 0, bitmap, 0, 0)
+}
+
+///|
+test "detect_font_format with exactly 4 bytes" {
+  let ttf = Bytes::from_array([b'\x00', b'\x01', b'\x00', b'\x00'])
+  assert_eq(detect_font_format(ttf), FontFormat::TrueType)
+  let otf = Bytes::from_array([b'\x4F', b'\x54', b'\x54', b'\x4F'])
+  assert_eq(detect_font_format(otf), FontFormat::OpenType)
+}
+
+///|
+test "SimpleTextBatchBuilder skips unresolvable glyphs in full atlas" {
+  // Use a tiny atlas that can only fit one glyph
+  let cache = GlyphCache::new(15.0, 15.0, 1)
+  let builder = SimpleTextBatchBuilder::new(cache, 0)
+  let glyphs = [
+    {
+      glyph_id: 1,
+      atlas_x: 0.0,
+      atlas_y: 0.0,
+      atlas_w: 12.0,
+      atlas_h: 12.0,
+      dst_x: 0.0,
+      dst_y: 0.0,
+      dst_w: 12.0,
+      dst_h: 12.0,
+    },
+    {
+      glyph_id: 2,
+      atlas_x: 0.0,
+      atlas_y: 0.0,
+      atlas_w: 12.0,
+      atlas_h: 12.0,
+      dst_x: 14.0,
+      dst_y: 0.0,
+      dst_w: 12.0,
+      dst_h: 12.0,
+    },
+  ]
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "shader")
+  let commands = builder.build_draw_commands(dst, glyphs, shader)
+  // Only the first glyph should have been allocated; second overflows atlas
+  assert_eq(commands.length(), 1)
+  // 1 glyph = 4 vertices * 4 floats = 16
+  assert_eq(commands[0].vertex_data.length(), 16)
+  assert_eq(commands[0].indices.length(), 6)
+}

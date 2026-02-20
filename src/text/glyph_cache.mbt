@@ -1,5 +1,16 @@
 ///|
 /// Glyph cache for mapping glyph IDs to atlas regions.
+/// Cache keys encode both glyph_id and size to distinguish
+/// the same glyph rasterized at different pixel sizes.
+
+///|
+/// Create a composite cache key from glyph_id and size_px.
+/// Quantizes size to 0.1px precision (supports sizes 0-4095px,
+/// glyph IDs 0-524287).
+pub fn make_glyph_cache_key(glyph_id : Int, size_px : Double) -> Int {
+  let size_quantized = (size_px * 10.0 + 0.5).to_int()
+  glyph_id * 40960 + size_quantized
+}
 
 ///|
 pub struct GlyphCacheEntry {

@@ -431,6 +431,7 @@ test "desktop native hooks can be overridden and reset" {
       test_native_set_cursor_mode, test_native_cursor_mode, test_native_set_device_scale_factor,
       test_native_device_scale_factor, test_native_set_vsync_enabled, test_native_is_vsync_enabled,
       test_native_close_window, test_native_request_attention,
+      fn(_active, _enabled) { () }, fn(_active) { false },
     ),
   )
 
@@ -503,6 +504,8 @@ test "web canvas hooks can be overridden and reset" {
       test_web_is_fullscreen, test_web_set_cursor_mode, test_web_cursor_mode, test_web_set_device_scale_factor,
       test_web_device_scale_factor, test_web_set_vsync_enabled, test_web_is_vsync_enabled,
       test_web_close_window, test_web_request_attention,
+      fn(_s, _a, _e) { () }, fn(_s, _a) { false },
+      fn(_s, _a, c) { c }, fn(_s, _a, c) { c },
     ),
   )
 
@@ -822,4 +825,112 @@ test "web monitor info includes refresh rate" {
   p.initialize(default_window_options_for_test())
   let monitor = p.monitor_info()
   assert_eq(monitor.refresh_rate_hz, 60)
+}
+
+///|
+test "desktop mouse touch fallback default is false" {
+  let p = create_desktop_glfw_platform()
+  assert_true(!p.mouse_touch_fallback_enabled())
+  p.set_mouse_touch_fallback(true)
+  assert_true(p.mouse_touch_fallback_enabled())
+  p.set_mouse_touch_fallback(false)
+  assert_true(!p.mouse_touch_fallback_enabled())
+}
+
+///|
+test "web mouse touch fallback default is false" {
+  let p = create_web_canvas_platform("#fallback")
+  assert_true(!p.mouse_touch_fallback_enabled())
+  p.set_mouse_touch_fallback(true)
+  assert_true(p.mouse_touch_fallback_enabled())
+  p.set_mouse_touch_fallback(false)
+  assert_true(!p.mouse_touch_fallback_enabled())
+}
+
+///|
+test "async request status int conversion roundtrip" {
+  assert_eq(async_request_status_to_int(AsyncRequestStatus::Idle), 0)
+  assert_eq(async_request_status_to_int(AsyncRequestStatus::Pending), 1)
+  assert_eq(async_request_status_to_int(AsyncRequestStatus::Confirmed), 2)
+  assert_eq(async_request_status_to_int(AsyncRequestStatus::Rejected), 3)
+  assert_eq(
+    async_request_status_to_int(async_request_status_from_int(0)),
+    0,
+  )
+  assert_eq(
+    async_request_status_to_int(async_request_status_from_int(1)),
+    1,
+  )
+  assert_eq(
+    async_request_status_to_int(async_request_status_from_int(2)),
+    2,
+  )
+  assert_eq(
+    async_request_status_to_int(async_request_status_from_int(3)),
+    3,
+  )
+  assert_eq(
+    async_request_status_to_int(async_request_status_from_int(-1)),
+    0,
+  )
+  assert_eq(
+    async_request_status_to_int(async_request_status_from_int(99)),
+    0,
+  )
+}
+
+///|
+test "desktop fullscreen request status is Confirmed after set" {
+  let p = create_desktop_glfw_platform()
+  assert_eq(
+    async_request_status_to_int(p.fullscreen_request_status()),
+    0,
+  )
+  p.set_fullscreen(true)
+  assert_eq(
+    async_request_status_to_int(p.fullscreen_request_status()),
+    2,
+  )
+}
+
+///|
+test "desktop cursor mode request status is Confirmed after set" {
+  let p = create_desktop_glfw_platform()
+  assert_eq(
+    async_request_status_to_int(p.cursor_mode_request_status()),
+    0,
+  )
+  p.set_cursor_mode(CursorMode::Hidden)
+  assert_eq(
+    async_request_status_to_int(p.cursor_mode_request_status()),
+    2,
+  )
+}
+
+///|
+test "web fullscreen request status starts Idle then Pending after set" {
+  let p = create_web_canvas_platform("#async")
+  assert_eq(
+    async_request_status_to_int(p.fullscreen_request_status()),
+    0,
+  )
+  p.set_fullscreen(true)
+  assert_eq(
+    async_request_status_to_int(p.fullscreen_request_status()),
+    1,
+  )
+}
+
+///|
+test "web cursor mode request status starts Idle then Pending after set" {
+  let p = create_web_canvas_platform("#async2")
+  assert_eq(
+    async_request_status_to_int(p.cursor_mode_request_status()),
+    0,
+  )
+  p.set_cursor_mode(CursorMode::Captured)
+  assert_eq(
+    async_request_status_to_int(p.cursor_mode_request_status()),
+    1,
+  )
 }

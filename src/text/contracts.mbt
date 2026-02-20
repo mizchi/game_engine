@@ -358,8 +358,9 @@ pub fn GlyphAtlas::rasterize_glyph(
   size_px : Double,
 ) -> GlyphCacheEntry? {
   let glyph_id = font.glyph_index(codepoint)
+  let cache_key = make_glyph_cache_key(glyph_id, size_px)
   // Return existing if already cached
-  match self.cache.get(glyph_id) {
+  match self.cache.get(cache_key) {
     Some(entry) => return Some(entry)
     None => ()
   }
@@ -370,7 +371,7 @@ pub fn GlyphAtlas::rasterize_glyph(
       // Allocate space in atlas
       match
         self.cache.allocate(
-          glyph_id,
+          cache_key,
           bitmap.width.to_double(),
           bitmap.height.to_double(),
         ) {
@@ -413,8 +414,11 @@ pub fn GlyphAtlas::rasterize_text(
         let bbox = metrics.bbox
         let dst_x = pos.x_offset + metrics.left_side_bearing.to_double() * scale
         let dst_y = -(bbox.y_max.to_double() * scale)
+        // Use composite cache key so batch builder can look up the
+        // correct size-specific entry.
+        let cache_key = make_glyph_cache_key(pos.glyph_id, size_px)
         quads.push({
-          glyph_id: pos.glyph_id,
+          glyph_id: cache_key,
           atlas_x: entry.atlas_x,
           atlas_y: entry.atlas_y,
           atlas_w: entry.atlas_w,

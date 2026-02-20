@@ -101,6 +101,7 @@ typedef struct {
   int32_t id;
   double x;
   double y;
+  int32_t touch_type; // 0=Direct, 1=Indirect, 3=Unknown
 } moonbit_touch_state;
 static moonbit_touch_state g_touches[MOONBIT_MAX_TOUCHES];
 static int32_t g_touch_count = 0;
@@ -274,6 +275,7 @@ static void moonbit_reset_touches(void) {
     g_touches[i].id = -1;
     g_touches[i].x = 0.0;
     g_touches[i].y = 0.0;
+    g_touches[i].touch_type = 3; // Unknown
   }
 }
 
@@ -330,6 +332,19 @@ static void moonbit_update_touches(GLFWwindow* window) {
     }
     g_touches[index].x = x;
     g_touches[index].y = y;
+    // Determine touch type: Direct(0), Indirect(1), Unknown(3)
+    if ([touch respondsToSelector:@selector(type)]) {
+      NSInteger touchType = [touch type];
+      if (touchType == NSTouchTypeDirect) {
+        g_touches[index].touch_type = 0; // Direct
+      } else if (touchType == NSTouchTypeIndirect) {
+        g_touches[index].touch_type = 1; // Indirect
+      } else {
+        g_touches[index].touch_type = 3; // Unknown
+      }
+    } else {
+      g_touches[index].touch_type = 3; // Unknown
+    }
     index++;
   }
   g_touch_count = index;
@@ -559,6 +574,14 @@ double moonbit_glfw_touch_y_at(GLFWwindow* window, int32_t index) {
     return 0.0;
   }
   return g_touches[index].y;
+}
+
+int32_t moonbit_glfw_touch_type_at(GLFWwindow* window, int32_t index) {
+  moonbit_update_touches(window);
+  if (index < 0 || index >= g_touch_count) {
+    return 3; // Unknown
+  }
+  return g_touches[index].touch_type;
 }
 
 #if defined(GLFW_GAMEPAD_AXIS_LAST) && defined(GLFW_GAMEPAD_BUTTON_LAST)

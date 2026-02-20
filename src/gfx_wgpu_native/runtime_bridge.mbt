@@ -442,6 +442,18 @@ pub fn runtime_touch_y_at(index : Int) -> Double {
 }
 
 ///|
+pub fn runtime_touch_type_at(index : Int) -> Int {
+  if index < 0 {
+    3 // Unknown
+  } else {
+    match runtime_context.val {
+      Some(ctx) => touch_type_at(ctx.window, index)
+      None => 3 // Unknown
+    }
+  }
+}
+
+///|
 pub fn runtime_gamepad_count() -> Int {
   match runtime_context.val {
     Some(_) => gamepad_count()

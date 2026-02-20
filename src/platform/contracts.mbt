@@ -74,6 +74,34 @@ pub fn cursor_mode_from_int(mode : Int) -> CursorMode {
 }
 
 ///|
+pub enum AsyncRequestStatus {
+  Idle
+  Pending
+  Confirmed
+  Rejected
+} derive(Show)
+
+///|
+pub fn async_request_status_to_int(status : AsyncRequestStatus) -> Int {
+  match status {
+    AsyncRequestStatus::Idle => 0
+    AsyncRequestStatus::Pending => 1
+    AsyncRequestStatus::Confirmed => 2
+    AsyncRequestStatus::Rejected => 3
+  }
+}
+
+///|
+pub fn async_request_status_from_int(status : Int) -> AsyncRequestStatus {
+  match status {
+    1 => AsyncRequestStatus::Pending
+    2 => AsyncRequestStatus::Confirmed
+    3 => AsyncRequestStatus::Rejected
+    _ => AsyncRequestStatus::Idle
+  }
+}
+
+///|
 pub fn new_window_options(
   title : String,
   width : Int,
@@ -123,6 +151,14 @@ pub trait PlatformDriver {
   /// Ebiten ref: window close/requestAttention
   close_window(Self) -> Unit
   request_attention(Self) -> Unit
+
+  /// Mouse-to-touch fallback (opt-in, default false)
+  set_mouse_touch_fallback(Self, enabled : Bool) -> Unit
+  mouse_touch_fallback_enabled(Self) -> Bool
+
+  /// Async request status for fullscreen and cursor mode
+  fullscreen_request_status(Self) -> AsyncRequestStatus
+  cursor_mode_request_status(Self) -> AsyncRequestStatus
 }
 
 ///|
@@ -139,6 +175,9 @@ pub struct DesktopGlfwPlatform {
   mut vsync_enabled : Bool
   mut close_requested : Bool
   mut attention_requests : Int
+  mut mouse_touch_fallback : Bool
+  mut fullscreen_request_status : AsyncRequestStatus
+  mut cursor_mode_request_status : AsyncRequestStatus
 }
 
 ///|
@@ -156,6 +195,9 @@ pub struct WebCanvasPlatform {
   mut vsync_enabled : Bool
   mut close_requested : Bool
   mut attention_requests : Int
+  mut mouse_touch_fallback : Bool
+  mut fullscreen_request_status : AsyncRequestStatus
+  mut cursor_mode_request_status : AsyncRequestStatus
 }
 
 ///|
@@ -179,6 +221,9 @@ pub fn create_desktop_glfw_platform() -> DesktopGlfwPlatform {
     vsync_enabled: true,
     close_requested: false,
     attention_requests: 0,
+    mouse_touch_fallback: false,
+    fullscreen_request_status: AsyncRequestStatus::Idle,
+    cursor_mode_request_status: AsyncRequestStatus::Idle,
   }
 }
 
@@ -206,6 +251,9 @@ pub fn create_web_canvas_platform(
     vsync_enabled: true,
     close_requested: false,
     attention_requests: 0,
+    mouse_touch_fallback: false,
+    fullscreen_request_status: AsyncRequestStatus::Idle,
+    cursor_mode_request_status: AsyncRequestStatus::Idle,
   }
 }
 
@@ -297,6 +345,7 @@ pub impl PlatformDriver for DesktopGlfwPlatform with set_fullscreen(
   enabled,
 ) {
   self.fullscreen = desktop_native_set_fullscreen(self.native_active, enabled)
+  self.fullscreen_request_status = AsyncRequestStatus::Confirmed
 }
 
 ///|
@@ -311,6 +360,7 @@ pub impl PlatformDriver for DesktopGlfwPlatform with is_fullscreen(self) {
 ///|
 pub impl PlatformDriver for DesktopGlfwPlatform with set_cursor_mode(self, mode) {
   self.cursor_mode = desktop_native_set_cursor_mode(self.native_active, mode)
+  self.cursor_mode_request_status = AsyncRequestStatus::Confirmed
 }
 
 ///|
@@ -379,6 +429,36 @@ pub impl PlatformDriver for DesktopGlfwPlatform with close_window(self) {
 pub impl PlatformDriver for DesktopGlfwPlatform with request_attention(self) {
   self.attention_requests = self.attention_requests + 1
   desktop_native_request_attention(self.native_active)
+}
+
+///|
+pub impl PlatformDriver for DesktopGlfwPlatform with set_mouse_touch_fallback(
+  self,
+  enabled,
+) {
+  self.mouse_touch_fallback = enabled
+  desktop_native_set_mouse_touch_fallback(self.native_active, enabled)
+}
+
+///|
+pub impl PlatformDriver for DesktopGlfwPlatform with mouse_touch_fallback_enabled(
+  self,
+) {
+  self.mouse_touch_fallback
+}
+
+///|
+pub impl PlatformDriver for DesktopGlfwPlatform with fullscreen_request_status(
+  self,
+) {
+  self.fullscreen_request_status
+}
+
+///|
+pub impl PlatformDriver for DesktopGlfwPlatform with cursor_mode_request_status(
+  self,
+) {
+  self.cursor_mode_request_status
 }
 
 ///|
@@ -469,6 +549,7 @@ pub impl PlatformDriver for WebCanvasPlatform with monitor_info(self) {
 
 ///|
 pub impl PlatformDriver for WebCanvasPlatform with set_fullscreen(self, enabled) {
+  self.fullscreen_request_status = AsyncRequestStatus::Pending
   self.fullscreen = web_set_fullscreen(
     self.canvas_selector,
     self.web_active,
@@ -488,6 +569,7 @@ pub impl PlatformDriver for WebCanvasPlatform with is_fullscreen(self) {
 
 ///|
 pub impl PlatformDriver for WebCanvasPlatform with set_cursor_mode(self, mode) {
+  self.cursor_mode_request_status = AsyncRequestStatus::Pending
   self.cursor_mode = web_set_cursor_mode(
     self.canvas_selector,
     self.web_active,
@@ -566,4 +648,46 @@ pub impl PlatformDriver for WebCanvasPlatform with close_window(self) {
 pub impl PlatformDriver for WebCanvasPlatform with request_attention(self) {
   self.attention_requests = self.attention_requests + 1
   web_request_attention(self.canvas_selector, self.web_active)
+}
+
+///|
+pub impl PlatformDriver for WebCanvasPlatform with set_mouse_touch_fallback(
+  self,
+  enabled,
+) {
+  self.mouse_touch_fallback = enabled
+  web_set_mouse_touch_fallback(self.canvas_selector, self.web_active, enabled)
+}
+
+///|
+pub impl PlatformDriver for WebCanvasPlatform with mouse_touch_fallback_enabled(
+  self,
+) {
+  self.mouse_touch_fallback
+}
+
+///|
+pub impl PlatformDriver for WebCanvasPlatform with fullscreen_request_status(
+  self,
+) {
+  let status = web_fullscreen_request_status(
+    self.canvas_selector,
+    self.web_active,
+    async_request_status_to_int(self.fullscreen_request_status),
+  )
+  self.fullscreen_request_status = async_request_status_from_int(status)
+  self.fullscreen_request_status
+}
+
+///|
+pub impl PlatformDriver for WebCanvasPlatform with cursor_mode_request_status(
+  self,
+) {
+  let status = web_cursor_mode_request_status(
+    self.canvas_selector,
+    self.web_active,
+    async_request_status_to_int(self.cursor_mode_request_status),
+  )
+  self.cursor_mode_request_status = async_request_status_from_int(status)
+  self.cursor_mode_request_status
 }

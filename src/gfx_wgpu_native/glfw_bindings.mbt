@@ -136,6 +136,12 @@ extern "C" fn moonbit_glfw_touch_y_at(
 ) -> Double = "moonbit_glfw_touch_y_at"
 
 ///|
+extern "C" fn moonbit_glfw_touch_type_at(
+  window : GLFWwindow,
+  index : Int,
+) -> Int = "moonbit_glfw_touch_type_at"
+
+///|
 extern "C" fn moonbit_glfw_gamepad_count() -> Int = "moonbit_glfw_gamepad_count"
 
 ///|
@@ -317,6 +323,11 @@ pub fn touch_x_at(window : GLFWwindow, index : Int) -> Double {
 ///|
 pub fn touch_y_at(window : GLFWwindow, index : Int) -> Double {
   moonbit_glfw_touch_y_at(window, index)
+}
+
+///|
+pub fn touch_type_at(window : GLFWwindow, index : Int) -> Int {
+  moonbit_glfw_touch_type_at(window, index)
 }
 
 ///|

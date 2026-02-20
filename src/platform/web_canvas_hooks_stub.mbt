@@ -16,6 +16,10 @@ pub struct WebCanvasHooks {
   is_vsync_enabled : (String, Bool, Bool) -> Bool
   close_window : (String, Bool) -> Unit
   request_attention : (String, Bool) -> Unit
+  set_mouse_touch_fallback : (String, Bool, Bool) -> Unit
+  mouse_touch_fallback_enabled : (String, Bool) -> Bool
+  fullscreen_request_status : (String, Bool, Int) -> Int
+  cursor_mode_request_status : (String, Bool, Int) -> Int
 }
 
 ///|
@@ -36,6 +40,10 @@ pub fn new_web_canvas_hooks(
   is_vsync_enabled : (String, Bool, Bool) -> Bool,
   close_window : (String, Bool) -> Unit,
   request_attention : (String, Bool) -> Unit,
+  set_mouse_touch_fallback : (String, Bool, Bool) -> Unit,
+  mouse_touch_fallback_enabled : (String, Bool) -> Bool,
+  fullscreen_request_status : (String, Bool, Int) -> Int,
+  cursor_mode_request_status : (String, Bool, Int) -> Int,
 ) -> WebCanvasHooks {
   {
     try_initialize,
@@ -54,6 +62,10 @@ pub fn new_web_canvas_hooks(
     is_vsync_enabled,
     close_window,
     request_attention,
+    set_mouse_touch_fallback,
+    mouse_touch_fallback_enabled,
+    fullscreen_request_status,
+    cursor_mode_request_status,
   }
 }
 
@@ -196,6 +208,41 @@ fn default_web_request_attention(
 }
 
 ///|
+fn default_web_set_mouse_touch_fallback(
+  _canvas_selector : String,
+  _active : Bool,
+  _enabled : Bool,
+) -> Unit {
+  ()
+}
+
+///|
+fn default_web_mouse_touch_fallback_enabled(
+  _canvas_selector : String,
+  _active : Bool,
+) -> Bool {
+  false
+}
+
+///|
+fn default_web_fullscreen_request_status(
+  _canvas_selector : String,
+  _active : Bool,
+  current : Int,
+) -> Int {
+  current
+}
+
+///|
+fn default_web_cursor_mode_request_status(
+  _canvas_selector : String,
+  _active : Bool,
+  current : Int,
+) -> Int {
+  current
+}
+
+///|
 fn default_web_canvas_hooks() -> WebCanvasHooks {
   new_web_canvas_hooks(
     default_web_try_initialize, default_web_poll, default_web_should_close, default_web_outside_size,
@@ -203,6 +250,8 @@ fn default_web_canvas_hooks() -> WebCanvasHooks {
     default_web_is_fullscreen, default_web_set_cursor_mode, default_web_cursor_mode,
     default_web_set_device_scale_factor, default_web_device_scale_factor, default_web_set_vsync_enabled,
     default_web_is_vsync_enabled, default_web_close_window, default_web_request_attention,
+    default_web_set_mouse_touch_fallback, default_web_mouse_touch_fallback_enabled,
+    default_web_fullscreen_request_status, default_web_cursor_mode_request_status,
   )
 }
 
@@ -337,4 +386,45 @@ fn web_close_window(canvas_selector : String, active : Bool) -> Unit {
 ///|
 fn web_request_attention(canvas_selector : String, active : Bool) -> Unit {
   (web_canvas_hooks.val.request_attention)(canvas_selector, active)
+}
+
+///|
+fn web_set_mouse_touch_fallback(
+  canvas_selector : String,
+  active : Bool,
+  enabled : Bool,
+) -> Unit {
+  (web_canvas_hooks.val.set_mouse_touch_fallback)(
+    canvas_selector, active, enabled,
+  )
+}
+
+///|
+fn web_mouse_touch_fallback_enabled(
+  canvas_selector : String,
+  active : Bool,
+) -> Bool {
+  (web_canvas_hooks.val.mouse_touch_fallback_enabled)(canvas_selector, active)
+}
+
+///|
+fn web_fullscreen_request_status(
+  canvas_selector : String,
+  active : Bool,
+  current : Int,
+) -> Int {
+  (web_canvas_hooks.val.fullscreen_request_status)(
+    canvas_selector, active, current,
+  )
+}
+
+///|
+fn web_cursor_mode_request_status(
+  canvas_selector : String,
+  active : Bool,
+  current : Int,
+) -> Int {
+  (web_canvas_hooks.val.cursor_mode_request_status)(
+    canvas_selector, active, current,
+  )
 }

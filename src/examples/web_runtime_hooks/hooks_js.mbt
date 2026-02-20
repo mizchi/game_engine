@@ -2815,6 +2815,8 @@ pub fn install(canvas_selector : String) -> Unit {
       bridge_web_is_fullscreen, bridge_web_set_cursor_mode, bridge_web_cursor_mode,
       bridge_web_set_device_scale_factor, bridge_web_device_scale_factor, bridge_web_set_vsync_enabled,
       bridge_web_is_vsync_enabled, bridge_web_close_window, bridge_web_request_attention,
+      fn(_s, _a, _e) { () }, fn(_s, _a) { false },
+      fn(_s, _a, c) { c }, fn(_s, _a, c) { c },
     ),
   )
   @gfx.set_web_graphics_hooks(

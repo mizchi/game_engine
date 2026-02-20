@@ -210,3 +210,55 @@ test "touch point ex full construction with pressure and delta" {
     _ => fail("expected Moved phase")
   }
 }
+
+///|
+test "touch source int conversion roundtrip" {
+  assert_eq(touch_source_to_int(TouchSource::Direct), 0)
+  assert_eq(touch_source_to_int(TouchSource::Indirect), 1)
+  assert_eq(touch_source_to_int(TouchSource::Mouse), 2)
+  assert_eq(touch_source_to_int(TouchSource::Unknown), 3)
+  for i = 0; i < 4; i = i + 1 {
+    assert_eq(touch_source_to_int(touch_source_from_int(i)), i)
+  }
+  // Invalid defaults to Unknown
+  assert_eq(touch_source_to_int(touch_source_from_int(-1)), 3)
+  assert_eq(touch_source_to_int(touch_source_from_int(99)), 3)
+}
+
+///|
+test "new_touch_point has Unknown source by default" {
+  let tp = new_touch_point(1, 10.0, 20.0)
+  match tp.source {
+    TouchSource::Unknown => ()
+    _ => fail("expected Unknown source")
+  }
+}
+
+///|
+test "new_touch_point_with_source sets source" {
+  let tp = new_touch_point_with_source(1, 10.0, 20.0, TouchSource::Direct)
+  match tp.source {
+    TouchSource::Direct => ()
+    _ => fail("expected Direct source")
+  }
+  let tp2 = new_touch_point_with_source(2, 30.0, 40.0, TouchSource::Indirect)
+  match tp2.source {
+    TouchSource::Indirect => ()
+    _ => fail("expected Indirect source")
+  }
+  let tp3 = new_touch_point_with_source(3, 50.0, 60.0, TouchSource::Mouse)
+  match tp3.source {
+    TouchSource::Mouse => ()
+    _ => fail("expected Mouse source")
+  }
+}
+
+///|
+test "touch_point_from_ex has Unknown source" {
+  let ex = new_touch_point_ex(1, 10.0, 20.0, TouchPhase::Began)
+  let tp = touch_point_from_ex(ex)
+  match tp.source {
+    TouchSource::Unknown => ()
+    _ => fail("expected Unknown source")
+  }
+}

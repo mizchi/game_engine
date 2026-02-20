@@ -14,6 +14,9 @@ let synced_source_generations : Ref[Array[SyncedSourceGeneration]] = Ref::new([]
 let saw_native_touch_input : Ref[Bool] = Ref::new(false)
 
 ///|
+let mouse_touch_fallback_enabled : Ref[Bool] = Ref::new(false)
+
+///|
 fn normalized_source_generation(generation : Int) -> Int {
   if generation <= 0 {
     1
@@ -60,6 +63,26 @@ fn clear_synced_source_generations() -> Unit {
 ///|
 fn reset_touch_capture_state() -> Unit {
   saw_native_touch_input.val = false
+  mouse_touch_fallback_enabled.val = false
+}
+
+///|
+fn bridge_desktop_set_mouse_touch_fallback(
+  active : Bool,
+  enabled : Bool,
+) -> Unit {
+  if active {
+    mouse_touch_fallback_enabled.val = enabled
+  }
+}
+
+///|
+fn bridge_desktop_mouse_touch_fallback_enabled(active : Bool) -> Bool {
+  if active {
+    mouse_touch_fallback_enabled.val
+  } else {
+    false
+  }
 }
 
 ///|
@@ -133,11 +156,13 @@ fn bridge_desktop_capture_input(
     for i in 0..<touch_count {
       let touch_id = @wgpu_native.runtime_touch_id_at(i)
       if touch_id >= 0 {
+        let touch_type = @wgpu_native.runtime_touch_type_at(i)
         touches.push(
-          @core.new_touch_point(
+          @core.new_touch_point_with_source(
             touch_id,
             @wgpu_native.runtime_touch_x_at(i),
             @wgpu_native.runtime_touch_y_at(i),
+            @core.touch_source_from_int(touch_type),
           ),
         )
       }
@@ -148,6 +173,7 @@ fn bridge_desktop_capture_input(
       cursor_x,
       cursor_y,
       saw_native_touch_input.val,
+      mouse_touch_fallback_enabled.val,
     )
     saw_native_touch_input.val = resolved_touches.saw_native_touch
 
@@ -612,6 +638,8 @@ pub fn install(title : String) -> Unit {
       bridge_desktop_set_device_scale_factor, bridge_desktop_device_scale_factor,
       bridge_desktop_set_vsync_enabled, bridge_desktop_is_vsync_enabled, bridge_desktop_close_window,
       bridge_desktop_request_attention,
+      bridge_desktop_set_mouse_touch_fallback,
+      bridge_desktop_mouse_touch_fallback_enabled,
     ),
   )
   @gfx.set_native_graphics_hooks(

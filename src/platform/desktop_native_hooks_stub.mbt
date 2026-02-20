@@ -15,6 +15,8 @@ pub struct DesktopNativeHooks {
   is_vsync_enabled : (Bool, Bool) -> Bool
   close_window : (Bool) -> Unit
   request_attention : (Bool) -> Unit
+  set_mouse_touch_fallback : (Bool, Bool) -> Unit
+  mouse_touch_fallback_enabled : (Bool) -> Bool
 }
 
 ///|
@@ -34,6 +36,8 @@ pub fn new_desktop_native_hooks(
   is_vsync_enabled : (Bool, Bool) -> Bool,
   close_window : (Bool) -> Unit,
   request_attention : (Bool) -> Unit,
+  set_mouse_touch_fallback : (Bool, Bool) -> Unit,
+  mouse_touch_fallback_enabled : (Bool) -> Bool,
 ) -> DesktopNativeHooks {
   {
     try_initialize,
@@ -51,6 +55,8 @@ pub fn new_desktop_native_hooks(
     is_vsync_enabled,
     close_window,
     request_attention,
+    set_mouse_touch_fallback,
+    mouse_touch_fallback_enabled,
   }
 }
 
@@ -153,6 +159,19 @@ fn default_desktop_request_attention(_active : Bool) -> Unit {
 }
 
 ///|
+fn default_desktop_set_mouse_touch_fallback(
+  _active : Bool,
+  _enabled : Bool,
+) -> Unit {
+  ()
+}
+
+///|
+fn default_desktop_mouse_touch_fallback_enabled(_active : Bool) -> Bool {
+  false
+}
+
+///|
 fn default_desktop_native_hooks() -> DesktopNativeHooks {
   new_desktop_native_hooks(
     default_desktop_try_initialize, default_desktop_poll, default_desktop_should_close,
@@ -161,6 +180,8 @@ fn default_desktop_native_hooks() -> DesktopNativeHooks {
     default_desktop_set_device_scale_factor, default_desktop_device_scale_factor,
     default_desktop_set_vsync_enabled, default_desktop_is_vsync_enabled, default_desktop_close_window,
     default_desktop_request_attention,
+    default_desktop_set_mouse_touch_fallback,
+    default_desktop_mouse_touch_fallback_enabled,
   )
 }
 
@@ -267,4 +288,17 @@ fn desktop_native_close_window(active : Bool) -> Unit {
 ///|
 fn desktop_native_request_attention(active : Bool) -> Unit {
   (desktop_native_hooks.val.request_attention)(active)
+}
+
+///|
+fn desktop_native_set_mouse_touch_fallback(
+  active : Bool,
+  enabled : Bool,
+) -> Unit {
+  (desktop_native_hooks.val.set_mouse_touch_fallback)(active, enabled)
+}
+
+///|
+fn desktop_native_mouse_touch_fallback_enabled(active : Bool) -> Bool {
+  (desktop_native_hooks.val.mouse_touch_fallback_enabled)(active)
 }
