@@ -3,7 +3,8 @@
 ## ゴール再確認
 
 - 目標は「Ebiten と同等の 2D ゲームエンジン機能」を MoonBit で提供すること。
-- 優先は「ブラウザ(WebGPU/WebGL) と Native(macOS wgpu) の両方で早期に同じゲームロジックを動かすこと」。
+- 優先は「ブラウザ(WebGPU) と Native(macOS wgpu) の両方で早期に同じゲームロジックを動かすこと」。
+- 方針: WebGL/WebGL2 フォールバックは対応しない（非目標）。ブラウザ backend は WebGPU のみを対象とする。
 - 3D 拡張は 2D の API/実装が安定してから着手する。
 
 ## 実装状況スナップショット (2026-02-20)
@@ -32,7 +33,7 @@
 | Platform-Gfx 境界 (SurfaceToken) | `ui_glfw.go`, `ui_js.go` | `src/platform/surface_contracts.mbt` で token 化済み | 部分 |
 | GraphicsDriver 抽象 | `internal/graphicsdriver/graphics.go` | begin/end/new_image/new_shader/draw_triangles/resize/read_pixels 契約を実装。native/web hook へ resize/read_pixels 伝播を接続。`FramebufferSnapshot` 構造体を定義 | 部分 |
 | Native backend (wgpu + GLFW) | graphics driver 実装群 | `src/gfx_wgpu_native` で三角形描画まで実装。draw command のメタデータ（drawCalls/pipeline/uniform/blend/dst/shader/index/region/payload-count）を runtime bridge に伝播済み。さらにフレーム内 draw command queue を導入し、コマンドごとの triangle payload（position/UV/uniform/src_image_id）を保持して 1 pass で staged 描画する経路を追加。payload 描画は vertex/index buffer（queue write + drawIndexed）と sampler/texture bind group（seed 由来の最小 texture sampling）を使う経路へ更新済み。payload shader/pipeline は Native 側で LRU キャッシュ（device+format+payload key）を持ち、再生成コストを抑制。texture/bind-group は `seed + generation + pipeline` をキーにした最小 LRU キャッシュへ拡張済み。`src_image_id -> 2x2 RGBA palette` registry（register/clear/debug）と `src_image_id -> width/height/RGBA8 pixels` staged upload registry（begin/set/end + patch + debug query）を追加。generation 差分時は texture を作り直すだけでなく、サイズ一致かつ dirty rect ありなら `wgpuQueueWriteTexture` の subresource 更新でキャッシュ texture を in-place 更新する経路を追加。`runtime_resize_surface` を追加し resize hook から surface 再構成できるようにした。`runtime_smoke_native` で実行確認 | 部分 |
-| Web backend (WebGPU/WebGL) | JS backend 群 | hook 経由で canvas/context 初期化 + clear pass + drawCalls 分の三角形描画 + WebGPU→WebGL2 fallback まで接続。draw command のメタデータ（pipeline/uniform/blend/dst/shader/index/region/payload-count）に加えて、triangle payload（position/UV/uniform/src_image_id）を js/wasm host へ伝播済み。js 側の present はフレーム内 command queue を順に処理して payload の position/uniform 色を shader source に反映する最小描画経路へ更新（texture sample/頂点バッファ/本格 cache は未実装）。`web_runtime_hooks` に source image cache + generation/diff sync（register/patch）と debug query API を追加し、`runtime_smoke` で atlas page generation/pixel 更新（42/43/44）を検証。`runtime_smoke` wasm e2e で経路確認 | 部分 |
+| Web backend (WebGPU) | JS backend 群 | hook 経由で canvas/context 初期化 + clear pass + drawCalls 分の三角形描画を接続。draw command のメタデータ（pipeline/uniform/blend/dst/shader/index/region/payload-count）に加えて、triangle payload（position/UV/uniform/src_image_id）を js/wasm host へ伝播済み。js 側の present はフレーム内 command queue を順に処理して、texture sample + vertex/index/uniform buffer 描画と draw resource cache（buffer/bind group 再利用）を実装。`install`/`uninstall` と `runtime_smoke_loader` の `shutdown` で WebGPU resource cleanup（cached buffers/textures/default texture 解放）を接続し、wbtest で解放を固定。`web_runtime_hooks` に source image cache + generation/diff sync（register/patch）と debug query API を追加し、`runtime_smoke` で atlas page generation/pixel 更新（42/43/44）を検証。`runtime_smoke` wasm e2e で経路確認 | 部分 |
 | CommandQueue 集約/flush | `internal/graphicscommand/commandqueue.go` | `SimpleCommandQueue` で pipeline/texture(src_image_ids)/blend/uniform(index+uniform dwords)/index offset 条件の merge を実装。explicit geometry コマンド同士の vertex_data/indices 結合（インデックスオフセット付き）に対応、16384 float 上限付き。region-only と explicit の混合は非 merge | 完了 |
 | Image/Atlas 管理 | `internal/atlas/image.go` | `SimpleImageRepository`/`SimpleShaderRepository`/`SimpleMaterialRepository` と `SimpleAtlasAllocator` の最小実装を追加。image spec に 2x2 RGBA palette と任意 RGBA8 配列を保持できるよう拡張し、`image_id -> palette/pixels/generation` の export API (`SourceImageBinding`) を追加。`new_source_image_binding`/`new_source_image_dirty_rect` ファクトリを追加し外部パッケージから `SourceImageBinding` を構築可能に。`update_image_spec` で同サイズ更新時に generation を進め、RGBA8 差分から dirty rect を計算できるようにした。`list_dirty_source_image_bindings`/`clear_source_image_dirty_flags` を追加し、native/web hooks には `sync_dirty_source_images_from_repository` を追加。native は dirty rect が full でない更新で patch API を使うよう接続済み（web は契約のみ）。Atlas 解放戦略を追加: allocator 空間再利用（全解放時 cursor リセット）、`multi_page_compact`（空ページ除去）、利用統計 API（`AtlasPageStats`） | 部分 |
 | 画像 codec (decode/encode/resize) | Ebiten外 (拡張) | `mizchi/image` を依存追加し、`asset` パッケージに `ImageSpec <-> mizchi/image.ImageData` 変換と PNG/BMP/JPEG decode+encode、resize API を統合。format auto判別(`detect_raster_image_format`) と dispatch API (`decode_image_spec_auto` / `encode_image_spec`) および repository 直結 helper (`create/update_*_from_raster_bytes`) を追加。`src/asset/image_codec_wbtest.mbt` で roundtrip/resize/format判別/dispatch/create-update helper を検証。`src/examples/image_codec_smoke` で js/native の実行確認を追加し、`runtime_smoke`/`runtime_smoke_native` でも source image/atlas 更新を raster helper 経路で検証 | 完了 |
@@ -76,9 +77,11 @@
    - `text` パッケージの `GlyphAtlas` を `SourceImageBinding` ファクトリ経由で GPU テクスチャに同期する E2E パスを追加。NotoSans OTF サブセット（1364 bytes, 'I' のみ）を埋め込みフォント定数として使用し、`parse_font_bytes` → `rasterize_glyph`（CFF outline → SVG → pixel）→ 64x64 アトラスへの blit → GPU テクスチャ同期 → NDC 座標でテキストクアッド描画の実フォントラスタライズパイプラインを web/native smoke で検証済み。
 2. WebGPU 実装を `WebCanvasPlatform`/`gfx` hook 経由で接続する  
    - JS 側で canvas/context 取得、surface token 生成、begin/end/draw を本実装化。
-3. WebGL2 フォールバック backend を追加する  
-   - WebGPU 非対応環境向けに最低限の draw path を用意。
-   - `e2e/runtime_smoke_wasm.spec.ts` に force-webgl fixture（wasm/wasm-gc）を追加し、fallback 指定時の起動経路を継続検証。
+   - WebGPU present に draw resource cache（vertex/index/uniform buffer + bind group のフレーム跨ぎ再利用）を追加し、`hooks_js` wbtest で再利用を固定。`runtime_smoke_loader.js`（wasm host）にも同等の cache 戦略を反映。
+   - `install`/`uninstall` 経路と wasm host `shutdown` に WebGPU resource cleanup を追加し、cached buffers/textures/default texture の解放を `hooks_js` wbtest で固定。
+3. （非目標）WebGL2 フォールバック backend は実装しない  
+   - ブラウザ backend は WebGPU のみを対象とする。
+   - WebGPU 非対応環境のサポートはスコープ外とする。
 4. backend 共通の resize/reconfigure を追加する  
    - `GraphicsDriver.resize` + runtime からの呼び出し導線は追加済み。  
    - window/canvas サイズ変化時の surface 再構成は native/web の基礎 hook を接続済み。  
@@ -86,13 +89,13 @@
    - `GraphicsResizeStats`（resize_count/suppressed_count/current_width/current_height/last_resize_duration_ms/total_resize_duration_ms）を `StubGraphicsDriver` に追加。`graphics_resize_stats()` アクセサで reconfigure 回数と no-op 抑制回数を可視化。注入可能な `graphics_clock_provider` で wall-clock 計測に対応（`set_graphics_clock_provider`/`reset_graphics_clock_provider`）。wbtest 7 テスト追加（基本追跡 + duration 計測 + suppressed タイミング不変 + デフォルト clock）。
 5. 同一ロジックの cross-backend 検証テストを追加する  
    - `runtime/contracts_wbtest` に `run_loop termination and minimal render summary match between native and webgpu` を追加済み。`should_close` による終了条件、`run_loop_with_hooks` の tick 観測数、render pass の clear 有無・clear 色、`graphics.end(true)` の present が一致することを検証。
-   - Playwright e2e に backend ピクセル比較（webgpu/webgl2, pixelmatch 許容差分）を追加済み。
+   - Playwright e2e に backend ピクセル比較（webgpu, pixelmatch 許容差分）を追加済み。
    - Playwright e2e から `moon run ... --target native` を実行する native smoke を追加済み。`runtime_smoke_native_probe` 行で `tex_seed/source_gen/atlas_gen/atlas_rgb` の検証を追加。
    - `runtime_smoke`(web) の `runtime_smoke_web_probe` と `runtime_smoke_native_probe` を照合する cross-backend parity e2e を追加。`atlas generation/rgb` に加えて、triangle 内部サンプル（`sample0/1/2`）の予測 RGBA 一致と、サンプル座標差分（<= 12px）を検証。
    - `GraphicsDriver.read_pixels` 契約を追加。native/web hook に `on_read_pixels` を追加し、StubGraphicsDriver で境界チェック（未初期化/out-of-bounds/clamp）付き実装。wbtest 5 テスト追加。
    - `FramebufferSnapshot` + `create_framebuffer_snapshot`/`compare_framebuffer_snapshots`/`pixel_diff_ratio` ピクセル比較ユーティリティを追加。wbtest 6 テスト追加（snapshot 作成/None ケース/同一ピクセル/threshold/サイズ不一致/ratio 計算）。
    - Playwright e2e に web ピクセルバッファ次元検証テストを追加（headless モードではキャンバスキャプチャが全ゼロになる制限を考慮）。6 passed。
-   - 実 backend の `on_read_pixels` フック実装完了: native wgpu は staging buffer readback（BGRA→RGBA swizzle、同一 encoder encode_copy + map_and_read 2 phase）、web は per-channel scalar FFI（host_gfx_read_pixels_begin/channel/end）+ drawImage readback で接続。headless Chromium は SwiftShader（`--enable-unsafe-swiftshader --enable-webgl --use-gl=swiftshader`）+ `preserveDrawingBuffer: true` で WebGL2 有効化。native/web 両方で `read_pixels_len=64` を e2e 検証済み。
+   - 実 backend の `on_read_pixels` フック実装完了: native wgpu は staging buffer readback（BGRA→RGBA swizzle、同一 encoder encode_copy + map_and_read 2 phase）、web は per-channel scalar FFI（host_gfx_read_pixels_begin/channel/end）+ drawImage readback で接続。headless Chromium は SwiftShader（`--enable-unsafe-swiftshader --use-gl=swiftshader`）で実行し、native/web 両方で `read_pixels_len=64` を e2e 検証済み。
 
 ### P1: Ebiten の中核描画機能へ寄せる
 
@@ -145,7 +148,7 @@
    - 追加テスト: cache clear/re-allocate、page_id 伝播、blit_to_atlas 境界安全性、atlas ピクセルバッファゼロ初期化、空 path_commands_to_svg_d、zero-size text_style。
    - `GlyphAtlas` → GPU テクスチャ同期を `SourceImageBinding` ファクトリ経由で接続済み。`runtime_smoke`/`runtime_smoke_native` で tile+sprite+text の 3 draw command を検証。
    - NotoSans OTF サブセット（1364 bytes, 'I' のみ）を埋め込みフォント定数として使用し、`parse_font_bytes` → `rasterize_glyph`（CFF outline → SVG → pixel）→ 64x64 アトラス → GPU テクスチャ同期の実フォントラスタライズパイプラインを web/native smoke で検証済み。
-   - スコープ外: KAGE 言語対応（シェーダーフロントエンド）、WebGL2/WebGL フォールバック backend でのテキスト描画。
+   - スコープ外: KAGE 言語対応（シェーダーフロントエンド）、WebGL/WebGL2 backend でのテキスト描画（非目標）。
    - 残タスク: プラットフォーム hook 経由のフォントファイル動的ロード（`parse_font_bytes`/`load_font_engine_from_bytes` は追加済み）。複数グリフ・複数フォントサイズでの文字列ラスタライズ。`SimpleTextBatchBuilder` を使った文字列 → draw command の E2E 統合。
 15. `ui` に `mizchi/layout` を接続し input/render bridge を実装する。
    - `UITree` + `SimpleLayoutEngine`（Row/Column 方向、Auto/Fixed/Percent サイジング、padding/gap）を実装済み。
@@ -181,8 +184,8 @@
    **戦略決定: 2 段階アプローチ**
 
    **Phase 1（短期）: Web/WASM ベース（PWA / WebView）**
-   - 既存の `js`/`wasm`/`wasm-gc` ターゲット + WebGPU/WebGL2 backend をそのまま利用。
-   - iOS Safari (WebGPU 対応済み) / Android Chrome (WebGPU 対応中, WebGL2 フォールバック) で動作。
+   - 既存の `js`/`wasm`/`wasm-gc` ターゲット + WebGPU backend をそのまま利用。
+   - iOS Safari / Android Chrome の WebGPU 対応環境で動作。
    - 追加実装コスト最小。PWA として配布、または Capacitor/TWA 等で WebView ラッパーを作成。
    - タッチ入力は `InputSnapshot.touches` で既に対応済み（10 同時タッチテスト済み）。
    - 制約: WebView パフォーマンス上限、ネイティブ API 非アクセス（加速度センサ等）。
@@ -211,7 +214,7 @@
 - 2D 基本機能:
   - sprite 描画、offscreen 合成、shader、text、input が js/native で同一 API で動く
 - backend:
-  - WebGPU が第一実装、WebGL2 がフォールバック、Native wgpu が本実装
+  - WebGPU がブラウザ唯一実装、Native wgpu が本実装
 - 品質:
   - `moon check/test` (js/native) + Playwright e2e が常時通る
 - 互換性:

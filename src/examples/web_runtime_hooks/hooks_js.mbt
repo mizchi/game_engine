@@ -207,6 +207,14 @@ extern "js" fn js_prepare_surface(
   #|       pending: null,
   #|       _pipeline: null,
   #|       _pipelineFormat: "",
+  #|       _uniformBGL: null,
+  #|       _texBGL: null,
+  #|       _defaultTexture: null,
+  #|       _defaultTexView: null,
+  #|       _defaultSampler: null,
+  #|       _drawResourceCache: null,
+  #|       _currentDraw: null,
+  #|       _pendingTexture: null,
   #|       presentScheduled: false,
   #|       clear: [0, 0, 0, 1],
   #|       commands: [],
@@ -308,7 +316,7 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|       vsyncEnabled: true,
   #|       attentionRequests: 0,
   #|       interactionHooksInstalled: false,
-  #|       webgpu: { context: null, device: null, format: "bgra8unorm", pending: null, _pipeline: null, _pipelineFormat: "", presentScheduled: false, clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "" },
+  #|       webgpu: { context: null, device: null, format: "bgra8unorm", pending: null, _pipeline: null, _pipelineFormat: "", _uniformBGL: null, _texBGL: null, _defaultTexture: null, _defaultTexView: null, _defaultSampler: null, _drawResourceCache: null, _currentDraw: null, _pendingTexture: null, presentScheduled: false, clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "" },
   #|     });
   #|     if (typeof nextSelector === "string" && nextSelector.length > 0) {
   #|       state.selector = nextSelector;
@@ -329,12 +337,20 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|     if (!Array.isArray(state.testGamepads)) state.testGamepads = [];
   #|     if (state.inputHooksInstalled == null) state.inputHooksInstalled = false;
   #|     if (state.webgpu == null) {
-  #|       state.webgpu = { context: null, device: null, format: "bgra8unorm", pending: null, _pipeline: null, _pipelineFormat: "", presentScheduled: false, clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "" };
+  #|       state.webgpu = { context: null, device: null, format: "bgra8unorm", pending: null, _pipeline: null, _pipelineFormat: "", _uniformBGL: null, _texBGL: null, _defaultTexture: null, _defaultTexView: null, _defaultSampler: null, _drawResourceCache: null, _currentDraw: null, _pendingTexture: null, presentScheduled: false, clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "" };
   #|     } else {
   #|       if (!Array.isArray(state.webgpu.clear)) state.webgpu.clear = [0, 0, 0, 1];
   #|       if (!Array.isArray(state.webgpu.commands)) state.webgpu.commands = [];
   #|       if (state.webgpu._pipeline == null) state.webgpu._pipeline = null;
   #|       if (typeof state.webgpu._pipelineFormat !== "string") state.webgpu._pipelineFormat = "";
+  #|       if (state.webgpu._uniformBGL == null) state.webgpu._uniformBGL = null;
+  #|       if (state.webgpu._texBGL == null) state.webgpu._texBGL = null;
+  #|       if (state.webgpu._defaultTexture == null) state.webgpu._defaultTexture = null;
+  #|       if (state.webgpu._defaultTexView == null) state.webgpu._defaultTexView = null;
+  #|       if (state.webgpu._defaultSampler == null) state.webgpu._defaultSampler = null;
+  #|       if (state.webgpu._drawResourceCache == null) state.webgpu._drawResourceCache = null;
+  #|       if (state.webgpu._currentDraw == null) state.webgpu._currentDraw = null;
+  #|       if (state.webgpu._pendingTexture == null) state.webgpu._pendingTexture = null;
   #|       if (state.webgpu.presentScheduled == null) state.webgpu.presentScheduled = false;
   #|       if (state.webgpu.lastError == null) state.webgpu.lastError = "";
   #|     }
@@ -1082,7 +1098,7 @@ extern "js" fn js_try_initialize_webgpu(
   #|     width: fallbackWidth,
   #|     height: fallbackHeight,
   #|     dpr: 1,
-  #|     webgpu: { context: null, device: null, format: "bgra8unorm", pending: null, _pipeline: null, _pipelineFormat: "", presentScheduled: false, clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "" },
+  #|     webgpu: { context: null, device: null, format: "bgra8unorm", pending: null, _pipeline: null, _pipelineFormat: "", _uniformBGL: null, _texBGL: null, _defaultTexture: null, _defaultTexView: null, _defaultSampler: null, _drawResourceCache: null, _currentDraw: null, _pendingTexture: null, presentScheduled: false, clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "" },
   #|   });
   #|   state.selector = selector;
   #|   const doc = typeof document === "undefined" ? null : document;
@@ -1162,6 +1178,61 @@ extern "js" fn js_try_initialize_webgpu(
   #|       });
   #|   }
   #|   return true;
+  #| }
+
+///|
+extern "js" fn js_release_webgpu_resources() -> Unit =
+  #| () => {
+  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const gpu = state == null ? null : state.webgpu;
+  #|   if (gpu == null) return;
+  #|   const releaseBufferEntries = (entries) => {
+  #|     if (!Array.isArray(entries)) return;
+  #|     for (let i = 0; i < entries.length; i += 1) {
+  #|       const entry = entries[i];
+  #|       const buffer = entry == null ? null : entry.buffer;
+  #|       if (buffer != null && typeof buffer.destroy === "function") {
+  #|         try { buffer.destroy(); } catch (_) {}
+  #|       }
+  #|     }
+  #|   };
+  #|   const cache = gpu._drawResourceCache;
+  #|   if (cache != null) {
+  #|     releaseBufferEntries(cache.vertexBuffers);
+  #|     releaseBufferEntries(cache.indexBuffers);
+  #|     releaseBufferEntries(cache.uniformBuffers);
+  #|   }
+  #|   const textures = gpu.textures;
+  #|   if (textures != null && typeof textures.values === "function") {
+  #|     for (const entry of textures.values()) {
+  #|       const texture = entry == null ? null : entry.texture;
+  #|       if (texture != null && typeof texture.destroy === "function") {
+  #|         try { texture.destroy(); } catch (_) {}
+  #|       }
+  #|     }
+  #|   }
+  #|   if (textures != null && typeof textures.clear === "function") {
+  #|     textures.clear();
+  #|   }
+  #|   if (gpu._defaultTexture != null && typeof gpu._defaultTexture.destroy === "function") {
+  #|     try { gpu._defaultTexture.destroy(); } catch (_) {}
+  #|   }
+  #|   if (gpu.context != null && typeof gpu.context.unconfigure === "function") {
+  #|     try { gpu.context.unconfigure(); } catch (_) {}
+  #|   }
+  #|   gpu._pipeline = null;
+  #|   gpu._pipelineFormat = "";
+  #|   gpu._uniformBGL = null;
+  #|   gpu._texBGL = null;
+  #|   gpu._defaultTexture = null;
+  #|   gpu._defaultTexView = null;
+  #|   gpu._defaultSampler = null;
+  #|   gpu._drawResourceCache = null;
+  #|   gpu._pendingTexture = null;
+  #|   gpu._currentDraw = null;
+  #|   gpu.commands = [];
+  #|   gpu.textures = new Map();
+  #|   gpu.presentScheduled = false;
   #| }
 
 ///|
@@ -1301,11 +1372,16 @@ extern "js" fn js_gfx_upload_texture_end() -> Unit =
   #|   if (gpu.textures == null) gpu.textures = new Map();
   #|   const existing = gpu.textures.get(imageId);
   #|   if (existing != null && (existing.width !== width || existing.height !== height)) {
-  #|     existing.texture.destroy();
+  #|     if (existing.texture != null && typeof existing.texture.destroy === "function") {
+  #|       existing.texture.destroy();
+  #|     }
   #|     gpu.textures.delete(imageId);
   #|   }
   #|   let entry = gpu.textures.get(imageId);
   #|   if (entry == null) {
+  #|     const nextRevision = existing != null && Number.isFinite(existing.revision)
+  #|       ? ((existing.revision | 0) + 1)
+  #|       : 1;
   #|     const texture = gpu.device.createTexture({
   #|       size: { width, height },
   #|       format: "rgba8unorm",
@@ -1318,8 +1394,10 @@ extern "js" fn js_gfx_upload_texture_end() -> Unit =
   #|       addressModeU: "clamp-to-edge",
   #|       addressModeV: "clamp-to-edge",
   #|     });
-  #|     entry = { texture, view, sampler, width, height };
+  #|     entry = { texture, view, sampler, width, height, revision: nextRevision };
   #|     gpu.textures.set(imageId, entry);
+  #|   } else if (!Number.isFinite(entry.revision)) {
+  #|     entry.revision = 1;
   #|   }
   #|   gpu.device.queue.writeTexture(
   #|     { texture: entry.texture },
@@ -1421,6 +1499,7 @@ extern "js" fn js_webgpu_present() -> Bool =
   #|       currentGpu._pipelineFormat = format;
   #|       currentGpu._uniformBGL = uniformBGL;
   #|       currentGpu._texBGL = texBGL;
+  #|       currentGpu._drawResourceCache = null;
   #|       const defaultTex = currentDevice.createTexture({
   #|         size: { width: 1, height: 1 },
   #|         format: "rgba8unorm",
@@ -1432,6 +1511,7 @@ extern "js" fn js_webgpu_present() -> Bool =
   #|         { bytesPerRow: 4 },
   #|         { width: 1, height: 1 },
   #|       );
+  #|       currentGpu._defaultTexture = defaultTex;
   #|       currentGpu._defaultTexView = defaultTex.createView();
   #|       currentGpu._defaultSampler = currentDevice.createSampler({ magFilter: "nearest", minFilter: "nearest" });
   #|     }
@@ -1443,34 +1523,107 @@ extern "js" fn js_webgpu_present() -> Bool =
   #|       colorAttachments: [{ view, clearValue: { r, g, b, a }, loadOp: "clear", storeOp: "store" }],
   #|     });
   #|     const drawCommands = Array.isArray(currentGpu.commands) ? currentGpu.commands : [];
-  #|     for (const cmd of drawCommands) {
+  #|     if (currentGpu._drawResourceCache == null) {
+  #|       currentGpu._drawResourceCache = {
+  #|         vertexBuffers: [],
+  #|         indexBuffers: [],
+  #|         uniformBuffers: [],
+  #|         uniformBindGroups: [],
+  #|         uniformBindBuffers: [],
+  #|         textureBindGroups: [],
+  #|         textureBindImageIds: [],
+  #|         textureBindRevisions: [],
+  #|       };
+  #|     }
+  #|     const cache = currentGpu._drawResourceCache;
+  #|     const ensureBufferEntry = (slots, slotIndex, minSize, usage) => {
+  #|       const requiredSize = Math.max(16, Number(minSize) | 0);
+  #|       let entry = slots[slotIndex];
+  #|       const currentSize = entry == null ? 0 : (Number(entry.size ?? 0) | 0);
+  #|       if (entry == null || currentSize < requiredSize) {
+  #|         if (entry != null && entry.buffer != null && typeof entry.buffer.destroy === "function") {
+  #|           try { entry.buffer.destroy(); } catch (_) {}
+  #|         }
+  #|         entry = {
+  #|           size: requiredSize,
+  #|           buffer: currentDevice.createBuffer({ size: requiredSize, usage }),
+  #|         };
+  #|         slots[slotIndex] = entry;
+  #|       }
+  #|       return entry;
+  #|     };
+  #|     for (let drawIndex = 0; drawIndex < drawCommands.length; drawIndex += 1) {
+  #|       const cmd = drawCommands[drawIndex];
   #|       if (cmd.vertexData == null || cmd.vertexData.length === 0) continue;
   #|       if (cmd.indices == null || cmd.indices.length === 0) continue;
-  #|       const vb = currentDevice.createBuffer({ size: cmd.vertexData.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
-  #|       currentDevice.queue.writeBuffer(vb, 0, cmd.vertexData);
-  #|       const ib = currentDevice.createBuffer({ size: cmd.indices.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
-  #|       currentDevice.queue.writeBuffer(ib, 0, cmd.indices);
-  #|       const ub = currentDevice.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  #|       currentDevice.queue.writeBuffer(ub, 0, new Float32Array([cmd.uniformR, cmd.uniformG, cmd.uniformB, cmd.uniformA]));
+  #|       const vbEntry = ensureBufferEntry(
+  #|         cache.vertexBuffers,
+  #|         drawIndex,
+  #|         cmd.vertexData.byteLength,
+  #|         GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  #|       );
+  #|       currentDevice.queue.writeBuffer(vbEntry.buffer, 0, cmd.vertexData);
+  #|       const ibEntry = ensureBufferEntry(
+  #|         cache.indexBuffers,
+  #|         drawIndex,
+  #|         cmd.indices.byteLength,
+  #|         GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+  #|       );
+  #|       currentDevice.queue.writeBuffer(ibEntry.buffer, 0, cmd.indices);
+  #|       const ubEntry = ensureBufferEntry(
+  #|         cache.uniformBuffers,
+  #|         drawIndex,
+  #|         16,
+  #|         GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  #|       );
+  #|       currentDevice.queue.writeBuffer(
+  #|         ubEntry.buffer,
+  #|         0,
+  #|         new Float32Array([cmd.uniformR, cmd.uniformG, cmd.uniformB, cmd.uniformA]),
+  #|       );
+  #|       let uniformBG = cache.uniformBindGroups[drawIndex];
+  #|       if (uniformBG == null || cache.uniformBindBuffers[drawIndex] !== ubEntry.buffer) {
+  #|         uniformBG = currentDevice.createBindGroup({
+  #|           layout: currentGpu._uniformBGL,
+  #|           entries: [{ binding: 0, resource: { buffer: ubEntry.buffer } }],
+  #|         });
+  #|         cache.uniformBindGroups[drawIndex] = uniformBG;
+  #|         cache.uniformBindBuffers[drawIndex] = ubEntry.buffer;
+  #|       }
   #|       let texView = currentGpu._defaultTexView;
   #|       let texSampler = currentGpu._defaultSampler;
+  #|       let resolvedImageId = 0;
+  #|       let resolvedRevision = -1;
   #|       if (currentGpu.textures != null && cmd.srcImageId > 0) {
   #|         const texEntry = currentGpu.textures.get(cmd.srcImageId);
-  #|         if (texEntry != null) { texView = texEntry.view; texSampler = texEntry.sampler; }
+  #|         if (texEntry != null) {
+  #|           texView = texEntry.view;
+  #|           texSampler = texEntry.sampler;
+  #|           resolvedImageId = cmd.srcImageId | 0;
+  #|           resolvedRevision = Number.isFinite(texEntry.revision)
+  #|             ? (texEntry.revision | 0)
+  #|             : 0;
+  #|         }
   #|       }
-  #|       const uniformBG = currentDevice.createBindGroup({
-  #|         layout: currentGpu._uniformBGL,
-  #|         entries: [{ binding: 0, resource: { buffer: ub } }],
-  #|       });
-  #|       const texBG = currentDevice.createBindGroup({
-  #|         layout: currentGpu._texBGL,
-  #|         entries: [{ binding: 0, resource: texView }, { binding: 1, resource: texSampler }],
-  #|       });
+  #|       let texBG = cache.textureBindGroups[drawIndex];
+  #|       if (
+  #|         texBG == null ||
+  #|         cache.textureBindImageIds[drawIndex] !== resolvedImageId ||
+  #|         cache.textureBindRevisions[drawIndex] !== resolvedRevision
+  #|       ) {
+  #|         texBG = currentDevice.createBindGroup({
+  #|           layout: currentGpu._texBGL,
+  #|           entries: [{ binding: 0, resource: texView }, { binding: 1, resource: texSampler }],
+  #|         });
+  #|         cache.textureBindGroups[drawIndex] = texBG;
+  #|         cache.textureBindImageIds[drawIndex] = resolvedImageId;
+  #|         cache.textureBindRevisions[drawIndex] = resolvedRevision;
+  #|       }
   #|       pass.setPipeline(currentGpu._pipeline);
   #|       pass.setBindGroup(0, uniformBG);
   #|       pass.setBindGroup(1, texBG);
-  #|       pass.setVertexBuffer(0, vb);
-  #|       pass.setIndexBuffer(ib, "uint32");
+  #|       pass.setVertexBuffer(0, vbEntry.buffer);
+  #|       pass.setIndexBuffer(ibEntry.buffer, "uint32");
   #|       pass.drawIndexed(cmd.indices.length);
   #|     }
   #|     pass.end();
@@ -1530,14 +1683,23 @@ extern "js" fn test_setup_present_state(
   #|     submits: 0,
   #|     clears: 0,
   #|     draws: 0,
+  #|     bufferCreates: 0,
+  #|     bufferDestroys: 0,
+  #|     bindGroupCreates: 0,
+  #|     textureDestroys: 0,
   #|     lastWebGpuShaderCode: "",
   #|   };
   #|   const webgpuContext = {
   #|     configure: () => {},
   #|     getCurrentTexture: () => ({ createView: () => ({}) }),
   #|   };
-  #|   const mockBuffer = {};
-  #|   const mockTexture = { createView: () => ({}), destroy: () => {} };
+  #|   const createMockBuffer = () => ({
+  #|     destroy: () => { stats.bufferDestroys += 1; },
+  #|   });
+  #|   const createMockTexture = () => ({
+  #|     createView: () => ({}),
+  #|     destroy: () => { stats.textureDestroys += 1; },
+  #|   });
   #|   const mockSampler = {};
   #|   const webgpuDevice = {
   #|     createCommandEncoder: () => ({
@@ -1558,10 +1720,10 @@ extern "js" fn test_setup_present_state(
   #|     },
   #|     createRenderPipeline: () => ({ getBindGroupLayout: (i) => ({}) }),
   #|     createPipelineLayout: () => ({}),
-  #|     createBuffer: () => mockBuffer,
-  #|     createTexture: () => mockTexture,
+  #|     createBuffer: () => { stats.bufferCreates += 1; return createMockBuffer(); },
+  #|     createTexture: () => createMockTexture(),
   #|     createSampler: () => mockSampler,
-  #|     createBindGroup: () => ({}),
+  #|     createBindGroup: () => { stats.bindGroupCreates += 1; return {}; },
   #|     createBindGroupLayout: () => ({}),
   #|     queue: {
   #|       submit: () => { stats.submits += 1; },
@@ -1639,6 +1801,38 @@ extern "js" fn test_present_draw_count() -> Int =
   #|   const stats = globalThis.__gameEnginePresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.draws ?? 0) | 0;
+  #| }
+
+///|
+extern "js" fn test_present_buffer_create_count() -> Int =
+  #| () => {
+  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   if (stats == null) return 0;
+  #|   return Number(stats.bufferCreates ?? 0) | 0;
+  #| }
+
+///|
+extern "js" fn test_present_buffer_destroy_count() -> Int =
+  #| () => {
+  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   if (stats == null) return 0;
+  #|   return Number(stats.bufferDestroys ?? 0) | 0;
+  #| }
+
+///|
+extern "js" fn test_present_bind_group_create_count() -> Int =
+  #| () => {
+  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   if (stats == null) return 0;
+  #|   return Number(stats.bindGroupCreates ?? 0) | 0;
+  #| }
+
+///|
+extern "js" fn test_present_texture_destroy_count() -> Int =
+  #| () => {
+  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   if (stats == null) return 0;
+  #|   return Number(stats.textureDestroys ?? 0) | 0;
   #| }
 
 ///|
@@ -2043,6 +2237,72 @@ test "js_webgpu_present renders multiple queued draw commands" {
 }
 
 ///|
+test "js_webgpu_present reuses draw buffers and bind groups across frames" {
+  test_setup_present_state(true, false, false)
+
+  js_webgpu_begin(0.0, 0.0, 0.0, 1.0)
+  js_gfx_draw_begin(3, 3, 0, 255, 0, 0, 255)
+  js_gfx_draw_vertex(0, -0.8, 0.7, 0.0, 0.0)
+  js_gfx_draw_vertex(1, -0.2, -0.6, 1.0, 0.0)
+  js_gfx_draw_vertex(2, 0.9, -0.3, 1.0, 1.0)
+  js_gfx_draw_index(0, 0)
+  js_gfx_draw_index(1, 1)
+  js_gfx_draw_index(2, 2)
+  js_gfx_draw_end()
+  let first_presented = js_webgpu_present()
+  assert_true(first_presented)
+  let first_buffer_creates = test_present_buffer_create_count()
+  let first_bind_group_creates = test_present_bind_group_create_count()
+  assert_true(first_buffer_creates >= 3)
+  assert_true(first_bind_group_creates >= 2)
+
+  js_webgpu_begin(0.0, 0.0, 0.0, 1.0)
+  js_gfx_draw_begin(3, 3, 0, 0, 255, 0, 255)
+  js_gfx_draw_vertex(0, -0.6, 0.5, 0.0, 0.0)
+  js_gfx_draw_vertex(1, -0.1, -0.7, 1.0, 0.0)
+  js_gfx_draw_vertex(2, 0.7, -0.2, 1.0, 1.0)
+  js_gfx_draw_index(0, 0)
+  js_gfx_draw_index(1, 1)
+  js_gfx_draw_index(2, 2)
+  js_gfx_draw_end()
+  let second_presented = js_webgpu_present()
+  assert_true(second_presented)
+  assert_eq(test_present_buffer_create_count(), first_buffer_creates)
+  assert_eq(test_present_bind_group_create_count(), first_bind_group_creates)
+
+  test_teardown_present_state()
+}
+
+///|
+test "uninstall releases cached webgpu buffers and textures" {
+  test_setup_present_state(true, false, false)
+
+  install("#app")
+
+  js_webgpu_begin(0.0, 0.0, 0.0, 1.0)
+  js_gfx_draw_begin(3, 3, 0, 255, 0, 0, 255)
+  js_gfx_draw_vertex(0, -0.8, 0.7, 0.0, 0.0)
+  js_gfx_draw_vertex(1, -0.2, -0.6, 1.0, 0.0)
+  js_gfx_draw_vertex(2, 0.9, -0.3, 1.0, 1.0)
+  js_gfx_draw_index(0, 0)
+  js_gfx_draw_index(1, 1)
+  js_gfx_draw_index(2, 2)
+  js_gfx_draw_end()
+  let presented = js_webgpu_present()
+  assert_true(presented)
+
+  assert_eq(test_present_buffer_destroy_count(), 0)
+  assert_eq(test_present_texture_destroy_count(), 0)
+
+  uninstall()
+
+  assert_true(test_present_buffer_destroy_count() > 0)
+  assert_true(test_present_texture_destroy_count() > 0)
+
+  test_teardown_present_state()
+}
+
+///|
 test "bridge_web_gfx_on_draw emits draw commands via new FFI" {
   test_setup_present_state(true, false, false)
   js_ensure_window_state("#app")
@@ -2225,7 +2485,11 @@ fn bridge_web_gfx_on_begin(
             for i = 0; i < pixel_count; i = i + 1 {
               let base = i * 4
               js_gfx_upload_texture_pixel(
-                i, px[base], px[base + 1], px[base + 2], px[base + 3],
+                i,
+                px[base],
+                px[base + 1],
+                px[base + 2],
+                px[base + 3],
               )
             }
             js_gfx_upload_texture_end()
@@ -2310,11 +2574,7 @@ fn bridge_web_gfx_on_resize(
 ) -> Unit {
   if active {
     let _ = js_prepare_surface(web_canvas_selector.val, width, height)
-    let _ = js_try_initialize_webgpu(
-      web_canvas_selector.val,
-      width,
-      height,
-    )
+    let _ = js_try_initialize_webgpu(web_canvas_selector.val, width, height)
   }
 }
 
@@ -2545,6 +2805,7 @@ pub fn install(canvas_selector : String) -> Unit {
   clear_synced_source_generations()
   clear_gpu_texture_dirty()
   js_ensure_window_state(canvas_selector)
+  js_release_webgpu_resources()
   js_set_should_close(false)
   let _ = js_set_vsync_enabled(true)
   @platform.set_web_canvas_hooks(
@@ -2571,6 +2832,7 @@ pub fn uninstall() -> Unit {
   clear_synced_source_generations()
   clear_gpu_texture_dirty()
   js_ensure_window_state(web_canvas_selector.val)
+  js_release_webgpu_resources()
   js_set_should_close(false)
   @gfx.reset_web_graphics_hooks()
   @platform.reset_web_canvas_hooks()

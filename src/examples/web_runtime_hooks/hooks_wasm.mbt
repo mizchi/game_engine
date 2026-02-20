@@ -305,10 +305,7 @@ extern "wasm" fn host_gfx_draw_vertex(
 ) -> Unit = "game_engine_web" "gfx_draw_vertex"
 
 ///|
-extern "wasm" fn host_gfx_draw_index(
-  offset : Int,
-  value : Int,
-) -> Unit = "game_engine_web" "gfx_draw_index"
+extern "wasm" fn host_gfx_draw_index(offset : Int, value : Int) -> Unit = "game_engine_web" "gfx_draw_index"
 
 ///|
 extern "wasm" fn host_gfx_draw_end() -> Unit = "game_engine_web" "gfx_draw_end"
@@ -541,7 +538,11 @@ fn bridge_web_gfx_on_begin(
             for i = 0; i < pixel_count; i = i + 1 {
               let base = i * 4
               host_gfx_upload_texture_pixel(
-                i, px[base], px[base + 1], px[base + 2], px[base + 3],
+                i,
+                px[base],
+                px[base + 1],
+                px[base + 2],
+                px[base + 3],
               )
             }
             host_gfx_upload_texture_end()
@@ -644,7 +645,11 @@ fn bridge_web_gfx_on_read_pixels(
     return None
   }
   let pixel_count = host_gfx_read_pixels_begin(
-    backend_kind_to_int(kind), x, y, width, height,
+    backend_kind_to_int(kind),
+    x,
+    y,
+    width,
+    height,
   )
   if pixel_count <= 0 {
     host_gfx_read_pixels_end()
