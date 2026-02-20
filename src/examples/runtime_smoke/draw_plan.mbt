@@ -2,10 +2,15 @@
 let runtime_smoke_atlas_page_id : Int = 801
 
 ///|
+let runtime_smoke_text_page_id : Int = 900
+
+///|
 pub struct RuntimeSmokeDrawPlan {
   atlas_repository : @asset.SimpleAtlasImageRepository
+  text_atlas : @text.GlyphAtlas
   commands : Array[@gfx.DrawTrianglesCommand]
   sprite_command_index : Int
+  text_command_index : Int
 }
 
 ///|
@@ -134,5 +139,53 @@ pub fn build_runtime_smoke_tile_draw_plan(
   if !sprite_appended || commands.length() != 2 {
     panic()
   }
-  { atlas_repository, commands, sprite_command_index: 1 }
+  // Text atlas: real font rasterization on a 64x64 atlas page
+  let text_atlas_size = 64
+  let text_atlas = @text.GlyphAtlas::new(
+    text_atlas_size, text_atlas_size, runtime_smoke_text_page_id,
+  )
+  let font_data = Bytes::from_array(smoke_test_font_otf[:])
+  let font = @text.parse_font_bytes(font_data)
+  match font {
+    Some(ttfont) => {
+      let quads = text_atlas.rasterize_text(ttfont, "I", 24.0)
+      if quads.length() < 1 {
+        panic()
+      }
+      let quad = quads[0]
+      let aw = text_atlas_size.to_double()
+      let u0 = quad.atlas_x / aw
+      let v0 = quad.atlas_y / aw
+      let u1 = (quad.atlas_x + quad.atlas_w) / aw
+      let v1 = (quad.atlas_y + quad.atlas_h) / aw
+      let text_command = @gfx.new_draw_triangles_command(
+        dst,
+        shader,
+        [@gfx.new_dst_region(0, 0, 64, 64, 6)],
+        0,
+        7,
+        13,
+        @gfx.blend_mode_from_int(1),
+        [
+          -0.8, -0.8, u0, v0, -0.3, -0.8, u1, v0, -0.3, -0.3, u1, v1,
+          -0.8, -0.3, u0, v1,
+        ],
+        [0, 1, 2, 0, 2, 3],
+        [runtime_smoke_text_page_id],
+        [255, 255, 255, 255],
+      )
+      commands.push(text_command)
+    }
+    None => panic()
+  }
+  if commands.length() != 3 {
+    panic()
+  }
+  {
+    atlas_repository,
+    text_atlas,
+    commands,
+    sprite_command_index: 1,
+    text_command_index: 2,
+  }
 }

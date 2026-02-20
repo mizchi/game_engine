@@ -382,6 +382,18 @@ fn bridge_gfx_on_read_pixels(
 }
 
 ///|
+fn bridge_gfx_on_new_image(
+  active : Bool,
+  image_id : Int,
+  width : Int,
+  height : Int,
+) -> Unit {
+  if active {
+    @wgpu_native.register_offscreen_target(image_id, width, height)
+  }
+}
+
+///|
 fn palette_channel_or_zero(
   palette : @image_palette.ImagePalette2x2,
   pixel_index : Int,
@@ -593,7 +605,7 @@ pub fn install(title : String) -> Unit {
   @gfx.set_native_graphics_hooks(
     @gfx.new_native_graphics_hooks_full(
       bridge_gfx_try_initialize, bridge_gfx_on_begin, bridge_gfx_on_end, bridge_gfx_on_draw,
-      bridge_gfx_on_resize, bridge_gfx_on_read_pixels,
+      bridge_gfx_on_resize, bridge_gfx_on_read_pixels, bridge_gfx_on_new_image,
     ),
   )
 }

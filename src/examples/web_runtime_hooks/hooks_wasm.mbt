@@ -43,6 +43,24 @@ let synced_source_generations : Ref[Array[SyncedSourceGeneration]] = Ref::new([]
 let source_image_cache : Ref[Array[SourceImageCacheEntry]] = Ref::new([])
 
 ///|
+let gpu_texture_dirty : Ref[Array[Int]] = Ref::new([])
+
+///|
+fn mark_gpu_texture_dirty(image_id : Int) -> Unit {
+  for id in gpu_texture_dirty.val {
+    if id == image_id {
+      return
+    }
+  }
+  gpu_texture_dirty.val.push(image_id)
+}
+
+///|
+fn clear_gpu_texture_dirty() -> Unit {
+  gpu_texture_dirty.val = []
+}
+
+///|
 fn normalized_size(value : Int) -> Int {
   if value <= 0 {
     1
@@ -246,42 +264,6 @@ extern "wasm" fn host_gfx_begin(
 ) -> Unit = "game_engine_web" "gfx_begin"
 
 ///|
-extern "wasm" fn host_gfx_draw(
-  kind : Int,
-  draw_calls : Int,
-  pipeline_id : Int,
-  uniform_hash : Int,
-  blend_mode : Int,
-  dst_image_id : Int,
-  shader_id : Int,
-  index_offset : Int,
-  region_count : Int,
-  total_index_count : Int,
-  vertex_float_count : Int,
-  index_count : Int,
-  src_image_count : Int,
-  uniform_dword_count : Int,
-  payload_has_triangle : Int,
-  payload_ax : Double,
-  payload_ay : Double,
-  payload_bx : Double,
-  payload_by : Double,
-  payload_cx : Double,
-  payload_cy : Double,
-  payload_au : Double,
-  payload_av : Double,
-  payload_bu : Double,
-  payload_bv : Double,
-  payload_cu : Double,
-  payload_cv : Double,
-  payload_uniform_r : Double,
-  payload_uniform_g : Double,
-  payload_uniform_b : Double,
-  payload_uniform_a : Double,
-  payload_texture_seed : Int,
-) -> Unit = "game_engine_web" "gfx_draw"
-
-///|
 extern "wasm" fn host_gfx_end(kind : Int, present : Int) -> Unit = "game_engine_web" "gfx_end"
 
 ///|
@@ -301,6 +283,54 @@ extern "wasm" fn host_gfx_read_pixels_channel(offset : Int) -> Int = "game_engin
 
 ///|
 extern "wasm" fn host_gfx_read_pixels_end() -> Unit = "game_engine_web" "gfx_read_pixels_end"
+
+///|
+extern "wasm" fn host_gfx_draw_begin(
+  vertex_count : Int,
+  index_count : Int,
+  src_image_id : Int,
+  uniform_r : Int,
+  uniform_g : Int,
+  uniform_b : Int,
+  uniform_a : Int,
+) -> Unit = "game_engine_web" "gfx_draw_begin"
+
+///|
+extern "wasm" fn host_gfx_draw_vertex(
+  offset : Int,
+  x : Double,
+  y : Double,
+  u : Double,
+  v : Double,
+) -> Unit = "game_engine_web" "gfx_draw_vertex"
+
+///|
+extern "wasm" fn host_gfx_draw_index(
+  offset : Int,
+  value : Int,
+) -> Unit = "game_engine_web" "gfx_draw_index"
+
+///|
+extern "wasm" fn host_gfx_draw_end() -> Unit = "game_engine_web" "gfx_draw_end"
+
+///|
+extern "wasm" fn host_gfx_upload_texture_begin(
+  image_id : Int,
+  width : Int,
+  height : Int,
+) -> Unit = "game_engine_web" "gfx_upload_texture_begin"
+
+///|
+extern "wasm" fn host_gfx_upload_texture_pixel(
+  offset : Int,
+  r : Int,
+  g : Int,
+  b : Int,
+  a : Int,
+) -> Unit = "game_engine_web" "gfx_upload_texture_pixel"
+
+///|
+extern "wasm" fn host_gfx_upload_texture_end() -> Unit = "game_engine_web" "gfx_upload_texture_end"
 
 ///|
 fn bridge_web_try_initialize(
@@ -338,16 +368,9 @@ fn bridge_web_current_surface(
   let surface_width = host_surface_width(options.width)
   let surface_height = host_surface_height(options.height)
   let surface_dpr = host_surface_dpr()
-  match host_surface_kind() {
-    1 =>
-      @platform.create_webgl_surface_token(
-        surface_id, surface_width, surface_height, surface_dpr,
-      )
-    _ =>
-      @platform.create_webgpu_surface_token(
-        surface_id, surface_width, surface_height, surface_dpr,
-      )
-  }
+  @platform.create_webgpu_surface_token(
+    surface_id, surface_width, surface_height, surface_dpr,
+  )
 }
 
 ///|
@@ -504,6 +527,30 @@ fn bridge_web_gfx_on_begin(
       pass.clear_color.b,
       pass.clear_color.a,
     )
+    // Upload dirty textures to GPU
+    let dirty = gpu_texture_dirty.val
+    for image_id in dirty {
+      match source_image_cache_entry_at(image_id) {
+        Some(entry) => {
+          let w = entry.width
+          let h = entry.height
+          let px = entry.pixels_rgba8
+          let pixel_count = w * h
+          if px.length() >= pixel_count * 4 {
+            host_gfx_upload_texture_begin(image_id, w, h)
+            for i = 0; i < pixel_count; i = i + 1 {
+              let base = i * 4
+              host_gfx_upload_texture_pixel(
+                i, px[base], px[base + 1], px[base + 2], px[base + 3],
+              )
+            }
+            host_gfx_upload_texture_end()
+          }
+        }
+        None => ()
+      }
+    }
+    gpu_texture_dirty.val = []
   }
 }
 
@@ -525,48 +572,49 @@ fn bridge_web_gfx_on_draw(
   command : @gfx.DrawTrianglesCommand,
 ) -> Unit {
   if active {
-    let dispatch = @gfx.build_draw_command_dispatch(command)
-    let payload = @payload2d.decode_triangle_payload(
-      command.vertex_data,
-      command.indices,
-      command.uniform_dwords,
-      command.src_image_ids,
-    )
-    let payload_has_triangle = if payload.has_payload { 1 } else { 0 }
-    host_gfx_draw(
-      backend_kind_to_int(kind),
-      dispatch.draw_calls,
-      dispatch.pipeline_id,
-      dispatch.uniform_hash,
-      dispatch.blend_mode,
-      dispatch.dst_image_id,
-      dispatch.shader_id,
-      dispatch.index_offset,
-      dispatch.region_count,
-      dispatch.total_index_count,
-      dispatch.vertex_float_count,
-      dispatch.index_count,
-      dispatch.src_image_count,
-      dispatch.uniform_dword_count,
-      payload_has_triangle,
-      payload.ax,
-      payload.ay,
-      payload.bx,
-      payload.by,
-      payload.cx,
-      payload.cy,
-      payload.au,
-      payload.av,
-      payload.bu,
-      payload.bv,
-      payload.cu,
-      payload.cv,
-      payload.uniform_r,
-      payload.uniform_g,
-      payload.uniform_b,
-      payload.uniform_a,
-      payload.texture_seed,
-    )
+    let _ = kind
+    let src_id = if command.src_image_ids.length() > 0 {
+      command.src_image_ids[0]
+    } else {
+      0
+    }
+    let ur = if command.uniform_dwords.length() > 0 {
+      command.uniform_dwords[0]
+    } else {
+      255
+    }
+    let ug = if command.uniform_dwords.length() > 1 {
+      command.uniform_dwords[1]
+    } else {
+      255
+    }
+    let ub = if command.uniform_dwords.length() > 2 {
+      command.uniform_dwords[2]
+    } else {
+      255
+    }
+    let ua = if command.uniform_dwords.length() > 3 {
+      command.uniform_dwords[3]
+    } else {
+      255
+    }
+    let vc = command.vertex_data.length() / 4
+    let ic = command.indices.length()
+    host_gfx_draw_begin(vc, ic, src_id, ur, ug, ub, ua)
+    for i = 0; i < vc; i = i + 1 {
+      let base = i * 4
+      host_gfx_draw_vertex(
+        i,
+        command.vertex_data[base],
+        command.vertex_data[base + 1],
+        command.vertex_data[base + 2],
+        command.vertex_data[base + 3],
+      )
+    }
+    for i = 0; i < ic; i = i + 1 {
+      host_gfx_draw_index(i, command.indices[i])
+    }
+    host_gfx_draw_end()
   }
 }
 
@@ -623,6 +671,7 @@ pub fn install(canvas_selector : String) -> Unit {
   web_attention_requests.val = 0
   clear_source_image_cache()
   clear_synced_source_generations()
+  clear_gpu_texture_dirty()
   @platform.set_web_canvas_hooks(
     @platform.new_web_canvas_hooks(
       bridge_web_try_initialize, bridge_web_poll, bridge_web_should_close, bridge_web_outside_size,
@@ -646,6 +695,7 @@ pub fn uninstall() -> Unit {
   web_close_requested.val = false
   clear_source_image_cache()
   clear_synced_source_generations()
+  clear_gpu_texture_dirty()
   host_shutdown()
   @gfx.reset_web_graphics_hooks()
   @platform.reset_web_canvas_hooks()
@@ -725,6 +775,7 @@ pub fn register_source_image_rgba8(
     pixels_rgba8,
   })
   drop_synced_source_generation(source_image_id)
+  mark_gpu_texture_dirty(source_image_id)
 }
 
 ///|
@@ -803,6 +854,7 @@ pub fn patch_source_image_rgba8(
             pixels_rgba8: next_pixels,
           })
           drop_synced_source_generation(source_image_id)
+          mark_gpu_texture_dirty(source_image_id)
           true
         }
       }

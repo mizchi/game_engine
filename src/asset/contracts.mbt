@@ -83,6 +83,29 @@ pub struct AtlasDrawSource {
 } derive(Show)
 
 ///|
+pub fn new_source_image_binding(
+  image_id : Int,
+  width : Int,
+  height : Int,
+  generation : Int,
+  dirty_rect : SourceImageDirtyRect?,
+  palette : @image_palette.ImagePalette2x2,
+  pixels_rgba8 : Array[Int],
+) -> SourceImageBinding {
+  { image_id, width, height, generation, dirty_rect, palette, pixels_rgba8 }
+}
+
+///|
+pub fn new_source_image_dirty_rect(
+  x : Int,
+  y : Int,
+  width : Int,
+  height : Int,
+) -> SourceImageDirtyRect {
+  { x, y, width, height }
+}
+
+///|
 pub fn new_unmanaged_atlas_draw_source(image_id : Int) -> AtlasDrawSource {
   let safe_image_id = if image_id < 0 { 0 } else { image_id }
   {

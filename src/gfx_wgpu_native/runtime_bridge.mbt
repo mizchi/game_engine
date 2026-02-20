@@ -137,6 +137,7 @@ priv struct PlannedDrawCommand {
   uniform_b : Double
   uniform_a : Double
   texture_seed : Int
+  dst_image_id : Int
 }
 
 ///|
@@ -165,6 +166,7 @@ fn default_planned_draw_command(draw_calls : Int) -> PlannedDrawCommand {
     uniform_b: 1.0,
     uniform_a: 1.0,
     texture_seed: 0,
+    dst_image_id: 0,
   }
 }
 
@@ -774,6 +776,7 @@ pub fn runtime_record_draw_triangle_payload(
       uniform_b,
       uniform_a,
       texture_seed: safe_texture_seed,
+      dst_image_id: last.dst_image_id,
     }
   }
 }
@@ -1214,6 +1217,7 @@ pub fn runtime_present_planned_frame() -> Bool {
           command.uniform_b,
           command.uniform_a,
           command.texture_seed,
+          command.dst_image_id,
         )
       }
       render_triangle_frame_with_staged_plan(

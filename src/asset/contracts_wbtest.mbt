@@ -31,6 +31,30 @@ fn expect_some_shader(
 }
 
 ///|
+test "new_source_image_binding factory constructs binding" {
+  let palette = @image_palette.checker_palette_from_seed(42)
+  let pixels = [10, 20, 30, 255]
+  let dirty = new_source_image_dirty_rect(1, 2, 3, 4)
+  let binding = new_source_image_binding(
+    900, 32, 32, 1, Some(dirty), palette, pixels,
+  )
+  assert_eq(binding.image_id, 900)
+  assert_eq(binding.width, 32)
+  assert_eq(binding.height, 32)
+  assert_eq(binding.generation, 1)
+  assert_eq(binding.pixels_rgba8[0], 10)
+  match binding.dirty_rect {
+    Some(rect) => {
+      assert_eq(rect.x, 1)
+      assert_eq(rect.y, 2)
+      assert_eq(rect.width, 3)
+      assert_eq(rect.height, 4)
+    }
+    None => panic()
+  }
+}
+
+///|
 test "simple image repository can create get and remove images" {
   let repo = new_simple_image_repository()
   let key : AssetKey = { value: "player" }

@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/bench" @bench,
   "mizchi/game_engine/gfx" @gfx,
   "mizchi/font" @font,
   "mizchi/svg" @msvg,

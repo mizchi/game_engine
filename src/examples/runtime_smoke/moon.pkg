@@ -1,12 +1,15 @@
 import {
+  "mizchi/font" @font,
   "mizchi/game_engine/asset" @asset,
   "mizchi/game_engine/core" @core,
   "mizchi/game_engine/examples/web_runtime_hooks" @web_hooks,
   "mizchi/game_engine/gfx" @gfx,
+  "mizchi/game_engine/image_palette" @image_palette,
   "mizchi/game_engine/payload2d" @payload2d,
   "mizchi/game_engine/platform" @platform,
   "mizchi/game_engine/runtime" @runtime,
   "mizchi/game_engine/sprite2d" @sprite2d,
+  "mizchi/game_engine/text" @text,
   "mizchi/game_engine/tilemap2d" @tilemap2d,
 }
 

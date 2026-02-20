@@ -187,6 +187,7 @@ pub fn stage_triangle_draw_plan_command(
   uniform_b : Double,
   uniform_a : Double,
   texture_seed : Int,
+  dst_image_id : Int,
 ) -> Unit {
   push_planned_draw_command(
     draw_calls,
@@ -212,6 +213,7 @@ pub fn stage_triangle_draw_plan_command(
     uniform_b,
     uniform_a,
     texture_seed,
+    dst_image_id,
   )
 }
 
@@ -270,6 +272,7 @@ pub fn shutdown_triangle_context(ctx : TriangleContext) -> Unit {
   clear_planned_bind_group_cache()
   clear_planned_pipeline_cache()
   clear_planned_texture_cache()
+  clear_offscreen_targets()
   render_pipeline_release(ctx.pipeline)
   shader_module_release(ctx.shader)
   queue_release(ctx.queue)

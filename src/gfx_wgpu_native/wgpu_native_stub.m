@@ -140,6 +140,7 @@ typedef struct {
   double uniform_b;
   double uniform_a;
   int32_t texture_seed;
+  int32_t dst_image_id;
 } moonbit_planned_draw_command;
 static moonbit_planned_draw_command g_planned_draw_commands[MOONBIT_MAX_PLANNED_DRAW_COMMANDS];
 static int32_t g_planned_draw_command_count = 0;
@@ -192,6 +193,26 @@ typedef struct {
 } moonbit_planned_bind_group_cache_entry;
 static moonbit_planned_bind_group_cache_entry g_planned_bind_group_cache[MOONBIT_MAX_PLANNED_BIND_GROUP_CACHE_ENTRIES];
 static uint64_t g_planned_bind_group_cache_stamp = 1;
+
+#define MOONBIT_MAX_OFFSCREEN_TARGETS 64
+typedef struct {
+  int32_t used;
+  int32_t image_id;
+  uint32_t width;
+  uint32_t height;
+  WGPUTexture texture;
+  WGPUTextureView view;
+} moonbit_offscreen_target;
+static moonbit_offscreen_target g_offscreen_targets[MOONBIT_MAX_OFFSCREEN_TARGETS];
+
+static moonbit_offscreen_target* moonbit_find_offscreen_target(int32_t image_id) {
+  for (int i = 0; i < MOONBIT_MAX_OFFSCREEN_TARGETS; i++) {
+    if (g_offscreen_targets[i].used && g_offscreen_targets[i].image_id == image_id) {
+      return &g_offscreen_targets[i];
+    }
+  }
+  return NULL;
+}
 
 #define MOONBIT_MAX_PLANNED_IMAGE_PALETTE_ENTRIES 512
 typedef struct {
@@ -2642,6 +2663,100 @@ static WGPURenderPipeline moonbit_get_or_create_planned_payload_pipeline(
 }
 
 // ===============================
+// Offscreen Target Management
+// ===============================
+
+void moonbit_register_offscreen_target(int32_t image_id, int32_t width, int32_t height) {
+  if (image_id <= 0 || width <= 0 || height <= 0) return;
+
+  // Check if already registered with same dimensions
+  moonbit_offscreen_target* existing = moonbit_find_offscreen_target(image_id);
+  if (existing != NULL) {
+    if ((int32_t)existing->width == width && (int32_t)existing->height == height) {
+      return; // Already registered with same size
+    }
+    // Destroy old resources
+    if (existing->view != NULL) {
+      wgpuTextureViewRelease(existing->view);
+      existing->view = NULL;
+    }
+    if (existing->texture != NULL) {
+      wgpuTextureRelease(existing->texture);
+      existing->texture = NULL;
+    }
+    existing->used = 0;
+  }
+
+  // Find free slot
+  moonbit_offscreen_target* target = NULL;
+  for (int i = 0; i < MOONBIT_MAX_OFFSCREEN_TARGETS; i++) {
+    if (!g_offscreen_targets[i].used) {
+      target = &g_offscreen_targets[i];
+      break;
+    }
+  }
+  if (target == NULL) return; // No free slots
+
+  target->used = 1;
+  target->image_id = image_id;
+  target->width = (uint32_t)width;
+  target->height = (uint32_t)height;
+  target->texture = NULL;
+  target->view = NULL;
+  // Note: actual GPU texture creation is deferred to rendering time when device is available
+}
+
+void moonbit_clear_offscreen_targets(void) {
+  for (int i = 0; i < MOONBIT_MAX_OFFSCREEN_TARGETS; i++) {
+    if (g_offscreen_targets[i].used) {
+      if (g_offscreen_targets[i].view != NULL) {
+        wgpuTextureViewRelease(g_offscreen_targets[i].view);
+      }
+      if (g_offscreen_targets[i].texture != NULL) {
+        wgpuTextureRelease(g_offscreen_targets[i].texture);
+      }
+    }
+    memset(&g_offscreen_targets[i], 0, sizeof(moonbit_offscreen_target));
+  }
+}
+
+static void moonbit_ensure_offscreen_gpu_texture(
+    WGPUDevice device,
+    moonbit_offscreen_target* target
+) {
+  if (target == NULL || device == NULL || !target->used) return;
+  if (target->texture != NULL) return; // Already created
+
+  WGPUTextureDescriptor texDesc = {
+    .nextInChain = NULL,
+    .label = "Offscreen Target",
+    .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc,
+    .dimension = WGPUTextureDimension_2D,
+    .size = { .width = target->width, .height = target->height, .depthOrArrayLayers = 1 },
+    .format = g_configured_surface_format,
+    .mipLevelCount = 1,
+    .sampleCount = 1,
+    .viewFormatCount = 0,
+    .viewFormats = NULL,
+  };
+  target->texture = wgpuDeviceCreateTexture(device, &texDesc);
+  if (target->texture != NULL) {
+    WGPUTextureViewDescriptor viewDesc = {
+      .nextInChain = NULL,
+      .label = "Offscreen Target View",
+      .format = WGPUTextureFormat_Undefined,
+      .dimension = WGPUTextureViewDimension_2D,
+      .baseMipLevel = 0,
+      .mipLevelCount = 1,
+      .baseArrayLayer = 0,
+      .arrayLayerCount = 1,
+      .aspect = WGPUTextureAspect_All,
+    };
+    target->view = wgpuTextureCreateView(target->texture, &viewDesc);
+  }
+}
+
+// ===============================
 // Rendering
 // ===============================
 
@@ -2668,7 +2783,8 @@ void moonbit_push_planned_draw_command(
     double uniform_g,
     double uniform_b,
     double uniform_a,
-    int32_t texture_seed
+    int32_t texture_seed,
+    int32_t dst_image_id
 ) {
   if (g_planned_draw_command_count >= MOONBIT_MAX_PLANNED_DRAW_COMMANDS) {
     return;
@@ -2693,6 +2809,7 @@ void moonbit_push_planned_draw_command(
   command->uniform_b = uniform_b;
   command->uniform_a = uniform_a;
   command->texture_seed = texture_seed < 0 ? 0 : texture_seed;
+  command->dst_image_id = dst_image_id;
 }
 
 static void moonbit_fill_payload_vertices(
@@ -3164,6 +3281,59 @@ void moonbit_render_frame_with_staged_plan(
   };
   WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
 
+  // First pass: render to offscreen targets
+  for (int32_t command_index = 0; command_index < g_planned_draw_command_count; command_index++) {
+    moonbit_planned_draw_command command = g_planned_draw_commands[command_index];
+    if (command.dst_image_id <= 0) continue; // Screen commands handled in second pass
+
+    moonbit_offscreen_target* target = moonbit_find_offscreen_target(command.dst_image_id);
+    if (target == NULL || !target->used) continue;
+
+    moonbit_ensure_offscreen_gpu_texture(device, target);
+    if (target->texture == NULL || target->view == NULL) continue;
+
+    // Create a separate render pass for this offscreen target
+    WGPURenderPassColorAttachment offscreenAttachment = {
+      .view = target->view,
+      .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+      .resolveTarget = NULL,
+      .loadOp = WGPULoadOp_Load, // Preserve existing content
+      .storeOp = WGPUStoreOp_Store,
+      .clearValue = {0.0f, 0.0f, 0.0f, 0.0f}
+    };
+    WGPURenderPassDescriptor offscreenPassDesc = {
+      .nextInChain = NULL,
+      .label = "Offscreen Render Pass",
+      .colorAttachmentCount = 1,
+      .colorAttachments = &offscreenAttachment,
+      .depthStencilAttachment = NULL,
+      .occlusionQuerySet = NULL,
+      .timestampWrites = NULL
+    };
+    WGPURenderPassEncoder offscreenPass = wgpuCommandEncoderBeginRenderPass(encoder, &offscreenPassDesc);
+
+    int32_t draw_calls = command.draw_calls <= 0 ? 1 : command.draw_calls;
+    int used_payload_buffer_draw = 0;
+    if (command.has_triangle_payload != 0) {
+      WGPURenderPipeline cached_payload_pipeline =
+        moonbit_get_or_create_planned_payload_pipeline(device, g_configured_surface_format, &command);
+      if (cached_payload_pipeline != NULL) {
+        used_payload_buffer_draw = moonbit_draw_payload_with_vertex_index_buffers(
+          device, queue, offscreenPass, cached_payload_pipeline, &command, draw_calls);
+      }
+    }
+    if (!used_payload_buffer_draw) {
+      wgpuRenderPassEncoderSetPipeline(offscreenPass, pipeline);
+      for (int32_t i = 0; i < draw_calls; i++) {
+        wgpuRenderPassEncoderDraw(offscreenPass, 3, 1, 0, 0);
+      }
+    }
+
+    wgpuRenderPassEncoderEnd(offscreenPass);
+    wgpuRenderPassEncoderRelease(offscreenPass);
+  }
+
+  // Second pass: render screen commands (dst_image_id == 0) to swap chain
   WGPURenderPassColorAttachment colorAttachment = {
     .view = view,
     .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
@@ -3187,27 +3357,19 @@ void moonbit_render_frame_with_staged_plan(
 
   for (int32_t command_index = 0; command_index < g_planned_draw_command_count; command_index++) {
     moonbit_planned_draw_command command = g_planned_draw_commands[command_index];
+    if (command.dst_image_id > 0) continue; // Already rendered to offscreen
+
     int32_t draw_calls = command.draw_calls <= 0 ? 1 : command.draw_calls;
     int used_payload_buffer_draw = 0;
     if (command.has_triangle_payload != 0) {
       WGPURenderPipeline cached_payload_pipeline =
         moonbit_get_or_create_planned_payload_pipeline(
-          device,
-          g_configured_surface_format,
-          &command
-        );
+          device, g_configured_surface_format, &command);
       if (cached_payload_pipeline != NULL) {
         used_payload_buffer_draw = moonbit_draw_payload_with_vertex_index_buffers(
-          device,
-          queue,
-          pass,
-          cached_payload_pipeline,
-          &command,
-          draw_calls
-        );
+          device, queue, pass, cached_payload_pipeline, &command, draw_calls);
       }
     }
-
     if (!used_payload_buffer_draw) {
       wgpuRenderPassEncoderSetPipeline(pass, pipeline);
       for (int32_t i = 0; i < draw_calls; i++) {

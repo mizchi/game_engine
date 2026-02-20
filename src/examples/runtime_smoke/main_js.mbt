@@ -174,6 +174,16 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Unit raise {
   if resynced != 0 {
     panic()
   }
+  let text_binding = @asset.new_source_image_binding(
+    900,
+    64,
+    64,
+    1,
+    Some(@asset.new_source_image_dirty_rect(0, 0, 64, 64)),
+    @image_palette.checker_palette_from_seed(900),
+    plan.text_atlas.get_pixels(),
+  )
+  let _ = @web_hooks.sync_source_images([text_binding])
   let atlas_page_id = 801
   if @web_hooks.source_image_generation(atlas_page_id) != 3 {
     panic()
@@ -269,8 +279,17 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Unit raise {
     Some(pixels) => pixels.length()
     None => -1
   }
+  let rp0 = match read_pixels_result {
+    Some(pixels) =>
+      if pixels.length() >= 16 {
+        "\{pixels[0]},\{pixels[1]},\{pixels[2]},\{pixels[3]},\{pixels[4]},\{pixels[5]},\{pixels[6]},\{pixels[7]},\{pixels[8]},\{pixels[9]},\{pixels[10]},\{pixels[11]},\{pixels[12]},\{pixels[13]},\{pixels[14]},\{pixels[15]}"
+      } else {
+        "none"
+      }
+    None => "none"
+  }
   println(
-    "runtime_smoke_web_probe: tex_seed=\{payload_texture_seed} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b} sample0=\{sample0_x},\{sample0_y},\{sample0[0]},\{sample0[1]},\{sample0[2]},\{sample0[3]} sample1=\{sample1_x},\{sample1_y},\{sample1[0]},\{sample1[1]},\{sample1[2]},\{sample1[3]} sample2=\{sample2_x},\{sample2_y},\{sample2[0]},\{sample2[1]},\{sample2[2]},\{sample2[3]} read_pixels_len=\{read_pixels_len} command_count=\{plan.commands.length()}",
+    "runtime_smoke_web_probe: tex_seed=\{payload_texture_seed} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b} sample0=\{sample0_x},\{sample0_y},\{sample0[0]},\{sample0[1]},\{sample0[2]},\{sample0[3]} sample1=\{sample1_x},\{sample1_y},\{sample1[0]},\{sample1[1]},\{sample1[2]},\{sample1[3]} sample2=\{sample2_x},\{sample2_y},\{sample2[0]},\{sample2[1]},\{sample2[2]},\{sample2[3]} read_pixels_len=\{read_pixels_len} read_pixels_4x1=\{rp0} command_count=\{plan.commands.length()}",
   )
 }
 

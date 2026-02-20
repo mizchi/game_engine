@@ -570,6 +570,7 @@ extern "C" fn moonbit_push_planned_draw_command(
   uniform_b : Double,
   uniform_a : Double,
   texture_seed : Int,
+  dst_image_id : Int,
 ) -> Unit = "moonbit_push_planned_draw_command"
 
 ///|
@@ -593,11 +594,36 @@ pub fn push_planned_draw_command(
   uniform_b : Double,
   uniform_a : Double,
   texture_seed : Int,
+  dst_image_id : Int,
 ) -> Unit {
   moonbit_push_planned_draw_command(
     draw_calls, has_triangle_payload, ax, ay, bx, by, cx, cy, au, av, bu, bv, cu,
-    cv, uniform_r, uniform_g, uniform_b, uniform_a, texture_seed,
+    cv, uniform_r, uniform_g, uniform_b, uniform_a, texture_seed, dst_image_id,
   )
+}
+
+///|
+extern "C" fn moonbit_register_offscreen_target(
+  image_id : Int,
+  width : Int,
+  height : Int,
+) -> Unit = "moonbit_register_offscreen_target"
+
+///|
+pub fn register_offscreen_target(
+  image_id : Int,
+  width : Int,
+  height : Int,
+) -> Unit {
+  moonbit_register_offscreen_target(image_id, width, height)
+}
+
+///|
+extern "C" fn moonbit_clear_offscreen_targets() -> Unit = "moonbit_clear_offscreen_targets"
+
+///|
+pub fn clear_offscreen_targets() -> Unit {
+  moonbit_clear_offscreen_targets()
 }
 
 ///|

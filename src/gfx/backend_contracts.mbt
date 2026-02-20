@@ -271,8 +271,7 @@ pub impl GraphicsDriver for StubGraphicsDriver with new_image(
   height,
 ) {
   self.next_id = self.next_id + 1
-  let _ = self.width
-  let _ = self.height
+  native_on_new_image(self.native_active, self.next_id, width, height)
   { id: self.next_id, width, height }
 }
 

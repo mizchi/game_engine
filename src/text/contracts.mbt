@@ -62,6 +62,11 @@ pub trait TextBatchBuilder {
 }
 
 ///|
+pub fn new_text_run(text : String, style : TextStyle) -> TextRun {
+  { text, style }
+}
+
+///|
 pub fn default_text_style(family : String, size_px : Double) -> TextStyle {
   {
     font: { family, weight: 400, italic: false },
@@ -304,19 +309,39 @@ fn blit_to_atlas(
   dst_x : Int,
   dst_y : Int,
 ) -> Unit {
-  for row = 0; row < src.height; row = row + 1 {
-    let src_offset = row * src.width * 4
-    let dst_offset = ((dst_y + row) * atlas_width + dst_x) * 4
-    for col = 0; col < src.width; col = col + 1 {
-      let si = src_offset + col * 4
-      let di = dst_offset + col * 4
-      if di + 3 < atlas_pixels.length() && si + 3 < src.pixels.length() {
-        atlas_pixels[di] = src.pixels[si]
-        atlas_pixels[di + 1] = src.pixels[si + 1]
-        atlas_pixels[di + 2] = src.pixels[si + 2]
-        atlas_pixels[di + 3] = src.pixels[si + 3]
-      }
-    }
+  if atlas_width <= 0 || src.width <= 0 || src.height <= 0 {
+    return
+  }
+  let atlas_height = (atlas_pixels.length() / 4) / atlas_width
+  if atlas_height <= 0 {
+    return
+  }
+  if src.pixels.length() < src.width * src.height * 4 {
+    return
+  }
+  let src_x_start = if dst_x < 0 { -dst_x } else { 0 }
+  let src_y_start = if dst_y < 0 { -dst_y } else { 0 }
+  let mut src_x_end = src.width
+  let mut src_y_end = src.height
+  if dst_x + src_x_end > atlas_width {
+    src_x_end = atlas_width - dst_x
+  }
+  if dst_y + src_y_end > atlas_height {
+    src_y_end = atlas_height - dst_y
+  }
+  if src_x_start >= src_x_end || src_y_start >= src_y_end {
+    return
+  }
+  let copy_width = src_x_end - src_x_start
+  let row_copy_len = copy_width * 4
+  for row in src_y_start..<src_y_end {
+    let src_offset = (row * src.width + src_x_start) * 4
+    let dst_offset =
+      ((dst_y + row) * atlas_width + (dst_x + src_x_start)) * 4
+    src.pixels[src_offset:src_offset + row_copy_len].blit_to(
+      atlas_pixels,
+      dst_offset=dst_offset,
+    )
   }
 }
 

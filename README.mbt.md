@@ -21,8 +21,8 @@ MoonBit 向け 2D(将来 3D) ゲームエンジン。
 - `core`: `Game`, `RunOptions`, `FixedStep*` の契約
 - `platform`: window/event/input 抽象
 - `gfx`: GraphicsDriver / CommandQueue + ShaderFrontend / UniformCanonicalizer + backend factory 抽象
-- `asset`: image/shader/material/atlas 抽象
-- `text`: font shaping / text batch 抽象
+- `asset`: image/shader/material/atlas 抽象（SourceImageBinding ファクトリ付き）
+- `text`: font shaping / glyph atlas / text batch 抽象（GlyphAtlas → GPU テクスチャ同期済み）
 - `ui`: layout/input/render bridge 抽象
 - `ai`: sensor/policy/actuator/scheduler 抽象
 - `runtime`: ループ統合 API 抽象

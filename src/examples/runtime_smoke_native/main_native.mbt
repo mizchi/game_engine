@@ -390,9 +390,65 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> (Int, Int) r
   if !sprite_appended {
     panic()
   }
-  let command_count = tile_commands.length() + sprite_commands.length()
+  // Text atlas: real font rasterization on a 64x64 atlas page
+  let text_atlas_size = 64
+  let text_atlas = @text.GlyphAtlas::new(text_atlas_size, text_atlas_size, 900)
+  let font_data = Bytes::from_array(smoke_test_font_otf[:])
+  let font = @text.parse_font_bytes(font_data)
+  let text_commands : Array[@gfx.DrawTrianglesCommand] = []
+  match font {
+    Some(ttfont) => {
+      let quads = text_atlas.rasterize_text(ttfont, "I", 24.0)
+      if quads.length() < 1 {
+        panic()
+      }
+      let quad = quads[0]
+      let text_binding = @asset.new_source_image_binding(
+        900,
+        text_atlas_size,
+        text_atlas_size,
+        1,
+        Some(
+          @asset.new_source_image_dirty_rect(
+            0, 0, text_atlas_size, text_atlas_size,
+          ),
+        ),
+        @image_palette.checker_palette_from_seed(900),
+        text_atlas.get_pixels(),
+      )
+      let _ = @native_hooks.sync_source_images([text_binding])
+      let aw = text_atlas_size.to_double()
+      let u0 = quad.atlas_x / aw
+      let v0 = quad.atlas_y / aw
+      let u1 = (quad.atlas_x + quad.atlas_w) / aw
+      let v1 = (quad.atlas_y + quad.atlas_h) / aw
+      let text_command = @gfx.new_draw_triangles_command(
+        dst,
+        shader,
+        [@gfx.new_dst_region(0, 0, 64, 64, 6)],
+        0,
+        7,
+        13,
+        @gfx.blend_mode_from_int(1),
+        [
+          -0.8, -0.8, u0, v0, -0.3, -0.8, u1, v0, -0.3, -0.3, u1, v1,
+          -0.8, -0.3, u0, v1,
+        ],
+        [0, 1, 2, 0, 2, 3],
+        [900],
+        [255, 255, 255, 255],
+      )
+      text_commands.push(text_command)
+    }
+    None => panic()
+  }
+  let command_count = tile_commands.length() + sprite_commands.length() +
+    text_commands.length()
   let command = tile_commands[0]
   graphics.begin(pass)
+  for cmd in text_commands {
+    graphics.draw_triangles(cmd)
+  }
   for cmd in sprite_commands {
     graphics.draw_triangles(cmd)
   }
@@ -603,8 +659,17 @@ fn run_with_real_native_hooks() -> Bool {
     Some(pixels) => pixels.length()
     None => -1
   }
+  let rp0 = match read_pixels_result {
+    Some(pixels) =>
+      if pixels.length() >= 16 {
+        "\{pixels[0]},\{pixels[1]},\{pixels[2]},\{pixels[3]},\{pixels[4]},\{pixels[5]},\{pixels[6]},\{pixels[7]},\{pixels[8]},\{pixels[9]},\{pixels[10]},\{pixels[11]},\{pixels[12]},\{pixels[13]},\{pixels[14]},\{pixels[15]}"
+      } else {
+        "none"
+      }
+    None => "none"
+  }
   println(
-    "runtime_smoke_native_probe: tex_seed=\{payload_texture_seed} source_gen=\{source_generation} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b} sample0=\{sample0_x},\{sample0_y},\{sample0[0]},\{sample0[1]},\{sample0[2]},\{sample0[3]} sample1=\{sample1_x},\{sample1_y},\{sample1[0]},\{sample1[1]},\{sample1[2]},\{sample1[3]} sample2=\{sample2_x},\{sample2_y},\{sample2[0]},\{sample2[1]},\{sample2[2]},\{sample2[3]} read_pixels_len=\{read_pixels_len} command_count=\{command_count}",
+    "runtime_smoke_native_probe: tex_seed=\{payload_texture_seed} source_gen=\{source_generation} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b} sample0=\{sample0_x},\{sample0_y},\{sample0[0]},\{sample0[1]},\{sample0[2]},\{sample0[3]} sample1=\{sample1_x},\{sample1_y},\{sample1[0]},\{sample1[1]},\{sample1[2]},\{sample1[3]} sample2=\{sample2_x},\{sample2_y},\{sample2[0]},\{sample2[1]},\{sample2[2]},\{sample2[3]} read_pixels_len=\{read_pixels_len} read_pixels_4x1=\{rp0} command_count=\{command_count}",
   )
   true
 }

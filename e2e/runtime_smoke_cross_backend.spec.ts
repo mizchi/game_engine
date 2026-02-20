@@ -38,9 +38,9 @@ const loadSmokeResult = async (page: Page, path: string) => {
 };
 
 const WEB_PROBE_RE =
-  /runtime_smoke_web_probe:\s*tex_seed=(\d+)\s+atlas_gen=(\d+)\s+atlas_rgb=(\d+),(\d+),(\d+)\s+sample0=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample1=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample2=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+read_pixels_len=(-?\d+)\s+command_count=(\d+)/;
+  /runtime_smoke_web_probe:\s*tex_seed=(\d+)\s+atlas_gen=(\d+)\s+atlas_rgb=(\d+),(\d+),(\d+)\s+sample0=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample1=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample2=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+read_pixels_len=(-?\d+)\s+read_pixels_4x1=(none|\d+(?:,\d+){15})\s+command_count=(\d+)/;
 const NATIVE_PROBE_RE =
-  /runtime_smoke_native_probe:\s*tex_seed=(\d+)\s+source_gen=(\d+)\s+atlas_gen=(\d+)\s+atlas_rgb=(\d+),(\d+),(\d+)\s+sample0=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample1=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample2=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+read_pixels_len=(-?\d+)\s+command_count=(\d+)/;
+  /runtime_smoke_native_probe:\s*tex_seed=(\d+)\s+source_gen=(\d+)\s+atlas_gen=(\d+)\s+atlas_rgb=(\d+),(\d+),(\d+)\s+sample0=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample1=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+sample2=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+read_pixels_len=(-?\d+)\s+read_pixels_4x1=(none|\d+(?:,\d+){15})\s+command_count=(\d+)/;
 
 const decodeProbeSamples = (probe: RegExpMatchArray, startIndex: number) => {
   return [
@@ -132,11 +132,50 @@ test.describe("runtime smoke cross backend parity", () => {
     }
 
     // Verify command_count matches between web and native
-    const webCommandCount = Number(webProbe[25]);
-    const nativeCommandCount = Number(nativeProbe[26]);
-    expect(webCommandCount).toBe(2);
-    expect(nativeCommandCount).toBe(2);
+    const webCommandCount = Number(webProbe[26]);
+    const nativeCommandCount = Number(nativeProbe[27]);
+    expect(webCommandCount).toBe(3);
+    expect(nativeCommandCount).toBe(3);
     expect(webCommandCount).toBe(nativeCommandCount);
+  });
+
+  test("cross-backend read_pixels parity", async ({ page }) => {
+    const web = await loadSmokeResult(page, "/e2e/fixtures/runtime_smoke_wasm.html");
+    expect(web.status).toBe("ok");
+    const webProbe = web.output.match(WEB_PROBE_RE);
+    expect(webProbe, web.output).not.toBeNull();
+    if (webProbe == null) return;
+
+    const native = runMoon(["run", "src/examples/runtime_smoke_native", "--target", "native"]);
+    const nativeOutput = `${native.stdout}\n${native.stderr}`;
+    expect(native.status, nativeOutput).toBe(0);
+    const nativeProbe = nativeOutput.match(NATIVE_PROBE_RE);
+    expect(nativeProbe, nativeOutput).not.toBeNull();
+    if (nativeProbe == null) return;
+
+    const nativeReadPixelsLen = Number(nativeProbe[25]);
+    const nativeReadPixels4x1 = nativeProbe[26];
+    // Native always has valid read_pixels (64 channels for 4x4 region)
+    expect(nativeReadPixelsLen).toBe(64);
+    expect(nativeReadPixels4x1).not.toBe("none");
+    const nativePixels = nativeReadPixels4x1.split(",").map(Number);
+    expect(nativePixels.length).toBe(16);
+
+    const webReadPixelsLen = Number(webProbe[24]);
+    const webReadPixels4x1 = webProbe[25];
+    if (webReadPixelsLen > 0 && webReadPixels4x1 !== "none") {
+      // Both backends have valid read_pixels — compare with tolerance
+      const webPixels = webReadPixels4x1.split(",").map(Number);
+      expect(webPixels.length).toBe(16);
+      const TOLERANCE = 8;
+      for (let i = 0; i < 16; i++) {
+        expect(
+          Math.abs(webPixels[i] - nativePixels[i]),
+          `pixel channel ${i}: web=${webPixels[i]} native=${nativePixels[i]}`,
+        ).toBeLessThanOrEqual(TOLERANCE);
+      }
+    }
+    // When web has no WebGPU (headless), skip pixel comparison but still verify native
   });
 
   test("web pixel capture buffer has correct dimensions", async ({ page }) => {

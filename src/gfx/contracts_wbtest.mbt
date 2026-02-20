@@ -1089,6 +1089,7 @@ test "read_pixels clamps to framebuffer bounds" {
         None
       }
     },
+    on_new_image: fn(_a, _id, _w, _h) {},
   })
   let surface = @platform.create_offscreen_surface_token(64, 64)
   let options = default_graphics_backend_options()
@@ -1116,6 +1117,7 @@ test "read_pixels delegates to native hook and returns pixels" {
         None
       }
     },
+    on_new_image: fn(_a, _id, _w, _h) {},
   })
   let surface = @platform.create_offscreen_surface_token(64, 64)
   let options = default_graphics_backend_options()
@@ -1434,6 +1436,7 @@ test "create_framebuffer_snapshot wraps read_pixels result" {
         None
       }
     },
+    on_new_image: fn(_a, _id, _w, _h) {},
   })
   let surface = @platform.create_offscreen_surface_token(64, 64)
   let options = default_graphics_backend_options()
@@ -1535,6 +1538,7 @@ test "new_native_graphics_hooks_full sets on_read_pixels" {
       read_pixels_called.val = true
       Some([1, 2, 3, 4])
     },
+    fn(_a, _id, _w, _h) {},
   )
   let result = (hooks.on_read_pixels)(true, 0, 0, 1, 1)
   assert_true(read_pixels_called.val)

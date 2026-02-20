@@ -56,11 +56,25 @@ test.describe("runtime smoke native", () => {
       expect(readPixelsLen).toBe(64);
     }
 
+    // Verify read_pixels_4x1 contains actual pixel data (not "none")
+    const rp4x1Match = output.match(/read_pixels_4x1=(none|\d+(?:,\d+){15})/);
+    expect(rp4x1Match, output).not.toBeNull();
+    if (rp4x1Match != null) {
+      expect(rp4x1Match[1]).not.toBe("none");
+      const pixels = rp4x1Match[1].split(",").map(Number);
+      expect(pixels.length).toBe(16);
+      // All values should be valid 0-255 range
+      for (const ch of pixels) {
+        expect(ch).toBeGreaterThanOrEqual(0);
+        expect(ch).toBeLessThanOrEqual(255);
+      }
+    }
+
     // Verify command_count (tile + sprite)
     const ccMatch = output.match(/command_count=(\d+)/);
     expect(ccMatch, output).not.toBeNull();
     if (ccMatch != null) {
-      expect(Number(ccMatch[1])).toBe(2);
+      expect(Number(ccMatch[1])).toBe(3);
     }
   });
 });
