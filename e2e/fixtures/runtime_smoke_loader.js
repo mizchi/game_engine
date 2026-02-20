@@ -220,32 +220,40 @@ const ensureWebGpu = () => {
   if (webState.canvas == null || nav == null || nav.gpu == null) {
     return false;
   }
+  // Start adapter/device request if not already started, but do NOT lock the
+  // canvas to WebGPU until the device is actually ready.  Otherwise the canvas
+  // context type is set to "webgpu" and ensureWebGl2 can no longer create a
+  // WebGL2 context for fallback.
+  if (webState.webgpu.device == null) {
+    if (webState.webgpu.pending == null) {
+      webState.webgpu.pending = nav.gpu.requestAdapter()
+        .then((adapter) => adapter == null ? null : adapter.requestDevice())
+        .then((device) => {
+          if (device == null) {
+            return;
+          }
+          const format = typeof nav.gpu.getPreferredCanvasFormat === "function"
+            ? nav.gpu.getPreferredCanvasFormat()
+            : "bgra8unorm";
+          webState.webgpu.format = format;
+          webState.webgpu.device = device;
+        })
+        .catch(() => {
+          webState.webgpu.device = null;
+        })
+        .finally(() => {
+          webState.webgpu.pending = null;
+        });
+    }
+    return false;
+  }
+  // Device is ready — now safe to lock the canvas to WebGPU
   const context = webState.canvas.getContext("webgpu");
   if (context == null) {
     return false;
   }
   webState.webgpu.context = context;
-  if (webState.webgpu.device == null && webState.webgpu.pending == null) {
-    webState.webgpu.pending = nav.gpu.requestAdapter()
-      .then((adapter) => adapter == null ? null : adapter.requestDevice())
-      .then((device) => {
-        if (device == null) {
-          return;
-        }
-        const format = typeof nav.gpu.getPreferredCanvasFormat === "function"
-          ? nav.gpu.getPreferredCanvasFormat()
-          : "bgra8unorm";
-        webState.webgpu.format = format;
-        webState.webgpu.device = device;
-      })
-      .catch(() => {
-        webState.webgpu.device = null;
-      })
-      .finally(() => {
-        webState.webgpu.pending = null;
-      });
-  }
-  return webState.webgpu.device != null;
+  return true;
 };
 
 const ensureWebGpuPipeline = (device, format) => {
@@ -347,6 +355,7 @@ const ensureWebGl2 = () => {
     antialias: false,
     depth: false,
     stencil: false,
+    preserveDrawingBuffer: true,
   });
   if (context == null) {
     return false;
@@ -706,6 +715,52 @@ const run = async () => {
         webState.frame.presentedFrames += 1;
         webState.frame.drawCalls = 0;
         webState.frame.commandCount = 0;
+      },
+      gfx_read_pixels_begin: (_kind, x, y, w, h) => {
+        const sx = Number(x) | 0;
+        const sy = Number(y) | 0;
+        const sw = Number(w) | 0;
+        const sh = Number(h) | 0;
+        if (sw <= 0 || sh <= 0 || webState.canvas == null) {
+          webState._readPixelsBuffer = null;
+          return 0;
+        }
+        try {
+          const doc = typeof document === "undefined" ? null : document;
+          if (doc == null) {
+            webState._readPixelsBuffer = null;
+            return 0;
+          }
+          if (webState._readPixelsCanvas == null) {
+            webState._readPixelsCanvas = doc.createElement("canvas");
+            webState._readPixelsContext = webState._readPixelsCanvas.getContext("2d", { willReadFrequently: true });
+          }
+          webState._readPixelsCanvas.width = sw;
+          webState._readPixelsCanvas.height = sh;
+          webState._readPixelsContext.clearRect(0, 0, sw, sh);
+          webState._readPixelsContext.drawImage(webState.canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+          const imageData = webState._readPixelsContext.getImageData(0, 0, sw, sh);
+          webState._readPixelsBuffer = new Uint8Array(imageData.data.length);
+          webState._readPixelsBuffer.set(imageData.data);
+          return sw * sh;
+        } catch (_) {
+          webState._readPixelsBuffer = null;
+          return 0;
+        }
+      },
+      gfx_read_pixels_channel: (offset) => {
+        const buf = webState._readPixelsBuffer;
+        if (buf == null) {
+          return 0;
+        }
+        const i = Number(offset) | 0;
+        if (i < 0 || i >= buf.length) {
+          return 0;
+        }
+        return buf[i];
+      },
+      gfx_read_pixels_end: () => {
+        webState._readPixelsBuffer = null;
       },
       shutdown: () => {
         webState.webgpu.context = null;

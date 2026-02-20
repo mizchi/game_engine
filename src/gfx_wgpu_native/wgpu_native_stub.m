@@ -16,6 +16,13 @@
 #error "webgpu/webgpu.h not found. run: bash scripts/setup-wgpu-native.sh"
 #endif
 
+// wgpu-native extension header (provides wgpuDevicePoll etc.)
+#if __has_include("../../deps/wgpu-macos/include/webgpu/wgpu.h")
+#include "../../deps/wgpu-macos/include/webgpu/wgpu.h"
+#elif __has_include(<webgpu/wgpu.h>)
+#include <webgpu/wgpu.h>
+#endif
+
 #define GLFW_EXPOSE_NATIVE_COCOA
 #if __has_include("/opt/homebrew/include/GLFW/glfw3.h")
 #include "/opt/homebrew/include/GLFW/glfw3.h"
@@ -98,6 +105,19 @@ typedef struct {
 static moonbit_touch_state g_touches[MOONBIT_MAX_TOUCHES];
 static int32_t g_touch_count = 0;
 static WGPUTextureFormat g_configured_surface_format = WGPUTextureFormat_BGRA8Unorm;
+
+// readback state
+static WGPUBuffer g_readback_buffer = NULL;
+static uint32_t g_readback_width = 0;
+static uint32_t g_readback_height = 0;
+static uint8_t* g_readback_data = NULL;
+static int32_t g_readback_valid = 0;
+
+// Forward declarations for readback (defined later in file)
+static void moonbit_readback_encode_copy(
+    WGPUDevice device, WGPUCommandEncoder encoder, WGPUTexture surface_texture,
+    uint32_t tex_width, uint32_t tex_height);
+static void moonbit_readback_map_and_read(WGPUDevice device);
 
 #define MOONBIT_MAX_PLANNED_DRAW_COMMANDS 4096
 typedef struct {
@@ -1030,7 +1050,7 @@ void moonbit_configure_surface(
     .nextInChain = NULL,
     .device = device,
     .format = format,
-    .usage = WGPUTextureUsage_RenderAttachment,
+    .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc,
     .width = width,
     .height = height,
     .viewFormatCount = 0,
@@ -2933,6 +2953,13 @@ static void moonbit_render_frame_impl(
   wgpuRenderPassEncoderEnd(pass);
   wgpuRenderPassEncoderRelease(pass);
 
+  // Readback: encode copy command into same encoder (before finish)
+  {
+    uint32_t tw = wgpuTextureGetWidth(surfaceTexture.texture);
+    uint32_t th = wgpuTextureGetHeight(surfaceTexture.texture);
+    moonbit_readback_encode_copy(device, encoder, surfaceTexture.texture, tw, th);
+  }
+
   // CommandBuffer を作成して Queue に送信
   WGPUCommandBufferDescriptor cmdBufferDesc = {
     .nextInChain = NULL,
@@ -2940,6 +2967,9 @@ static void moonbit_render_frame_impl(
   };
   WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(encoder, &cmdBufferDesc);
   wgpuQueueSubmit(queue, 1, &cmdBuffer);
+
+  // Readback: map buffer and read pixels (after submit)
+  moonbit_readback_map_and_read(device);
 
   // リソースをクリーンアップ
   wgpuCommandBufferRelease(cmdBuffer);
@@ -3189,12 +3219,22 @@ void moonbit_render_frame_with_staged_plan(
   wgpuRenderPassEncoderEnd(pass);
   wgpuRenderPassEncoderRelease(pass);
 
+  // Readback: encode copy command into same encoder (before finish)
+  {
+    uint32_t tw = wgpuTextureGetWidth(surfaceTexture.texture);
+    uint32_t th = wgpuTextureGetHeight(surfaceTexture.texture);
+    moonbit_readback_encode_copy(device, encoder, surfaceTexture.texture, tw, th);
+  }
+
   WGPUCommandBufferDescriptor cmdBufferDesc = {
     .nextInChain = NULL,
     .label = "Command Buffer"
   };
   WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(encoder, &cmdBufferDesc);
   wgpuQueueSubmit(queue, 1, &cmdBuffer);
+
+  // Readback: map buffer and read pixels (after submit)
+  moonbit_readback_map_and_read(device);
 
   wgpuCommandBufferRelease(cmdBuffer);
   wgpuCommandEncoderRelease(encoder);
@@ -3203,4 +3243,179 @@ void moonbit_render_frame_with_staged_plan(
   wgpuSurfacePresent(surface);
   wgpuTextureRelease(surfaceTexture.texture);
   g_planned_draw_command_count = 0;
+}
+
+// ===============================
+// Readback: texture → buffer copy
+// ===============================
+
+static uint32_t readback_bytes_per_row(uint32_t width) {
+  // wgpu requires 256-byte alignment for buffer copy
+  uint32_t unaligned = width * 4;
+  return (unaligned + 255) & ~255u;
+}
+
+typedef struct { int done; WGPUMapAsyncStatus status; } ReadbackMapCtx;
+
+static void moonbit_readback_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2) {
+  (void)message;
+  (void)userdata2;
+  ReadbackMapCtx* ctx = (ReadbackMapCtx*)userdata1;
+  ctx->status = status;
+  ctx->done = 1;
+}
+
+// Phase 1: Encode texture→buffer copy into the given command encoder.
+// Must be called BEFORE wgpuCommandEncoderFinish.
+static void moonbit_readback_encode_copy(
+    WGPUDevice device,
+    WGPUCommandEncoder encoder,
+    WGPUTexture surface_texture,
+    uint32_t tex_width,
+    uint32_t tex_height
+) {
+  if (device == NULL || encoder == NULL || surface_texture == NULL) {
+    return;
+  }
+  if (tex_width == 0 || tex_height == 0) {
+    return;
+  }
+
+  uint32_t bpr = readback_bytes_per_row(tex_width);
+  uint64_t buffer_size = (uint64_t)bpr * tex_height;
+
+  // (Re)create buffer if size changed
+  if (g_readback_buffer == NULL || g_readback_width != tex_width || g_readback_height != tex_height) {
+    if (g_readback_buffer != NULL) {
+      wgpuBufferRelease(g_readback_buffer);
+      g_readback_buffer = NULL;
+    }
+    WGPUBufferDescriptor buf_desc = {
+      .nextInChain = NULL,
+      .label = "Readback Buffer",
+      .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead,
+      .size = buffer_size,
+      .mappedAtCreation = 0,
+    };
+    g_readback_buffer = wgpuDeviceCreateBuffer(device, &buf_desc);
+    g_readback_width = tex_width;
+    g_readback_height = tex_height;
+  }
+  if (g_readback_buffer == NULL) {
+    g_readback_valid = 0;
+    return;
+  }
+
+  WGPUTexelCopyTextureInfo src_info = {
+    .texture = surface_texture,
+    .mipLevel = 0,
+    .origin = { .x = 0, .y = 0, .z = 0 },
+    .aspect = WGPUTextureAspect_All,
+  };
+  WGPUTexelCopyBufferInfo dst_info = {
+    .buffer = g_readback_buffer,
+    .layout = {
+      .offset = 0,
+      .bytesPerRow = bpr,
+      .rowsPerImage = tex_height,
+    },
+  };
+  WGPUExtent3D copy_size = {
+    .width = tex_width,
+    .height = tex_height,
+    .depthOrArrayLayers = 1,
+  };
+  wgpuCommandEncoderCopyTextureToBuffer(encoder, &src_info, &dst_info, &copy_size);
+}
+
+// Phase 2: After queue submit, synchronously map the readback buffer
+// and copy BGRA→RGBA into g_readback_data.
+static void moonbit_readback_map_and_read(WGPUDevice device) {
+  if (device == NULL || g_readback_buffer == NULL) {
+    g_readback_valid = 0;
+    return;
+  }
+
+  uint32_t bpr = readback_bytes_per_row(g_readback_width);
+  uint64_t buffer_size = (uint64_t)bpr * g_readback_height;
+
+  // Synchronous poll to finish all GPU work
+  wgpuDevicePoll(device, 1, NULL);
+
+  // Map buffer
+  ReadbackMapCtx map_ctx = { .done = 0, .status = WGPUMapAsyncStatus_Unknown };
+  WGPUBufferMapCallbackInfo map_cb_info = {
+    .nextInChain = NULL,
+    .mode = WGPUCallbackMode_AllowSpontaneous,
+    .callback = moonbit_readback_map_callback,
+    .userdata1 = &map_ctx,
+    .userdata2 = NULL,
+  };
+  wgpuBufferMapAsync(g_readback_buffer, WGPUMapMode_Read, 0, buffer_size, map_cb_info);
+  while (!map_ctx.done) {
+    wgpuDevicePoll(device, 1, NULL);
+  }
+
+  if (map_ctx.status != WGPUMapAsyncStatus_Success) {
+    g_readback_valid = 0;
+    return;
+  }
+
+  const uint8_t* mapped = (const uint8_t*)wgpuBufferGetConstMappedRange(g_readback_buffer, 0, buffer_size);
+  if (mapped == NULL) {
+    wgpuBufferUnmap(g_readback_buffer);
+    g_readback_valid = 0;
+    return;
+  }
+
+  // Allocate/reallocate RGBA output
+  uint32_t rgba_size = g_readback_width * g_readback_height * 4;
+  if (g_readback_data != NULL) {
+    free(g_readback_data);
+  }
+  g_readback_data = (uint8_t*)malloc(rgba_size);
+  if (g_readback_data == NULL) {
+    wgpuBufferUnmap(g_readback_buffer);
+    g_readback_valid = 0;
+    return;
+  }
+
+  // Copy with BGRA→RGBA swizzle
+  for (uint32_t row = 0; row < g_readback_height; row++) {
+    const uint8_t* src_row = mapped + row * bpr;
+    uint8_t* dst_row = g_readback_data + row * g_readback_width * 4;
+    for (uint32_t col = 0; col < g_readback_width; col++) {
+      dst_row[col * 4 + 0] = src_row[col * 4 + 2]; // R ← B
+      dst_row[col * 4 + 1] = src_row[col * 4 + 1]; // G ← G
+      dst_row[col * 4 + 2] = src_row[col * 4 + 0]; // B ← R
+      dst_row[col * 4 + 3] = src_row[col * 4 + 3]; // A ← A
+    }
+  }
+
+  wgpuBufferUnmap(g_readback_buffer);
+  g_readback_valid = 1;
+}
+
+// FFI: readback query functions
+int32_t moonbit_read_pixels_available(void) {
+  return g_readback_valid;
+}
+
+int32_t moonbit_read_pixels_width(void) {
+  return g_readback_valid ? (int32_t)g_readback_width : 0;
+}
+
+int32_t moonbit_read_pixels_height(void) {
+  return g_readback_valid ? (int32_t)g_readback_height : 0;
+}
+
+int32_t moonbit_read_pixels_channel(int32_t offset) {
+  if (!g_readback_valid || g_readback_data == NULL || offset < 0) {
+    return 0;
+  }
+  uint32_t rgba_size = g_readback_width * g_readback_height * 4;
+  if ((uint32_t)offset >= rgba_size) {
+    return 0;
+  }
+  return (int32_t)g_readback_data[offset];
 }

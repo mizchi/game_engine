@@ -288,6 +288,21 @@ extern "wasm" fn host_gfx_end(kind : Int, present : Int) -> Unit = "game_engine_
 extern "wasm" fn host_shutdown() -> Unit = "game_engine_web" "shutdown"
 
 ///|
+extern "wasm" fn host_gfx_read_pixels_begin(
+  kind : Int,
+  x : Int,
+  y : Int,
+  w : Int,
+  h : Int,
+) -> Int = "game_engine_web" "gfx_read_pixels_begin"
+
+///|
+extern "wasm" fn host_gfx_read_pixels_channel(offset : Int) -> Int = "game_engine_web" "gfx_read_pixels_channel"
+
+///|
+extern "wasm" fn host_gfx_read_pixels_end() -> Unit = "game_engine_web" "gfx_read_pixels_end"
+
+///|
 fn bridge_web_try_initialize(
   canvas_selector : String,
   options : @platform.WindowOptions,
@@ -569,6 +584,34 @@ fn bridge_web_gfx_on_resize(
 }
 
 ///|
+fn bridge_web_gfx_on_read_pixels(
+  active : Bool,
+  kind : @gfx.GraphicsBackendKind,
+  x : Int,
+  y : Int,
+  width : Int,
+  height : Int,
+) -> Array[Int]? {
+  if !active || !web_hooks_installed.val {
+    return None
+  }
+  let pixel_count = host_gfx_read_pixels_begin(
+    backend_kind_to_int(kind), x, y, width, height,
+  )
+  if pixel_count <= 0 {
+    host_gfx_read_pixels_end()
+    return None
+  }
+  let channel_count = pixel_count * 4
+  let result : Array[Int] = []
+  for i in 0..<channel_count {
+    result.push(host_gfx_read_pixels_channel(i))
+  }
+  host_gfx_read_pixels_end()
+  Some(result)
+}
+
+///|
 pub fn install(canvas_selector : String) -> Unit {
   web_canvas_selector.val = canvas_selector
   web_hooks_installed.val = true
@@ -590,9 +633,9 @@ pub fn install(canvas_selector : String) -> Unit {
     ),
   )
   @gfx.set_web_graphics_hooks(
-    @gfx.new_web_graphics_hooks(
+    @gfx.new_web_graphics_hooks_full(
       bridge_web_gfx_try_initialize, bridge_web_gfx_on_begin, bridge_web_gfx_on_end,
-      bridge_web_gfx_on_draw, bridge_web_gfx_on_resize,
+      bridge_web_gfx_on_draw, bridge_web_gfx_on_resize, bridge_web_gfx_on_read_pixels,
     ),
   )
 }

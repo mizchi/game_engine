@@ -1232,6 +1232,39 @@ pub fn runtime_present_planned_frame() -> Bool {
 }
 
 ///|
+pub fn runtime_read_pixels(x : Int, y : Int, w : Int, h : Int) -> Array[Int]? {
+  if !read_pixels_available() {
+    return None
+  }
+  let fb_w = read_pixels_width()
+  let fb_h = read_pixels_height()
+  if fb_w <= 0 || fb_h <= 0 || w <= 0 || h <= 0 {
+    return None
+  }
+  let safe_x = if x < 0 { 0 } else { x }
+  let safe_y = if y < 0 { 0 } else { y }
+  if safe_x >= fb_w || safe_y >= fb_h {
+    return None
+  }
+  let clamped_w = if safe_x + w > fb_w { fb_w - safe_x } else { w }
+  let clamped_h = if safe_y + h > fb_h { fb_h - safe_y } else { h }
+  if clamped_w <= 0 || clamped_h <= 0 {
+    return None
+  }
+  let result : Array[Int] = []
+  for row in safe_y..<(safe_y + clamped_h) {
+    for col in safe_x..<(safe_x + clamped_w) {
+      let offset = (row * fb_w + col) * 4
+      result.push(read_pixels_channel(offset))
+      result.push(read_pixels_channel(offset + 1))
+      result.push(read_pixels_channel(offset + 2))
+      result.push(read_pixels_channel(offset + 3))
+    }
+  }
+  Some(result)
+}
+
+///|
 pub fn shutdown_runtime_context() -> Unit {
   match runtime_context.val {
     Some(ctx) => {

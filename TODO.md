@@ -8,11 +8,11 @@
 
 ## 実装状況スナップショット (2026-02-20)
 
-- `moon test --target native`: 475 passed / 0 failed
-- `moon test --target js`: 470 passed / 0 failed
+- `moon test --target native`: 477 passed / 0 failed
+- `moon test --target js`: 472 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
 - `moon run src/examples/runtime_smoke_native --target native`: pass (`runtime_smoke_native: ok (real)`)
-- `pnpm e2e:smoke` (Playwright wasm/wasm-gc parity + native runtime smoke + cross-backend probe parity + pixel capture): 6 passed / 0 failed
+- `pnpm e2e:smoke` (Playwright wasm/wasm-gc parity + native runtime smoke + cross-backend probe parity + pixel capture + read_pixels probe): 8 passed / 0 failed
 
 判定基準:
 
@@ -90,7 +90,7 @@
    - `GraphicsDriver.read_pixels` 契約を追加。native/web hook に `on_read_pixels` を追加し、StubGraphicsDriver で境界チェック（未初期化/out-of-bounds/clamp）付き実装。wbtest 5 テスト追加。
    - `FramebufferSnapshot` + `create_framebuffer_snapshot`/`compare_framebuffer_snapshots`/`pixel_diff_ratio` ピクセル比較ユーティリティを追加。wbtest 6 テスト追加（snapshot 作成/None ケース/同一ピクセル/threshold/サイズ不一致/ratio 計算）。
    - Playwright e2e に web ピクセルバッファ次元検証テストを追加（headless モードではキャンバスキャプチャが全ゼロになる制限を考慮）。6 passed。
-   - 残タスク: 実 backend の `on_read_pixels` フック実装（native wgpu readback / web getImageData 接続）で headed モード時の直接ピクセル比較を自動化する。
+   - 実 backend の `on_read_pixels` フック実装完了: native wgpu は staging buffer readback（BGRA→RGBA swizzle、同一 encoder encode_copy + map_and_read 2 phase）、web は per-channel scalar FFI（host_gfx_read_pixels_begin/channel/end）+ drawImage readback で接続。headless Chromium は SwiftShader（`--enable-unsafe-swiftshader --enable-webgl --use-gl=swiftshader`）+ `preserveDrawingBuffer: true` で WebGL2 有効化。native/web 両方で `read_pixels_len=64` を e2e 検証済み。
 
 ### P1: Ebiten の中核描画機能へ寄せる
 

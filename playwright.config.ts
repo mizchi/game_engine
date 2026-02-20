@@ -8,6 +8,13 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4173",
     browserName: "chromium",
     headless: true,
+    launchOptions: {
+      args: [
+        "--enable-unsafe-swiftshader",
+        "--enable-webgl",
+        "--use-gl=swiftshader",
+      ],
+    },
   },
   webServer: {
     command: "node scripts/serve-wasm-smoke.mjs",

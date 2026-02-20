@@ -367,6 +367,21 @@ fn bridge_gfx_on_resize(active : Bool, width : Int, height : Int) -> Unit {
 }
 
 ///|
+fn bridge_gfx_on_read_pixels(
+  active : Bool,
+  x : Int,
+  y : Int,
+  width : Int,
+  height : Int,
+) -> Array[Int]? {
+  if active {
+    @wgpu_native.runtime_read_pixels(x, y, width, height)
+  } else {
+    None
+  }
+}
+
+///|
 fn palette_channel_or_zero(
   palette : @image_palette.ImagePalette2x2,
   pixel_index : Int,
@@ -576,9 +591,9 @@ pub fn install(title : String) -> Unit {
     ),
   )
   @gfx.set_native_graphics_hooks(
-    @gfx.new_native_graphics_hooks(
+    @gfx.new_native_graphics_hooks_full(
       bridge_gfx_try_initialize, bridge_gfx_on_begin, bridge_gfx_on_end, bridge_gfx_on_draw,
-      bridge_gfx_on_resize,
+      bridge_gfx_on_resize, bridge_gfx_on_read_pixels,
     ),
   )
 }

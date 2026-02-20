@@ -27,6 +27,18 @@ pub fn new_web_graphics_hooks(
 }
 
 ///|
+pub fn new_web_graphics_hooks_full(
+  try_initialize : (GraphicsBackendKind, Int, Int) -> Bool,
+  on_begin : (Bool, GraphicsBackendKind, RenderPassDesc) -> Unit,
+  on_end : (Bool, GraphicsBackendKind, Bool) -> Unit,
+  on_draw : (Bool, GraphicsBackendKind, DrawTrianglesCommand) -> Unit,
+  on_resize : (Bool, GraphicsBackendKind, Int, Int) -> Unit,
+  on_read_pixels : (Bool, GraphicsBackendKind, Int, Int, Int, Int) -> Array[Int]?,
+) -> WebGraphicsHooks {
+  { try_initialize, on_begin, on_end, on_draw, on_resize, on_read_pixels }
+}
+
+///|
 fn default_web_try_initialize(
   _kind : GraphicsBackendKind,
   _width : Int,

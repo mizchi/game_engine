@@ -187,6 +187,9 @@ pub fn create_null_graphics(width : Int, height : Int) -> NullGraphicsDriver {
 
 ///|
 pub impl GraphicsDriver for StubGraphicsDriver with initialize(self) {
+  if self.initialized {
+    return
+  }
   match self.backend {
     GraphicsBackendKind::WgpuNative =>
       self.native_active = native_try_initialize(self.width, self.height)

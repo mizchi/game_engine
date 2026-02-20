@@ -27,6 +27,18 @@ pub fn new_native_graphics_hooks(
 }
 
 ///|
+pub fn new_native_graphics_hooks_full(
+  try_initialize : (Int, Int) -> Bool,
+  on_begin : (Bool, RenderPassDesc) -> Unit,
+  on_end : (Bool, Bool) -> Unit,
+  on_draw : (Bool, DrawTrianglesCommand) -> Unit,
+  on_resize : (Bool, Int, Int) -> Unit,
+  on_read_pixels : (Bool, Int, Int, Int, Int) -> Array[Int]?,
+) -> NativeGraphicsHooks {
+  { try_initialize, on_begin, on_end, on_draw, on_resize, on_read_pixels }
+}
+
+///|
 fn default_native_try_initialize(_width : Int, _height : Int) -> Bool {
   false
 }

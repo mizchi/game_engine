@@ -660,6 +660,42 @@ extern "C" fn moonbit_render_frame_with_plan_payload(
 ) -> Unit = "moonbit_render_frame_with_plan_payload"
 
 ///|
+// ===============================
+// Readback API
+// ===============================
+
+extern "C" fn moonbit_read_pixels_available() -> Int = "moonbit_read_pixels_available"
+
+///|
+extern "C" fn moonbit_read_pixels_width() -> Int = "moonbit_read_pixels_width"
+
+///|
+extern "C" fn moonbit_read_pixels_height() -> Int = "moonbit_read_pixels_height"
+
+///|
+extern "C" fn moonbit_read_pixels_channel(offset : Int) -> Int = "moonbit_read_pixels_channel"
+
+///|
+pub fn read_pixels_available() -> Bool {
+  moonbit_read_pixels_available() != 0
+}
+
+///|
+pub fn read_pixels_width() -> Int {
+  moonbit_read_pixels_width()
+}
+
+///|
+pub fn read_pixels_height() -> Int {
+  moonbit_read_pixels_height()
+}
+
+///|
+pub fn read_pixels_channel(offset : Int) -> Int {
+  moonbit_read_pixels_channel(offset)
+}
+
+///|
 pub fn render_frame_with_plan_payload(
   surface : WGPUSurface,
   device : WGPUDevice,
