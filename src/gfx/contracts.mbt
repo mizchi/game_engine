@@ -616,51 +616,84 @@ fn can_merge_draw_triangles(
 }
 
 ///|
-fn merge_draw_triangles_commands(
+fn can_merge_draw_triangles_with_vertex_budget(
   lhs : DrawTrianglesCommand,
   rhs : DrawTrianglesCommand,
+  lhs_vertex_float_count : Int,
+) -> Bool {
+  can_merge_draw_triangles(lhs, rhs) &&
+  lhs_vertex_float_count + rhs.vertex_data.length() <= max_merge_vertex_floats
+}
+
+///|
+fn merge_draw_triangles_range(
+  commands : Array[DrawTrianglesCommand],
+  start : Int,
+  end : Int,
 ) -> DrawTrianglesCommand {
-  let regions = lhs.dst_regions
-  for region in rhs.dst_regions {
-    regions.push(region)
+  let base = commands[start]
+  let explicit = base.vertex_data.length() > 0 || base.indices.length() > 0
+  let merged_regions : Array[DstRegion] = []
+  for i in start..<end {
+    let command = commands[i]
+    for region in command.dst_regions {
+      merged_regions.push(region)
+    }
   }
-  let lhs_explicit = lhs.vertex_data.length() > 0 || lhs.indices.length() > 0
-  if lhs_explicit {
-    let lhs_vertex_count = lhs.vertex_data.length() / vertex_stride
-    let merged_vertex_data = lhs.vertex_data
-    for v in rhs.vertex_data {
-      merged_vertex_data.push(v)
-    }
-    let merged_indices = lhs.indices
-    for idx in rhs.indices {
-      merged_indices.push(idx + lhs_vertex_count)
-    }
+  if !explicit {
     {
-      dst: lhs.dst,
-      shader: lhs.shader,
-      dst_regions: regions,
-      index_offset: lhs.index_offset,
-      pipeline_id: lhs.pipeline_id,
-      uniform_hash: lhs.uniform_hash,
-      blend: lhs.blend,
-      vertex_data: merged_vertex_data,
-      indices: merged_indices,
-      src_image_ids: lhs.src_image_ids,
-      uniform_dwords: lhs.uniform_dwords,
-    }
-  } else {
-    {
-      dst: lhs.dst,
-      shader: lhs.shader,
-      dst_regions: regions,
-      index_offset: lhs.index_offset,
-      pipeline_id: lhs.pipeline_id,
-      uniform_hash: lhs.uniform_hash,
-      blend: lhs.blend,
+      dst: base.dst,
+      shader: base.shader,
+      dst_regions: merged_regions,
+      index_offset: base.index_offset,
+      pipeline_id: base.pipeline_id,
+      uniform_hash: base.uniform_hash,
+      blend: base.blend,
       vertex_data: [],
       indices: [],
-      src_image_ids: lhs.src_image_ids,
-      uniform_dwords: lhs.uniform_dwords,
+      src_image_ids: base.src_image_ids,
+      uniform_dwords: base.uniform_dwords,
+    }
+  } else {
+    let mut merged_vertex_float_count = 0
+    let mut merged_index_count = 0
+    for i in start..<end {
+      merged_vertex_float_count = merged_vertex_float_count +
+        commands[i].vertex_data.length()
+      merged_index_count = merged_index_count + commands[i].indices.length()
+    }
+    let merged_vertex_data : Array[Double] = Array::make(
+      merged_vertex_float_count,
+      0.0,
+    )
+    let merged_indices : Array[Int] = Array::make(merged_index_count, 0)
+    let mut vertex_offset = 0
+    let mut index_offset = 0
+    let mut vertex_base = 0
+    for i in start..<end {
+      let command = commands[i]
+      for v in command.vertex_data {
+        merged_vertex_data[vertex_offset] = v
+        vertex_offset = vertex_offset + 1
+      }
+      for idx in command.indices {
+        merged_indices[index_offset] = idx + vertex_base
+        index_offset = index_offset + 1
+      }
+      vertex_base = vertex_base + command.vertex_data.length() / vertex_stride
+    }
+    {
+      dst: base.dst,
+      shader: base.shader,
+      dst_regions: merged_regions,
+      index_offset: base.index_offset,
+      pipeline_id: base.pipeline_id,
+      uniform_hash: base.uniform_hash,
+      blend: base.blend,
+      vertex_data: merged_vertex_data,
+      indices: merged_indices,
+      src_image_ids: base.src_image_ids,
+      uniform_dwords: base.uniform_dwords,
     }
   }
 }
@@ -670,24 +703,43 @@ pub impl CommandQueue for SimpleCommandQueue with enqueue_draw_triangles(
   self,
   command,
 ) {
-  let len = self.commands.length()
-  if len == 0 {
-    self.commands.push(command)
-  } else {
-    let last_index = len - 1
-    let last = self.commands[last_index]
-    if can_merge_draw_triangles(last, command) {
-      self.commands[last_index] = merge_draw_triangles_commands(last, command)
-    } else {
-      self.commands.push(command)
-    }
-  }
+  self.commands.push(command)
 }
 
 ///|
 pub impl CommandQueue for SimpleCommandQueue with flush(self) {
-  let out = self.commands
+  let buffered = self.commands
   self.commands = []
+  if buffered.length() <= 1 {
+    return buffered
+  }
+  let out : Array[DrawTrianglesCommand] = []
+  let mut start = 0
+  while start < buffered.length() {
+    let base = buffered[start]
+    let mut end = start + 1
+    let mut vertex_budget = base.vertex_data.length()
+    while end < buffered.length() {
+      let command = buffered[end]
+      if
+        can_merge_draw_triangles_with_vertex_budget(
+          base,
+          command,
+          vertex_budget,
+        ) {
+        vertex_budget = vertex_budget + command.vertex_data.length()
+        end = end + 1
+      } else {
+        break
+      }
+    }
+    if end - start == 1 {
+      out.push(base)
+    } else {
+      out.push(merge_draw_triangles_range(buffered, start, end))
+    }
+    start = end
+  }
   out
 }
 
