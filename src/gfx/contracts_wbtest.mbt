@@ -1184,6 +1184,158 @@ test "graphics_resize_stats initial state is zero" {
 }
 
 ///|
+fn queue_test_quad_command(
+  dst_id : Int,
+  shader_id : Int,
+  blend : BlendMode,
+  src_image_ids : Array[Int],
+) -> DrawTrianglesCommand {
+  {
+    dst: { id: dst_id, width: 64, height: 64 },
+    shader: { id: shader_id, source: "shader-\{shader_id}" },
+    dst_regions: [{ x: 0, y: 0, width: 32, height: 32, index_count: 6 }],
+    index_offset: 0,
+    pipeline_id: 1,
+    uniform_hash: 0,
+    blend,
+    vertex_data: [
+      0.0, 0.0, 0.0, 0.0,
+      1.0, 0.0, 1.0, 0.0,
+      1.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+    ],
+    indices: [0, 1, 2, 2, 3, 0],
+    src_image_ids,
+    uniform_dwords: [],
+  }
+}
+
+///|
+test "command queue merges compatible explicit geometry commands" {
+  let queue = new_simple_command_queue()
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  let commands = queue.flush()
+  assert_eq(commands.length(), 1)
+  // 2 quads: 4 verts * 4 floats * 2 = 32
+  assert_eq(commands[0].vertex_data.length(), 32)
+  // 2 quads: 6 indices * 2 = 12
+  assert_eq(commands[0].indices.length(), 12)
+  // Second quad indices should be offset by 4 (first quad vertex count)
+  assert_eq(commands[0].indices[6], 4)
+  assert_eq(commands[0].indices[7], 5)
+  assert_eq(commands[0].indices[8], 6)
+  assert_eq(commands[0].indices[9], 6)
+  assert_eq(commands[0].indices[10], 7)
+  assert_eq(commands[0].indices[11], 4)
+  assert_eq(commands[0].dst_regions.length(), 2)
+}
+
+///|
+test "command queue does not merge explicit geometry with different src_image_ids" {
+  let queue = new_simple_command_queue()
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [20]),
+  )
+  let commands = queue.flush()
+  assert_eq(commands.length(), 2)
+}
+
+///|
+test "command queue does not merge explicit geometry with different blend" {
+  let queue = new_simple_command_queue()
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Add, [10]),
+  )
+  let commands = queue.flush()
+  assert_eq(commands.length(), 2)
+}
+
+///|
+test "command queue does not merge region-only with explicit geometry" {
+  let queue = new_simple_command_queue()
+  // region-only command
+  queue.enqueue_draw_triangles(
+    queue_test_command(1, 1, BlendMode::Alpha, 0, 1, 0, 0),
+  )
+  // explicit geometry command
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, []),
+  )
+  let commands = queue.flush()
+  assert_eq(commands.length(), 2)
+}
+
+///|
+test "command queue does not merge explicit geometry exceeding budget" {
+  let queue = new_simple_command_queue()
+  // Create a command with vertex_data near the budget limit
+  let big_vertex_data : Array[Double] = []
+  for i in 0..<(max_merge_vertex_floats - 4) {
+    let _ = i
+    big_vertex_data.push(0.0)
+  }
+  let cmd1 : DrawTrianglesCommand = {
+    dst: { id: 1, width: 64, height: 64 },
+    shader: { id: 1, source: "shader-1" },
+    dst_regions: [{ x: 0, y: 0, width: 32, height: 32, index_count: 6 }],
+    index_offset: 0,
+    pipeline_id: 1,
+    uniform_hash: 0,
+    blend: BlendMode::Alpha,
+    vertex_data: big_vertex_data,
+    indices: [0, 1, 2],
+    src_image_ids: [10],
+    uniform_dwords: [],
+  }
+  queue.enqueue_draw_triangles(cmd1)
+  // Second command would push over the limit
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  let commands = queue.flush()
+  assert_eq(commands.length(), 2)
+}
+
+///|
+test "command queue merges three consecutive explicit geometry commands" {
+  let queue = new_simple_command_queue()
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  queue.enqueue_draw_triangles(
+    queue_test_quad_command(1, 1, BlendMode::Alpha, [10]),
+  )
+  let commands = queue.flush()
+  assert_eq(commands.length(), 1)
+  // 3 quads: 4 verts * 4 floats * 3 = 48
+  assert_eq(commands[0].vertex_data.length(), 48)
+  // 3 quads: 6 indices * 3 = 18
+  assert_eq(commands[0].indices.length(), 18)
+  // Third quad indices should be offset by 8 (2 * 4 vertices)
+  assert_eq(commands[0].indices[12], 8)
+  assert_eq(commands[0].indices[13], 9)
+  assert_eq(commands[0].indices[14], 10)
+  assert_eq(commands[0].indices[15], 10)
+  assert_eq(commands[0].indices[16], 11)
+  assert_eq(commands[0].indices[17], 8)
+  assert_eq(commands[0].dst_regions.length(), 3)
+}
+
+///|
 test "graphics_resize_stats measures resize duration with clock provider" {
   let clock_time : Ref[Double] = Ref::new(0.0)
   set_graphics_clock_provider(fn() { clock_time.val })
@@ -1368,6 +1520,52 @@ test "compare_framebuffer_snapshots mismatched dimensions" {
   let result = compare_framebuffer_snapshots(a, b, 0)
   assert_eq(result.diff_pixels, 4)
   assert_eq(result.max_channel_diff, 255)
+}
+
+///|
+test "new_native_graphics_hooks_full sets on_read_pixels" {
+  let read_pixels_called : Ref[Bool] = Ref::new(false)
+  let hooks = new_native_graphics_hooks_full(
+    fn(_w, _h) { false },
+    fn(_a, _p) {},
+    fn(_a, _pr) {},
+    fn(_a, _c) {},
+    fn(_a, _w, _h) {},
+    fn(_active, _x, _y, _w, _h) -> Array[Int]? {
+      read_pixels_called.val = true
+      Some([1, 2, 3, 4])
+    },
+  )
+  let result = (hooks.on_read_pixels)(true, 0, 0, 1, 1)
+  assert_true(read_pixels_called.val)
+  match result {
+    Some(pixels) => assert_eq(pixels.length(), 4)
+    None => fail("expected Some")
+  }
+}
+
+///|
+test "new_web_graphics_hooks_full sets on_read_pixels" {
+  let read_pixels_called : Ref[Bool] = Ref::new(false)
+  let hooks = new_web_graphics_hooks_full(
+    fn(_k, _w, _h) { false },
+    fn(_a, _k, _p) {},
+    fn(_a, _k, _pr) {},
+    fn(_a, _k, _c) {},
+    fn(_a, _k, _w, _h) {},
+    fn(_active, _k, _x, _y, _w, _h) -> Array[Int]? {
+      read_pixels_called.val = true
+      Some([5, 6, 7, 8])
+    },
+  )
+  let result = (hooks.on_read_pixels)(
+    true, GraphicsBackendKind::WebGpu, 0, 0, 1, 1,
+  )
+  assert_true(read_pixels_called.val)
+  match result {
+    Some(pixels) => assert_eq(pixels.length(), 4)
+    None => fail("expected Some")
+  }
 }
 
 ///|

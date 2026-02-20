@@ -591,14 +591,20 @@ fn int_array_eq(lhs : Array[Int], rhs : Array[Int]) -> Bool {
 }
 
 ///|
+let vertex_stride : Int = 4
+
+///|
+let max_merge_vertex_floats : Int = 16384
+
+///|
 fn can_merge_draw_triangles(
   lhs : DrawTrianglesCommand,
   rhs : DrawTrianglesCommand,
 ) -> Bool {
-  let lhs_has_explicit_geometry = lhs.vertex_data.length() > 0 ||
-    lhs.indices.length() > 0
-  let rhs_has_explicit_geometry = rhs.vertex_data.length() > 0 ||
-    rhs.indices.length() > 0
+  let lhs_explicit = lhs.vertex_data.length() > 0 || lhs.indices.length() > 0
+  let rhs_explicit = rhs.vertex_data.length() > 0 || rhs.indices.length() > 0
+  lhs_explicit == rhs_explicit &&
+  lhs.vertex_data.length() + rhs.vertex_data.length() <= max_merge_vertex_floats &&
   lhs.dst.id == rhs.dst.id &&
   lhs.shader.id == rhs.shader.id &&
   blend_mode_eq(lhs.blend, rhs.blend) &&
@@ -606,9 +612,7 @@ fn can_merge_draw_triangles(
   lhs.uniform_hash == rhs.uniform_hash &&
   lhs.index_offset == rhs.index_offset &&
   int_array_eq(lhs.src_image_ids, rhs.src_image_ids) &&
-  int_array_eq(lhs.uniform_dwords, rhs.uniform_dwords) &&
-  !lhs_has_explicit_geometry &&
-  !rhs_has_explicit_geometry
+  int_array_eq(lhs.uniform_dwords, rhs.uniform_dwords)
 }
 
 ///|
@@ -620,18 +624,44 @@ fn merge_draw_triangles_commands(
   for region in rhs.dst_regions {
     regions.push(region)
   }
-  {
-    dst: lhs.dst,
-    shader: lhs.shader,
-    dst_regions: regions,
-    index_offset: lhs.index_offset,
-    pipeline_id: lhs.pipeline_id,
-    uniform_hash: lhs.uniform_hash,
-    blend: lhs.blend,
-    vertex_data: [],
-    indices: [],
-    src_image_ids: lhs.src_image_ids,
-    uniform_dwords: lhs.uniform_dwords,
+  let lhs_explicit = lhs.vertex_data.length() > 0 || lhs.indices.length() > 0
+  if lhs_explicit {
+    let lhs_vertex_count = lhs.vertex_data.length() / vertex_stride
+    let merged_vertex_data = lhs.vertex_data
+    for v in rhs.vertex_data {
+      merged_vertex_data.push(v)
+    }
+    let merged_indices = lhs.indices
+    for idx in rhs.indices {
+      merged_indices.push(idx + lhs_vertex_count)
+    }
+    {
+      dst: lhs.dst,
+      shader: lhs.shader,
+      dst_regions: regions,
+      index_offset: lhs.index_offset,
+      pipeline_id: lhs.pipeline_id,
+      uniform_hash: lhs.uniform_hash,
+      blend: lhs.blend,
+      vertex_data: merged_vertex_data,
+      indices: merged_indices,
+      src_image_ids: lhs.src_image_ids,
+      uniform_dwords: lhs.uniform_dwords,
+    }
+  } else {
+    {
+      dst: lhs.dst,
+      shader: lhs.shader,
+      dst_regions: regions,
+      index_offset: lhs.index_offset,
+      pipeline_id: lhs.pipeline_id,
+      uniform_hash: lhs.uniform_hash,
+      blend: lhs.blend,
+      vertex_data: [],
+      indices: [],
+      src_image_ids: lhs.src_image_ids,
+      uniform_dwords: lhs.uniform_dwords,
+    }
   }
 }
 
