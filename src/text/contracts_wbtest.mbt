@@ -260,6 +260,51 @@ test "blit_to_atlas with out of bounds is safe" {
 }
 
 ///|
+test "blit_to_atlas clips negative destination origin" {
+  let atlas = GlyphAtlas::new(8, 8, 1)
+  let src_pixels : Array[Int] = []
+  for i in 0..<16 {
+    let value = i + 1
+    src_pixels.push(value)
+    src_pixels.push(0)
+    src_pixels.push(0)
+    src_pixels.push(255)
+  }
+  let bitmap : GlyphBitmap = {
+    width: 4,
+    height: 4,
+    pixels: src_pixels,
+  }
+  blit_to_atlas(atlas.pixels, atlas.width, bitmap, -2, -1)
+  // (0,0) <- src(2,1), value = 7
+  let top_left = (0 * 8 + 0) * 4
+  assert_eq(atlas.pixels[top_left], 7)
+  // (1,0) <- src(3,1), value = 8
+  let top_right = (0 * 8 + 1) * 4
+  assert_eq(atlas.pixels[top_right], 8)
+  // (0,2) <- src(2,3), value = 15
+  let bottom_left = (2 * 8 + 0) * 4
+  assert_eq(atlas.pixels[bottom_left], 15)
+  // Outside clipped area remains untouched
+  let untouched = (0 * 8 + 2) * 4
+  assert_eq(atlas.pixels[untouched], 0)
+}
+
+///|
+test "blit_to_atlas fully out of bounds keeps atlas unchanged" {
+  let atlas = GlyphAtlas::new(8, 8, 1)
+  let bitmap : GlyphBitmap = {
+    width: 4,
+    height: 4,
+    pixels: Array::make(64, 255),
+  }
+  blit_to_atlas(atlas.pixels, atlas.width, bitmap, 16, 16)
+  // Buffer should stay zeroed when no overlap exists
+  assert_eq(atlas.pixels[0], 0)
+  assert_eq(atlas.pixels[(7 * 8 + 7) * 4], 0)
+}
+
+///|
 test "GlyphAtlas new pixel buffer is zeroed" {
   let atlas = GlyphAtlas::new(64, 64, 5)
   // All pixels should be zero
@@ -365,9 +410,19 @@ test "SimpleTextBatchBuilder produces commands from glyphs" {
   let dst = @gfx.new_image_handle(1, 640, 480)
   let shader = @gfx.new_shader_handle(1, "text_shader")
   let commands = builder.build_draw_commands(dst, glyphs, shader)
-  assert_eq!(commands.length(), 2)
-  assert_eq!(commands[0].vertex_data.length(), 16)
-  assert_eq!(commands[0].indices.length(), 6)
+  // Batched into a single explicit-geometry command.
+  assert_eq!(commands.length(), 1)
+  assert_eq!(commands[0].vertex_data.length(), 32)
+  assert_eq!(commands[0].indices.length(), 12)
+  assert_eq!(commands[0].dst_regions.length(), 1)
+  assert_eq!(commands[0].dst_regions[0].index_count, 12)
+  // Second quad indices should be offset by +4 vertices.
+  assert_eq!(commands[0].indices[6], 4)
+  assert_eq!(commands[0].indices[7], 5)
+  assert_eq!(commands[0].indices[8], 6)
+  assert_eq!(commands[0].indices[9], 6)
+  assert_eq!(commands[0].indices[10], 7)
+  assert_eq!(commands[0].indices[11], 4)
   assert_eq!(commands[0].src_image_ids.length(), 1)
   assert_eq!(commands[0].src_image_ids[0], 1) // atlas_page_id
 }
