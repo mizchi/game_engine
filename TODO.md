@@ -12,26 +12,26 @@
 
 ## 実装状況スナップショット (2026-02-21)
 
-- `moon test --target native`: 554 passed / 0 failed
-- `moon test --target js`: 553 passed / 0 failed
+- `moon test --target native`: 563 passed / 0 failed
+- `moon test --target js`: 562 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass
-- `moon run src/examples/runtime_smoke_native --target native`: pass
-- `pnpm e2e:smoke`: 10 passed / 0 failed
+- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + audio_smoke)
 
 ## 現在の優先タスク (優先順位順)
 
-### P1: 次に着手
+### P3: 次に着手
 
-3. text の未完了統合
-   - 完了: `TextRenderer` 高レベル API（font + atlas + batch builder 統合）
-   - 完了: `SimpleTextBatchBuilder` を使った文字列 -> draw command の E2E 統合
-   - 完了: runtime smoke draw_plan を TextRenderer 経由に移行
-   - 残課題: プラットフォーム hook 経由のフォントファイル動的ロード運用
-   - 残課題: 複数グリフ・複数フォントサイズでの文字列ラスタライズ
+1. E2E テスト拡張
+   - Audio 再生 E2E 検証（Web Audio + native miniaudio）
+   - フォントロード + テキストレンダリング E2E
+   - WASM ターゲットの E2E 安定化
 
-4. audio backend 接続
-   - 残課題: `AudioOutputHooks` を Web Audio API に接続
-   - 残課題: `AudioOutputHooks` を native audio backend に接続
+2. WASM audio backend 接続
+   - Web Audio API hooks は JS で完了、WASM host extern は未接続
+
+3. 複数フォント・複数サイズの本格運用
+   - 現状: 単一グリフ 'I' の subset フォントで検証済み
+   - 残課題: フルセットフォントでの日本語テキスト等
 
 ## 完了条件 (第一段階)
 

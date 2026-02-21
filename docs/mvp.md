@@ -7,10 +7,10 @@
 
 ### 実行確認スナップショット (2026-02-21)
 
-- `moon test --target native`: 554 passed / 0 failed
-- `moon test --target js`: 553 passed / 0 failed
+- `moon test --target native`: 563 passed / 0 failed
+- `moon test --target js`: 562 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
-- `moon run src/examples/runtime_smoke_native --target native`: pass (`runtime_smoke_native: ok (real)`)
+- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + audio_smoke)
 - `pnpm e2e:smoke`: 10 passed / 0 failed
 
 ### 機能領域 (判定: 完了)
@@ -45,6 +45,10 @@
 - P2-19: mobile ターゲット戦略を 2 段階で定義（Phase 1 Web、Phase 2 Native）
 - P0-20: 入力 snapshot 実機差分（TouchSource enum + NSTouch type 区別 + mouse fallback opt-in）
 - P0-21: window/system API 非同期状態同期（AsyncRequestStatus + fullscreen/pointer lock ポーリング）
+- P1-3: FontLoadHooks（text パッケージ hook + native C FFI + Web JS/WASM bridge）
+- P1-4: Audio Web Backend（Web Audio API ScriptProcessorNode + ring buffer, JS/WASM 両対応）
+- P2-1: フォント動的ロード運用検証（hook 経由 E2E + 複数サイズ glyph cache + native smoke）
+- P2-2: Native Audio Backend（miniaudio + ring buffer + MoonBit FFI bridge + native hooks 接続）
 
 ## NOTE
 
