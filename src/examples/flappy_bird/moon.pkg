@@ -1,0 +1,19 @@
+import {
+  "mizchi/game_engine/core" @core,
+  "mizchi/game_engine/debugutil" @debugutil,
+  "mizchi/game_engine/gfx" @gfx,
+  "mizchi/game_engine/inpututil" @inpututil,
+  "mizchi/game_engine/platform" @platform,
+  "mizchi/game_engine/runtime" @runtime,
+  "mizchi/game_engine/examples/web_runtime_hooks" @web_hooks,
+}
+
+warnings = "-29"
+
+options(
+  "is-main": true,
+  targets: {
+    "main_js.mbt": [ "js" ],
+    "main_native.mbt": [ "native" ],
+  },
+)
