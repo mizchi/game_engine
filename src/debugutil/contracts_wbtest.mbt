@@ -250,6 +250,113 @@ test "new_simple_draw_command" {
   assert_eq(cmd.src_image_ids.length(), 0)
 }
 
+// ============================================================
+// Glyph and text rendering tests
+// ============================================================
+
+///|
+test "glyph_pattern: digit 0 has 12 lit pixels" {
+  let pattern = glyph_pattern(0)
+  inspect!(pattern.length(), content="15")
+  let mut count = 0
+  for p in pattern {
+    if p == 1 {
+      count = count + 1
+    }
+  }
+  inspect!(count, content="12")
+}
+
+///|
+test "glyph_pattern: digit 1 has 8 lit pixels" {
+  let pattern = glyph_pattern(1)
+  let mut count = 0
+  for p in pattern {
+    if p == 1 {
+      count = count + 1
+    }
+  }
+  inspect!(count, content="8")
+}
+
+///|
+test "glyph_pattern: space has 0 lit pixels" {
+  let pattern = glyph_pattern(32)
+  let mut count = 0
+  for p in pattern {
+    if p == 1 {
+      count = count + 1
+    }
+  }
+  inspect!(count, content="0")
+}
+
+///|
+test "glyph_pattern: unknown char has 0 lit pixels" {
+  let pattern = glyph_pattern(999)
+  let mut count = 0
+  for p in pattern {
+    if p == 1 {
+      count = count + 1
+    }
+  }
+  inspect!(count, content="0")
+}
+
+///|
+test "draw_dot_text: single char generates correct commands" {
+  let dst = @gfx.new_image_handle(1, 320, 240)
+  let shader = @gfx.new_shader_handle(1, "test")
+  let cmds : Array[@gfx.DrawTrianglesCommand] = []
+  // Digit "0" has 12 lit pixels
+  draw_dot_text(cmds, dst, shader, [0], 160.0, 120.0, 320.0, 240.0, color_white(), 1.0)
+  inspect!(cmds.length(), content="12")
+}
+
+///|
+test "draw_dot_text: multiple chars" {
+  let dst = @gfx.new_image_handle(1, 320, 240)
+  let shader = @gfx.new_shader_handle(1, "test")
+  let cmds : Array[@gfx.DrawTrianglesCommand] = []
+  // "10" = digit 1 (8 pixels) + digit 0 (12 pixels) = 20
+  draw_dot_text(cmds, dst, shader, [1, 0], 160.0, 120.0, 320.0, 240.0, color_white(), 1.0)
+  inspect!(cmds.length(), content="20")
+}
+
+///|
+test "draw_number: zero" {
+  let dst = @gfx.new_image_handle(1, 320, 240)
+  let shader = @gfx.new_shader_handle(1, "test")
+  let cmds : Array[@gfx.DrawTrianglesCommand] = []
+  draw_number(cmds, dst, shader, 0, 160.0, 120.0, 320.0, 240.0, color_white(), 1.0)
+  // digit 0 = 12 lit pixels
+  inspect!(cmds.length(), content="12")
+}
+
+///|
+test "draw_number: multi-digit" {
+  let dst = @gfx.new_image_handle(1, 320, 240)
+  let shader = @gfx.new_shader_handle(1, "test")
+  let cmds : Array[@gfx.DrawTrianglesCommand] = []
+  draw_number(cmds, dst, shader, 42, 160.0, 120.0, 320.0, 240.0, color_white(), 1.0)
+  // digit 4 = 9 pixels, digit 2 = 11 pixels = 20
+  inspect!(cmds.length(), content="20")
+}
+
+///|
+test "glyph_pattern: letter A" {
+  let pattern = glyph_pattern(65)
+  inspect!(pattern.length(), content="15")
+  // A: [0,1,0, 1,0,1, 1,1,1, 1,0,1, 1,0,1] = 10 lit
+  let mut count = 0
+  for p in pattern {
+    if p == 1 {
+      count = count + 1
+    }
+  }
+  inspect!(count, content="10")
+}
+
 ///|
 test "build_input_debug_overlay with pressed keys" {
   let dst = @gfx.new_image_handle(1, 640, 480)

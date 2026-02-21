@@ -201,6 +201,52 @@ test "Vec2 reflect preserves incident angle" {
   assert_true(approx(incident_cos, reflected_cos))
 }
 
+// ============================================================
+// AABB collision tests
+// ============================================================
+
+///|
+test "aabb_overlap: overlapping rects" {
+  assert_true!(aabb_overlap(0.0, 0.0, 10.0, 10.0, 5.0, 5.0, 10.0, 10.0))
+}
+
+///|
+test "aabb_overlap: non-overlapping rects" {
+  assert_true!(!aabb_overlap(0.0, 0.0, 10.0, 10.0, 20.0, 20.0, 10.0, 10.0))
+}
+
+///|
+test "aabb_overlap: touching edges do not overlap" {
+  assert_true!(!aabb_overlap(0.0, 0.0, 10.0, 10.0, 10.0, 0.0, 10.0, 10.0))
+}
+
+///|
+test "aabb_overlap: contained rect" {
+  assert_true!(aabb_overlap(0.0, 0.0, 20.0, 20.0, 5.0, 5.0, 5.0, 5.0))
+}
+
+///|
+test "aabb_overlap_center: overlapping" {
+  // Two objects at (10,10) and (15,15) with half-sizes 5
+  assert_true!(aabb_overlap_center(10.0, 10.0, 5.0, 5.0, 15.0, 15.0, 5.0, 5.0))
+}
+
+///|
+test "aabb_overlap_center: non-overlapping" {
+  assert_true!(!aabb_overlap_center(0.0, 0.0, 5.0, 5.0, 20.0, 20.0, 5.0, 5.0))
+}
+
+///|
+test "aabb_overlap_center: same position" {
+  assert_true!(aabb_overlap_center(10.0, 10.0, 5.0, 5.0, 10.0, 10.0, 5.0, 5.0))
+}
+
+///|
+test "aabb_overlap_center: touching edges do not overlap" {
+  // Distance = 10, half_sum = 5+5 = 10, abs(10) < 10 is false
+  assert_true!(!aabb_overlap_center(0.0, 0.0, 5.0, 5.0, 10.0, 0.0, 5.0, 5.0))
+}
+
 ///|
 test "Vec2 rotate 360 degrees returns original" {
   let pi = 3.14159265358979323846

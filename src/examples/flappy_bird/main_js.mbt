@@ -38,7 +38,8 @@ fn main {
         "frame=\{state.frame_count} mode=\{state.game_mode} bird_y=\{state.bird_y} pipes=\{state.pipes.length()} score=\{state.score}",
       )
     }
-    render_frame(state, graphics, dst, shader) catch {
+    let cmds = state.build_draw_commands(dst, shader)
+    @debugutil.render_commands(graphics, cmds) catch {
       _ => ()
     }
     @web_hooks.request_animation_frame(frame)

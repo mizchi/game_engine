@@ -201,14 +201,14 @@ fn FlappyState::build_draw_commands(
     ),
   )
   // Score display
-  draw_score_digits(cmds, dst, shader, self.score, sw / 2.0 - 10.0, 20.0, sw, sh, white)
+  @debugutil.draw_number(cmds, dst, shader, self.score, sw / 2.0 - 10.0, 20.0, sw, sh, white, 1.0)
   // Title / Game Over overlay
   if self.game_mode == 0 {
     // "TAP" text, blinking
     if self.frame_count / 30 % 2 == 0 {
       let text_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.8)
       // T=84, A=65, P=80
-      draw_dot_text(
+      @debugutil.draw_dot_text(
         cmds, dst, shader, [84, 65, 80], sw / 2.0, sh / 2.0 + 30.0, sw, sh, text_color, 2.0,
       )
     }
@@ -223,161 +223,10 @@ fn FlappyState::build_draw_commands(
     // "END" text
     let text_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.9)
     // E=69, N=78, D=68
-    draw_dot_text(
+    @debugutil.draw_dot_text(
       cmds, dst, shader, [69, 78, 68], sw / 2.0, sh / 2.0, sw, sh, text_color, 2.0,
     )
   }
   cmds
 }
 
-// Dot-matrix glyph rendering (3x5 grid)
-
-///|
-fn glyph_pattern(ch : Int) -> Array[Int] {
-  match ch {
-    // Digits 0-9
-    0 => [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
-    1 => [0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1]
-    2 => [1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1]
-    3 => [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    4 => [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1]
-    5 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    6 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1]
-    7 => [1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
-    8 => [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
-    9 => [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    // Letters (ASCII codes)
-    // A
-    65 => [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
-    // D
-    68 => [1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0]
-    // E
-    69 => [1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1]
-    // N
-    78 => [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
-    // P
-    80 => [1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]
-    // T
-    84 => [1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]
-    _ => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  }
-}
-
-///|
-fn digit_pattern(d : Int) -> Array[Int] {
-  glyph_pattern(d)
-}
-
-///|
-fn draw_single_digit(
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  digit : Int,
-  ox : Double,
-  oy : Double,
-  sw : Double,
-  sh : Double,
-  color : @gfx.Color,
-) -> Unit {
-  let pattern = digit_pattern(digit)
-  let px_size = 3.0
-  for row = 0; row < 5; row = row + 1 {
-    for col = 0; col < 3; col = col + 1 {
-      if pattern[row * 3 + col] == 1 {
-        let x = ox + col.to_double() * px_size
-        let y = oy + row.to_double() * px_size
-        cmds.push(@debugutil.new_ndc_rect_fill_command(dst, shader, x, y, px_size, px_size, sw, sh, color, 0))
-      }
-    }
-  }
-}
-
-///|
-fn draw_dot_text(
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  chars : Array[Int],
-  cx : Double,
-  cy : Double,
-  sw : Double,
-  sh : Double,
-  color : @gfx.Color,
-  scale : Double,
-) -> Unit {
-  let px_size = 3.0 * scale
-  let char_w = 3.0 * px_size
-  let gap = px_size
-  let total_w = chars.length().to_double() * char_w +
-    (chars.length() - 1).to_double() * gap
-  let char_h = 5.0 * px_size
-  let start_x = cx - total_w / 2.0
-  let start_y = cy - char_h / 2.0
-  for i = 0; i < chars.length(); i = i + 1 {
-    let pattern = glyph_pattern(chars[i])
-    let ox = start_x + i.to_double() * (char_w + gap)
-    for row = 0; row < 5; row = row + 1 {
-      for col = 0; col < 3; col = col + 1 {
-        if pattern[row * 3 + col] == 1 {
-          let x = ox + col.to_double() * px_size
-          let y = start_y + row.to_double() * px_size
-          cmds.push(@debugutil.new_ndc_rect_fill_command(dst, shader, x, y, px_size, px_size, sw, sh, color, 0))
-        }
-      }
-    }
-  }
-}
-
-///|
-fn[T : @gfx.GraphicsDriver] render_frame(
-  state : FlappyState,
-  graphics : T,
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Unit raise {
-  let pass = @gfx.new_render_pass_desc(
-    @gfx.new_color(0.0, 0.0, 0.0, 1.0),
-    true,
-  )
-  graphics.begin(pass)
-  let cmds = state.build_draw_commands(dst, shader)
-  for cmd in cmds {
-    graphics.draw_triangles(cmd)
-  }
-  graphics.end(true)
-}
-
-///|
-fn draw_score_digits(
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  score : Int,
-  ox : Double,
-  oy : Double,
-  sw : Double,
-  sh : Double,
-  color : @gfx.Color,
-) -> Unit {
-  if score == 0 {
-    draw_single_digit(cmds, dst, shader, 0, ox, oy, sw, sh, color)
-    return
-  }
-  let digits : Array[Int] = []
-  let mut n = score
-  while n > 0 {
-    digits.push(n % 10)
-    n = n / 10
-  }
-  let len = digits.length()
-  let digit_width = 12.0
-  let total_width = len.to_double() * digit_width
-  let start_x = ox - total_width / 2.0 + digit_width / 2.0
-  for i = 0; i < len; i = i + 1 {
-    let d = digits[len - 1 - i]
-    draw_single_digit(
-      cmds, dst, shader, d, start_x + i.to_double() * digit_width, oy, sw, sh, color,
-    )
-  }
-}

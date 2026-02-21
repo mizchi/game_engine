@@ -75,8 +75,7 @@ struct Gem {
 ///|
 struct SurvivorState {
   player : Player
-  mut camera_x : Double
-  mut camera_y : Double
+  camera : @camera2d.Camera2D
   enemies : Array[Enemy]
   projectiles : Array[Projectile]
   gems : Array[Gem]
@@ -139,52 +138,6 @@ let max_enemies : Int = 100
 ///|
 let gem_collect_dist : Double = 24.0
 
-// Key codes
-///|
-let key_w : Int = 87
-
-///|
-let key_a : Int = 65
-
-///|
-let key_s : Int = 83
-
-///|
-let key_d : Int = 68
-
-///|
-let key_up_web : Int = 38
-
-///|
-let key_down_web : Int = 40
-
-///|
-let key_left_web : Int = 37
-
-///|
-let key_right_web : Int = 39
-
-///|
-let key_up_glfw : Int = 265
-
-///|
-let key_down_glfw : Int = 264
-
-///|
-let key_left_glfw : Int = 263
-
-///|
-let key_right_glfw : Int = 262
-
-///|
-let key_space : Int = 32
-
-///|
-let key_enter_web : Int = 13
-
-///|
-let key_enter_glfw : Int = 257
-
 // Upgrade type constants
 ///|
 let upgrade_proj_rate : Int = 0
@@ -219,6 +172,8 @@ let upgrade_count : Int = 8
 
 ///|
 fn SurvivorState::new() -> SurvivorState {
+  let camera = @camera2d.Camera2D::new(320.0, 240.0, 960.0, 720.0)
+  camera.follow_target(480.0, 360.0)
   {
     player: {
       x: 480.0,
@@ -228,8 +183,7 @@ fn SurvivorState::new() -> SurvivorState {
       speed: 2.0,
       size: 12.0,
     },
-    camera_x: 480.0 - 160.0,
-    camera_y: 360.0 - 120.0,
+    camera,
     enemies: [],
     projectiles: [],
     gems: [],
@@ -274,8 +228,7 @@ fn SurvivorState::reset(self : SurvivorState) -> Unit {
   self.player.x = 480.0
   self.player.y = 360.0
   self.player.hp = 10
-  self.camera_x = 480.0 - 160.0
-  self.camera_y = 360.0 - 120.0
+  self.camera.follow_target(480.0, 360.0)
   self.enemies.clear()
   self.projectiles.clear()
   self.gems.clear()
@@ -345,64 +298,6 @@ fn normalize_dir(
   (dx / len, dy / len)
 }
 
-///|
-fn SurvivorState::world_to_screen_x(self : SurvivorState, wx : Double) -> Double {
-  wx - self.camera_x
-}
-
-///|
-fn SurvivorState::world_to_screen_y(self : SurvivorState, wy : Double) -> Double {
-  wy - self.camera_y
-}
-
-///|
-fn is_move_up(key_state : @inpututil.KeyInputState) -> Bool {
-  @inpututil.is_key_pressed(key_state, key_w) ||
-  @inpututil.is_key_pressed(key_state, key_up_web) ||
-  @inpututil.is_key_pressed(key_state, key_up_glfw)
-}
-
-///|
-fn is_move_down(key_state : @inpututil.KeyInputState) -> Bool {
-  @inpututil.is_key_pressed(key_state, key_s) ||
-  @inpututil.is_key_pressed(key_state, key_down_web) ||
-  @inpututil.is_key_pressed(key_state, key_down_glfw)
-}
-
-///|
-fn is_move_left(key_state : @inpututil.KeyInputState) -> Bool {
-  @inpututil.is_key_pressed(key_state, key_a) ||
-  @inpututil.is_key_pressed(key_state, key_left_web) ||
-  @inpututil.is_key_pressed(key_state, key_left_glfw)
-}
-
-///|
-fn is_move_right(key_state : @inpututil.KeyInputState) -> Bool {
-  @inpututil.is_key_pressed(key_state, key_d) ||
-  @inpututil.is_key_pressed(key_state, key_right_web) ||
-  @inpututil.is_key_pressed(key_state, key_right_glfw)
-}
-
-///|
-fn is_confirm_just_pressed(input_helper : @inpututil.InputHelper) -> Bool {
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_space) ||
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_enter_web) ||
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_enter_glfw)
-}
-
-///|
-fn is_up_just_pressed(input_helper : @inpututil.InputHelper) -> Bool {
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_w) ||
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_up_web) ||
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_up_glfw)
-}
-
-///|
-fn is_down_just_pressed(input_helper : @inpututil.InputHelper) -> Bool {
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_s) ||
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_down_web) ||
-  @inpututil.is_key_just_pressed(input_helper.key_state, key_down_glfw)
-}
 
 // ============================================================
 // Update
@@ -425,7 +320,7 @@ fn SurvivorState::update(
 
 ///|
 fn SurvivorState::update_title(self : SurvivorState) -> Unit {
-  if is_confirm_just_pressed(self.input) ||
+  if @inpututil.is_confirm_just_pressed(self.input) ||
     @inpututil.is_any_action_just_pressed(
       self.input,
       @core.empty_input_snapshot(),
@@ -440,16 +335,16 @@ fn SurvivorState::update_play(self : SurvivorState) -> Unit {
   let ks = self.input.key_state
   let mut dx = 0.0
   let mut dy = 0.0
-  if is_move_up(ks) {
+  if @inpututil.is_move_up(ks) {
     dy = dy - 1.0
   }
-  if is_move_down(ks) {
+  if @inpututil.is_move_down(ks) {
     dy = dy + 1.0
   }
-  if is_move_left(ks) {
+  if @inpututil.is_move_left(ks) {
     dx = dx - 1.0
   }
-  if is_move_right(ks) {
+  if @inpututil.is_move_right(ks) {
     dx = dx + 1.0
   }
   // Normalize diagonal
@@ -466,16 +361,7 @@ fn SurvivorState::update_play(self : SurvivorState) -> Unit {
   p.x = @cmp.maximum(half, @cmp.minimum(self.world_w - half, p.x))
   p.y = @cmp.maximum(half, @cmp.minimum(self.world_h - half, p.y))
   // Camera follow
-  self.camera_x = p.x - self.screen_w / 2.0
-  self.camera_y = p.y - self.screen_h / 2.0
-  self.camera_x = @cmp.maximum(
-    0.0,
-    @cmp.minimum(self.world_w - self.screen_w, self.camera_x),
-  )
-  self.camera_y = @cmp.maximum(
-    0.0,
-    @cmp.minimum(self.world_h - self.screen_h, self.camera_y),
-  )
+  self.camera.follow_target(p.x, p.y)
   // Survival time & difficulty
   self.survival_time = self.survival_time + 1
   if self.survival_time % 600 == 0 {
@@ -531,23 +417,23 @@ fn SurvivorState::update_spawn(self : SurvivorState) -> Unit {
   match side {
     0 => {
       // top
-      sx = self.camera_x + t * self.screen_w
-      sy = self.camera_y - margin
+      sx = self.camera.x + t * self.screen_w
+      sy = self.camera.y - margin
     }
     1 => {
       // right
-      sx = self.camera_x + self.screen_w + margin
-      sy = self.camera_y + t * self.screen_h
+      sx = self.camera.x + self.screen_w + margin
+      sy = self.camera.y + t * self.screen_h
     }
     2 => {
       // bottom
-      sx = self.camera_x + t * self.screen_w
-      sy = self.camera_y + self.screen_h + margin
+      sx = self.camera.x + t * self.screen_w
+      sy = self.camera.y + self.screen_h + margin
     }
     _ => {
       // left
-      sx = self.camera_x - margin
-      sy = self.camera_y + t * self.screen_h
+      sx = self.camera.x - margin
+      sy = self.camera.y + t * self.screen_h
     }
   }
   // Clamp to world
@@ -636,8 +522,7 @@ fn SurvivorState::update_orbit_weapons(self : SurvivorState) -> Unit {
       if not(e.alive) {
         continue
       }
-      let half_sum = (orb.size + e.size) / 2.0
-      if (ox - e.x).abs() < half_sum && (oy - e.y).abs() < half_sum {
+      if @vector.aabb_overlap_center(ox, oy, orb.size / 2.0, orb.size / 2.0, e.x, e.y, e.size / 2.0, e.size / 2.0) {
         e.hp = e.hp - orb.damage
         e.hit_timer = 4
         if e.hp <= 0 {
@@ -712,8 +597,7 @@ fn SurvivorState::update_projectiles(self : SurvivorState) -> Unit {
       if not(e.alive) {
         continue
       }
-      let half_sum = (proj.size + e.size) / 2.0
-      if (proj.x - e.x).abs() < half_sum && (proj.y - e.y).abs() < half_sum {
+      if @vector.aabb_overlap_center(proj.x, proj.y, proj.size / 2.0, proj.size / 2.0, e.x, e.y, e.size / 2.0, e.size / 2.0) {
         proj.alive = false
         e.hp = e.hp - proj.damage
         e.hit_timer = 4
@@ -753,8 +637,7 @@ fn SurvivorState::update_enemy_player_collision(self : SurvivorState) -> Unit {
     if not(e.alive) {
       continue
     }
-    let half_sum = (p.size + e.size) / 2.0
-    if (p.x - e.x).abs() < half_sum && (p.y - e.y).abs() < half_sum {
+    if @vector.aabb_overlap_center(p.x, p.y, p.size / 2.0, p.size / 2.0, e.x, e.y, e.size / 2.0, e.size / 2.0) {
       // Damage player once per contact frame
       p.hp = p.hp - 1
       // Push enemy back slightly
@@ -834,13 +717,13 @@ fn SurvivorState::generate_upgrade_choices(self : SurvivorState) -> Unit {
 
 ///|
 fn SurvivorState::update_levelup(self : SurvivorState) -> Unit {
-  if is_up_just_pressed(self.input) {
+  if @inpututil.is_up_just_pressed(self.input) {
     self.selected_upgrade = (self.selected_upgrade - 1 + 3) % 3
   }
-  if is_down_just_pressed(self.input) {
+  if @inpututil.is_down_just_pressed(self.input) {
     self.selected_upgrade = (self.selected_upgrade + 1) % 3
   }
-  if is_confirm_just_pressed(self.input) {
+  if @inpututil.is_confirm_just_pressed(self.input) {
     if self.selected_upgrade < self.upgrade_choices.length() {
       self.apply_upgrade(self.upgrade_choices[self.selected_upgrade])
     }
@@ -908,7 +791,7 @@ fn SurvivorState::apply_upgrade(self : SurvivorState, upgrade : Int) -> Unit {
 
 ///|
 fn SurvivorState::update_gameover(self : SurvivorState) -> Unit {
-  if is_confirm_just_pressed(self.input) ||
+  if @inpututil.is_confirm_just_pressed(self.input) ||
     @inpututil.is_any_action_just_pressed(
       self.input,
       @core.empty_input_snapshot(),
@@ -917,147 +800,6 @@ fn SurvivorState::update_gameover(self : SurvivorState) -> Unit {
   }
 }
 
-// ============================================================
-// Glyph Rendering
-// ============================================================
-
-///|
-fn glyph_pattern(ch : Int) -> Array[Int] {
-  match ch {
-    0 => [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
-    1 => [0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1]
-    2 => [1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1]
-    3 => [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    4 => [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1]
-    5 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    6 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1]
-    7 => [1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
-    8 => [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
-    9 => [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    // A
-    65 => [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
-    // C
-    67 => [1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1]
-    // D
-    68 => [1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0]
-    // E
-    69 => [1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1]
-    // G
-    71 => [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1]
-    // H
-    72 => [1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
-    // I
-    73 => [1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1]
-    // K
-    75 => [1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1]
-    // L
-    76 => [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1]
-    // M
-    77 => [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1]
-    // N
-    78 => [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
-    // O
-    79 => [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
-    // P
-    80 => [1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]
-    // R
-    82 => [1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1]
-    // S
-    83 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-    // T
-    84 => [1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]
-    // U
-    85 => [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
-    // V
-    86 => [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0]
-    // W
-    87 => [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1]
-    // X
-    88 => [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1]
-    // colon ':'
-    58 => [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
-    // space ' '
-    32 => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    // '>'
-    62 => [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0]
-    // '+'
-    43 => [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0]
-    _ => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  }
-}
-
-///|
-fn draw_dot_text(
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  chars : Array[Int],
-  cx : Double,
-  cy : Double,
-  sw : Double,
-  sh : Double,
-  color : @gfx.Color,
-  scale : Double,
-) -> Unit {
-  let px_size = 3.0 * scale
-  let char_w = 3.0 * px_size
-  let gap = px_size
-  let total_w = chars.length().to_double() * char_w +
-    (chars.length() - 1).to_double() * gap
-  let char_h = 5.0 * px_size
-  let start_x = cx - total_w / 2.0
-  let start_y = cy - char_h / 2.0
-  for i = 0; i < chars.length(); i = i + 1 {
-    let pattern = glyph_pattern(chars[i])
-    let ox = start_x + i.to_double() * (char_w + gap)
-    for row = 0; row < 5; row = row + 1 {
-      for col = 0; col < 3; col = col + 1 {
-        if pattern[row * 3 + col] == 1 {
-          let x = ox + col.to_double() * px_size
-          let y = start_y + row.to_double() * px_size
-          cmds.push(
-            @debugutil.new_ndc_rect_fill_command(
-              dst, shader, x, y, px_size, px_size, sw, sh, color, 0,
-            ),
-          )
-        }
-      }
-    }
-  }
-}
-
-///|
-fn draw_number(
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  number : Int,
-  ox : Double,
-  oy : Double,
-  sw : Double,
-  sh : Double,
-  color : @gfx.Color,
-  scale : Double,
-) -> Unit {
-  let digits : Array[Int] = []
-  if number == 0 {
-    digits.push(0)
-  } else {
-    let mut n = number
-    while n > 0 {
-      digits.push(n % 10)
-      n = n / 10
-    }
-    // Reverse
-    let len = digits.length()
-    for i = 0; i < len / 2; i = i + 1 {
-      let tmp = digits[i]
-      digits[i] = digits[len - 1 - i]
-      digits[len - 1 - i] = tmp
-    }
-  }
-  draw_dot_text(cmds, dst, shader, digits, ox, oy, sw, sh, color, scale)
-}
 
 // ============================================================
 // Upgrade name helpers
@@ -1129,7 +871,7 @@ fn SurvivorState::draw_title(
   // "SURVIVOR" text
   let title_color = @debugutil.color_from_hex(0xFF6600)
   // S=83, U=85, R=82, V=86, I=73, V=86, O=79, R=82
-  draw_dot_text(
+  @debugutil.draw_dot_text(
     cmds,
     dst,
     shader,
@@ -1146,7 +888,7 @@ fn SurvivorState::draw_title(
     let hint_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.7)
     // P=80, R=82, E=69, S=83, S=83, ' '=32, K=75, E=69, Y=0(skip)
     // Simplified: "SPACE"
-    draw_dot_text(
+    @debugutil.draw_dot_text(
       cmds,
       dst,
       shader,
@@ -1181,10 +923,10 @@ fn SurvivorState::draw_play(
   let grid_color = @debugutil.color_from_hex_alpha(0x2A4E2A, 0.5)
   let grid_spacing = 64.0
   // Vertical lines
-  let start_gx = @math.floor(self.camera_x / grid_spacing) * grid_spacing
+  let start_gx = @math.floor(self.camera.x / grid_spacing) * grid_spacing
   let mut gx = start_gx
-  while gx < self.camera_x + sw + grid_spacing {
-    let screen_x = gx - self.camera_x
+  while gx < self.camera.x + sw + grid_spacing {
+    let screen_x = gx - self.camera.x
     if screen_x >= 0.0 && screen_x < sw {
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
@@ -1195,10 +937,10 @@ fn SurvivorState::draw_play(
     gx = gx + grid_spacing
   }
   // Horizontal lines
-  let start_gy = @math.floor(self.camera_y / grid_spacing) * grid_spacing
+  let start_gy = @math.floor(self.camera.y / grid_spacing) * grid_spacing
   let mut gy = start_gy
-  while gy < self.camera_y + sh + grid_spacing {
-    let screen_y = gy - self.camera_y
+  while gy < self.camera.y + sh + grid_spacing {
+    let screen_y = gy - self.camera.y
     if screen_y >= 0.0 && screen_y < sh {
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
@@ -1214,8 +956,8 @@ fn SurvivorState::draw_play(
     if not(gem.alive) {
       continue
     }
-    let gsx = self.world_to_screen_x(gem.x)
-    let gsy = self.world_to_screen_y(gem.y)
+    let gsx = self.camera.world_to_screen_x(gem.x)
+    let gsy = self.camera.world_to_screen_y(gem.y)
     if gsx > -8.0 && gsx < sw + 8.0 && gsy > -8.0 && gsy < sh + 8.0 {
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
@@ -1229,8 +971,8 @@ fn SurvivorState::draw_play(
     if not(e.alive) {
       continue
     }
-    let esx = self.world_to_screen_x(e.x)
-    let esy = self.world_to_screen_y(e.y)
+    let esx = self.camera.world_to_screen_x(e.x)
+    let esy = self.camera.world_to_screen_y(e.y)
     if esx > -20.0 && esx < sw + 20.0 && esy > -20.0 && esy < sh + 20.0 {
       let ecolor = if e.hit_timer > 0 {
         @debugutil.color_white()
@@ -1261,8 +1003,8 @@ fn SurvivorState::draw_play(
   // Area weapon effect
   if self.area_weapon.active_frames > 0 {
     let area_color = @debugutil.color_from_hex_alpha(0xFFFF00, 0.3)
-    let psx = self.world_to_screen_x(self.player.x)
-    let psy = self.world_to_screen_y(self.player.y)
+    let psx = self.camera.world_to_screen_x(self.player.x)
+    let psy = self.camera.world_to_screen_y(self.player.y)
     let r = self.area_weapon.radius
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
@@ -1276,8 +1018,8 @@ fn SurvivorState::draw_play(
     if not(proj.alive) {
       continue
     }
-    let prsx = self.world_to_screen_x(proj.x)
-    let prsy = self.world_to_screen_y(proj.y)
+    let prsx = self.camera.world_to_screen_x(proj.x)
+    let prsy = self.camera.world_to_screen_y(proj.y)
     if prsx > -8.0 && prsx < sw + 8.0 && prsy > -8.0 && prsy < sh + 8.0 {
       let half_p = proj.size / 2.0
       cmds.push(
@@ -1292,8 +1034,8 @@ fn SurvivorState::draw_play(
   for orb in self.orbit_weapons {
     let ox = self.player.x + @math.cos(orb.angle) * orb.radius
     let oy = self.player.y + @math.sin(orb.angle) * orb.radius
-    let osx = self.world_to_screen_x(ox)
-    let osy = self.world_to_screen_y(oy)
+    let osx = self.camera.world_to_screen_x(ox)
+    let osy = self.camera.world_to_screen_y(oy)
     let half_o = orb.size / 2.0
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
@@ -1303,8 +1045,8 @@ fn SurvivorState::draw_play(
   }
   // Player
   let player_color = @debugutil.color_from_hex(0x00FFCC)
-  let psx = self.world_to_screen_x(self.player.x)
-  let psy = self.world_to_screen_y(self.player.y)
+  let psx = self.camera.world_to_screen_x(self.player.x)
+  let psy = self.camera.world_to_screen_y(self.player.y)
   let half_pl = self.player.size / 2.0
   cmds.push(
     @debugutil.new_ndc_rect_fill_command(
@@ -1366,7 +1108,7 @@ fn SurvivorState::draw_play(
   // UI: Survival time (top-right)
   let time_color = @debugutil.color_white()
   let seconds = self.survival_time / 60
-  draw_number(
+  @debugutil.draw_number(
     cmds,
     dst,
     shader,
@@ -1380,7 +1122,7 @@ fn SurvivorState::draw_play(
   )
   // UI: Score
   let score_color = @debugutil.color_from_hex(0xFFCC00)
-  draw_number(
+  @debugutil.draw_number(
     cmds,
     dst,
     shader,
@@ -1396,10 +1138,10 @@ fn SurvivorState::draw_play(
   let level_color = @debugutil.color_from_hex(0xCCCCCC)
   // "LV" + number
   let lv_chars : Array[Int] = [76, 86] // L, V
-  draw_dot_text(
+  @debugutil.draw_dot_text(
     cmds, dst, shader, lv_chars, 22.0, 26.0, sw, sh, level_color, 0.5,
   )
-  draw_number(
+  @debugutil.draw_number(
     cmds,
     dst,
     shader,
@@ -1432,7 +1174,7 @@ fn SurvivorState::draw_levelup_overlay(
   // "LEVEL UP" title
   let title_color = @debugutil.color_from_hex(0xFFFF00)
   // L=76, E=69, V=86, E=69, L=76, ' '=32, U=85, P=80
-  draw_dot_text(
+  @debugutil.draw_dot_text(
     cmds,
     dst,
     shader,
@@ -1457,14 +1199,14 @@ fn SurvivorState::draw_levelup_overlay(
       )
       // Arrow ">"
       let arrow_color = @debugutil.color_from_hex(0xFFFF00)
-      draw_dot_text(
+      @debugutil.draw_dot_text(
         cmds, dst, shader, [62], 55.0, choice_y, sw, sh, arrow_color, 1.0,
       )
     }
     // Upgrade name
     let name_color = @debugutil.color_white()
     let chars = upgrade_name_chars(self.upgrade_choices[i])
-    draw_dot_text(
+    @debugutil.draw_dot_text(
       cmds, dst, shader, chars, sw / 2.0, choice_y, sw, sh, name_color, 1.0,
     )
   }
@@ -1489,7 +1231,7 @@ fn SurvivorState::draw_gameover(
   // "GAME OVER"
   let go_color = @debugutil.color_from_hex(0xFF0000)
   // G=71, A=65, M=77, E=69, ' '=32, O=79, V=86, E=69, R=82
-  draw_dot_text(
+  @debugutil.draw_dot_text(
     cmds,
     dst,
     shader,
@@ -1503,7 +1245,7 @@ fn SurvivorState::draw_gameover(
   )
   // Score
   let score_color = @debugutil.color_from_hex(0xFFCC00)
-  draw_number(
+  @debugutil.draw_number(
     cmds,
     dst,
     shader,
@@ -1518,7 +1260,7 @@ fn SurvivorState::draw_gameover(
   // Survival time in seconds
   let time_color = @debugutil.color_white()
   let seconds = self.survival_time / 60
-  draw_number(
+  @debugutil.draw_number(
     cmds,
     dst,
     shader,
@@ -1533,7 +1275,7 @@ fn SurvivorState::draw_gameover(
   // "SPACE" blinking
   if self.frame_count / 30 % 2 == 0 {
     let hint_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.7)
-    draw_dot_text(
+    @debugutil.draw_dot_text(
       cmds,
       dst,
       shader,
@@ -1548,21 +1290,3 @@ fn SurvivorState::draw_gameover(
   }
 }
 
-///|
-fn[T : @gfx.GraphicsDriver] render_frame(
-  state : SurvivorState,
-  graphics : T,
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Unit raise {
-  let pass = @gfx.new_render_pass_desc(
-    @gfx.new_color(0.0, 0.0, 0.0, 1.0),
-    true,
-  )
-  graphics.begin(pass)
-  let cmds = state.build_draw_commands(dst, shader)
-  for cmd in cmds {
-    graphics.draw_triangles(cmd)
-  }
-  graphics.end(true)
-}

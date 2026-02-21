@@ -50,11 +50,11 @@ test "normalize_dir: zero vector" {
 
 ///|
 test "world_to_screen: camera offset" {
-  let state = SurvivorState::new()
-  state.camera_x = 100.0
-  state.camera_y = 50.0
-  let sx = state.world_to_screen_x(150.0)
-  let sy = state.world_to_screen_y(80.0)
+  let cam = @camera2d.Camera2D::new(320.0, 240.0, 960.0, 720.0)
+  // follow_target(260,170) -> cam.x=260-160=100, cam.y=170-120=50
+  cam.follow_target(260.0, 170.0)
+  let sx = cam.world_to_screen_x(150.0)
+  let sy = cam.world_to_screen_y(80.0)
   assert_true!((sx - 50.0).abs() < 0.001)
   assert_true!((sy - 30.0).abs() < 0.001)
 }
@@ -140,7 +140,7 @@ test "camera: follows player" {
   state.update(input)
   // Camera should be centered on player
   let expected_cam_x = state.player.x - state.screen_w / 2.0
-  assert_true!((state.camera_x - expected_cam_x).abs() < 0.01)
+  assert_true!((state.camera.x - expected_cam_x).abs() < 0.01)
 }
 
 // ============================================================

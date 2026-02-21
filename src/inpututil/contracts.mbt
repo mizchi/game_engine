@@ -333,3 +333,105 @@ pub fn is_any_action_just_pressed(
   helper.mouse_state.just_pressed_buttons.length() > 0 ||
   helper.touch_state.just_pressed_touch_ids.length() > 0
 }
+
+// ============================================================
+// Key code constants
+// ============================================================
+
+///|
+pub let key_w : Int = 87
+
+///|
+pub let key_a : Int = 65
+
+///|
+pub let key_s : Int = 83
+
+///|
+pub let key_d : Int = 68
+
+///|
+pub let key_up_web : Int = 38
+
+///|
+pub let key_down_web : Int = 40
+
+///|
+pub let key_left_web : Int = 37
+
+///|
+pub let key_right_web : Int = 39
+
+///|
+pub let key_up_glfw : Int = 265
+
+///|
+pub let key_down_glfw : Int = 264
+
+///|
+pub let key_left_glfw : Int = 263
+
+///|
+pub let key_right_glfw : Int = 262
+
+///|
+pub let key_space : Int = 32
+
+///|
+pub let key_enter_web : Int = 13
+
+///|
+pub let key_enter_glfw : Int = 257
+
+// ============================================================
+// Direction helpers (WASD + Arrow keys for web + GLFW)
+// ============================================================
+
+///|
+pub fn is_move_up(key_state : KeyInputState) -> Bool {
+  is_key_pressed(key_state, key_w) ||
+  is_key_pressed(key_state, key_up_web) ||
+  is_key_pressed(key_state, key_up_glfw)
+}
+
+///|
+pub fn is_move_down(key_state : KeyInputState) -> Bool {
+  is_key_pressed(key_state, key_s) ||
+  is_key_pressed(key_state, key_down_web) ||
+  is_key_pressed(key_state, key_down_glfw)
+}
+
+///|
+pub fn is_move_left(key_state : KeyInputState) -> Bool {
+  is_key_pressed(key_state, key_a) ||
+  is_key_pressed(key_state, key_left_web) ||
+  is_key_pressed(key_state, key_left_glfw)
+}
+
+///|
+pub fn is_move_right(key_state : KeyInputState) -> Bool {
+  is_key_pressed(key_state, key_d) ||
+  is_key_pressed(key_state, key_right_web) ||
+  is_key_pressed(key_state, key_right_glfw)
+}
+
+///|
+pub fn is_confirm_just_pressed(helper : InputHelper) -> Bool {
+  is_key_just_pressed(helper.key_state, key_space) ||
+  is_key_just_pressed(helper.key_state, key_enter_web) ||
+  is_key_just_pressed(helper.key_state, key_enter_glfw)
+}
+
+///|
+pub fn is_up_just_pressed(helper : InputHelper) -> Bool {
+  is_key_just_pressed(helper.key_state, key_w) ||
+  is_key_just_pressed(helper.key_state, key_up_web) ||
+  is_key_just_pressed(helper.key_state, key_up_glfw)
+}
+
+///|
+pub fn is_down_just_pressed(helper : InputHelper) -> Bool {
+  is_key_just_pressed(helper.key_state, key_s) ||
+  is_key_just_pressed(helper.key_state, key_down_web) ||
+  is_key_just_pressed(helper.key_state, key_down_glfw)
+}

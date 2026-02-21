@@ -377,6 +377,180 @@ pub fn new_ndc_rect_fill_command(
   )
 }
 
+// ============================================================
+// Dot-matrix glyph rendering (3x5 grid)
+// ============================================================
+
+///|
+pub fn glyph_pattern(ch : Int) -> Array[Int] {
+  match ch {
+    0 => [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
+    1 => [0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1]
+    2 => [1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1]
+    3 => [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+    4 => [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1]
+    5 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+    6 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1]
+    7 => [1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
+    8 => [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
+    9 => [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+    // A
+    65 => [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
+    // B
+    66 => [1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0]
+    // C
+    67 => [1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1]
+    // D
+    68 => [1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0]
+    // E
+    69 => [1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1]
+    // F
+    70 => [1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0]
+    // G
+    71 => [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1]
+    // H
+    72 => [1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
+    // I
+    73 => [1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1]
+    // J
+    74 => [0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1]
+    // K
+    75 => [1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1]
+    // L
+    76 => [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1]
+    // M
+    77 => [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1]
+    // N
+    78 => [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1]
+    // O
+    79 => [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
+    // P
+    80 => [1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]
+    // Q
+    81 => [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1]
+    // R
+    82 => [1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1]
+    // S
+    83 => [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+    // T
+    84 => [1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]
+    // U
+    85 => [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]
+    // V
+    86 => [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0]
+    // W
+    87 => [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1]
+    // X
+    88 => [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1]
+    // Y
+    89 => [1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]
+    // Z
+    90 => [1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1]
+    // colon ':'
+    58 => [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
+    // space ' '
+    32 => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    // '>'
+    62 => [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0]
+    // '+'
+    43 => [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0]
+    _ => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  }
+}
+
+///|
+pub fn draw_dot_text(
+  cmds : Array[@gfx.DrawTrianglesCommand],
+  dst : @gfx.ImageHandle,
+  shader : @gfx.ShaderHandle,
+  chars : Array[Int],
+  cx : Double,
+  cy : Double,
+  sw : Double,
+  sh : Double,
+  color : @gfx.Color,
+  scale : Double,
+) -> Unit {
+  let px_size = 3.0 * scale
+  let char_w = 3.0 * px_size
+  let gap = px_size
+  let total_w = chars.length().to_double() * char_w +
+    (chars.length() - 1).to_double() * gap
+  let char_h = 5.0 * px_size
+  let start_x = cx - total_w / 2.0
+  let start_y = cy - char_h / 2.0
+  for i = 0; i < chars.length(); i = i + 1 {
+    let pattern = glyph_pattern(chars[i])
+    let ox = start_x + i.to_double() * (char_w + gap)
+    for row = 0; row < 5; row = row + 1 {
+      for col = 0; col < 3; col = col + 1 {
+        if pattern[row * 3 + col] == 1 {
+          let x = ox + col.to_double() * px_size
+          let y = start_y + row.to_double() * px_size
+          cmds.push(
+            new_ndc_rect_fill_command(
+              dst, shader, x, y, px_size, px_size, sw, sh, color, 0,
+            ),
+          )
+        }
+      }
+    }
+  }
+}
+
+///|
+pub fn draw_number(
+  cmds : Array[@gfx.DrawTrianglesCommand],
+  dst : @gfx.ImageHandle,
+  shader : @gfx.ShaderHandle,
+  number : Int,
+  ox : Double,
+  oy : Double,
+  sw : Double,
+  sh : Double,
+  color : @gfx.Color,
+  scale : Double,
+) -> Unit {
+  let digits : Array[Int] = []
+  if number == 0 {
+    digits.push(0)
+  } else {
+    let mut n = number
+    while n > 0 {
+      digits.push(n % 10)
+      n = n / 10
+    }
+    // Reverse
+    let len = digits.length()
+    for i = 0; i < len / 2; i = i + 1 {
+      let tmp = digits[i]
+      digits[i] = digits[len - 1 - i]
+      digits[len - 1 - i] = tmp
+    }
+  }
+  draw_dot_text(cmds, dst, shader, digits, ox, oy, sw, sh, color, scale)
+}
+
+// ============================================================
+// Render commands pipeline
+// ============================================================
+
+///|
+pub fn[T : @gfx.GraphicsDriver] render_commands(
+  graphics : T,
+  cmds : Array[@gfx.DrawTrianglesCommand],
+) -> Unit raise {
+  let pass = @gfx.new_render_pass_desc(
+    @gfx.new_color(0.0, 0.0, 0.0, 1.0),
+    true,
+  )
+  graphics.begin(pass)
+  for cmd in cmds {
+    graphics.draw_triangles(cmd)
+  }
+  graphics.end(true)
+}
+
 ///|
 /// Build a simple draw command with common defaults.
 pub fn new_simple_draw_command(

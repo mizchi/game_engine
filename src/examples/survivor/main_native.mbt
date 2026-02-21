@@ -25,7 +25,8 @@ fn main {
     @native_hooks.poll_events()
     let input = platform.capture_input(state.frame_count)
     state.update(input)
-    render_frame(state, graphics, dst, shader) catch { _ => () }
+    let cmds = state.build_draw_commands(dst, shader)
+    @debugutil.render_commands(graphics, cmds) catch { _ => () }
   }
   @native_hooks.shutdown()
   @native_hooks.uninstall()

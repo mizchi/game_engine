@@ -161,3 +161,37 @@ pub fn Vec2::mul(self : Vec2, other : Vec2) -> Vec2 {
 pub fn Vec2::div(self : Vec2, other : Vec2) -> Vec2 {
   { x: self.x / other.x, y: self.y / other.y }
 }
+
+// ============================================================
+// AABB collision detection
+// ============================================================
+
+///|
+/// Check if two axis-aligned bounding boxes overlap (top-left + size form).
+pub fn aabb_overlap(
+  ax : Double,
+  ay : Double,
+  aw : Double,
+  ah : Double,
+  bx : Double,
+  by : Double,
+  bw : Double,
+  bh : Double,
+) -> Bool {
+  ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+}
+
+///|
+/// Check if two axis-aligned bounding boxes overlap (center + half-size form).
+pub fn aabb_overlap_center(
+  ax : Double,
+  ay : Double,
+  ahw : Double,
+  ahh : Double,
+  bx : Double,
+  by : Double,
+  bhw : Double,
+  bhh : Double,
+) -> Bool {
+  (ax - bx).abs() < ahw + bhw && (ay - by).abs() < ahh + bhh
+}
