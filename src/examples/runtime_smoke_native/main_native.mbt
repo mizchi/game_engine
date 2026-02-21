@@ -391,7 +391,65 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(
 }
 
 ///|
-fn run_runtime_contract_smoke() -> (Int, Int) raise {
+fn[T : @gfx.GraphicsDriver] verify_rect_fill_rendering(
+  graphics : T,
+) -> Bool raise {
+  // Draw a full-screen red rectangle (quad = 2 triangles) on black background.
+  // Before the fix, only 1 triangle was rendered (the second one overwrote
+  // the first in planned_draw_commands), leaving part of the screen black.
+  let screen_w = 320.0
+  let screen_h = 240.0
+  let dst = graphics.new_image(screen_w.to_int(), screen_h.to_int())
+  let shader = graphics.new_shader("rect_fill_test")
+  let color = @debugutil.color_from_hex(0xFF0000)
+  let cmd = @debugutil.new_ndc_rect_fill_command(
+    dst, shader, 0.0, 0.0, screen_w, screen_h, screen_w, screen_h, color, 0,
+  )
+  let pass = @gfx.new_render_pass_desc(
+    @gfx.new_color(0.0, 0.0, 0.0, 1.0),
+    true,
+  )
+  graphics.begin(pass)
+  graphics.draw_triangles(cmd)
+  graphics.end(true)
+  // Read pixels from the surface and verify center and corners are red.
+  let pixels = @wgpu_native.runtime_read_pixels(0, 0, 64, 64)
+  match pixels {
+    Some(data) => {
+      if data.length() < 64 * 64 * 4 {
+        println(
+          "runtime_smoke_native: rect_fill pixel data too short len=\{data.length()}",
+        )
+        return false
+      }
+      let center = (32 * 64 + 32) * 4
+      let tl = 0
+      let tr = 63 * 4
+      let bl = 63 * 64 * 4
+      let br = (63 * 64 + 63) * 4
+      // Red channel may be < 255 due to shader color encoding, but must be
+      // significantly above zero (non-black) while G and B remain near zero.
+      let center_ok = data[center] > 50 &&
+        data[center + 1] < 50 &&
+        data[center + 2] < 50
+      let tl_ok = data[tl] > 50 && data[tl + 1] < 50 && data[tl + 2] < 50
+      let tr_ok = data[tr] > 50 && data[tr + 1] < 50 && data[tr + 2] < 50
+      let bl_ok = data[bl] > 50 && data[bl + 1] < 50 && data[bl + 2] < 50
+      let br_ok = data[br] > 50 && data[br + 1] < 50 && data[br + 2] < 50
+      println(
+        "runtime_smoke_native: rect_fill center=\{data[center]},\{data[center + 1]},\{data[center + 2]} tl=\{data[tl]},\{data[tl + 1]},\{data[tl + 2]} tr=\{data[tr]},\{data[tr + 1]},\{data[tr + 2]} bl=\{data[bl]},\{data[bl + 1]},\{data[bl + 2]} br=\{data[br]},\{data[br + 1]},\{data[br + 2]}",
+      )
+      center_ok && tl_ok && tr_ok && bl_ok && br_ok
+    }
+    None => {
+      println("runtime_smoke_native: rect_fill read_pixels returned None")
+      false
+    }
+  }
+}
+
+///|
+fn run_runtime_contract_smoke() -> (Int, Int, Bool) raise {
   let game = @core.new_noop_game(320, 240)
   let platform = @platform.create_desktop_glfw_platform()
   let surface = platform.current_surface() catch {
@@ -410,7 +468,11 @@ fn run_runtime_contract_smoke() -> (Int, Int) raise {
   ) catch {
     _ => ()
   }
-  run_draw_payload_probe(graphics)
+  // Run rect fill verification first, before the payload probe,
+  // so the probe's runtime_last_* values are not overwritten.
+  let rect_ok = verify_rect_fill_rendering(graphics)
+  let (source_id, cmd_count) = run_draw_payload_probe(graphics)
+  (source_id, cmd_count, rect_ok)
 }
 
 ///|
@@ -503,8 +565,8 @@ fn run_with_real_native_hooks() -> Bool {
     @native_hooks.uninstall()
     return false
   }
-  let (source_image_id, command_count) = run_runtime_contract_smoke() catch {
-    _ => (-1, 0)
+  let (source_image_id, command_count, rect_fill_ok) = run_runtime_contract_smoke() catch {
+    _ => (-1, 0, false)
   }
   let has_payload = @wgpu_native.runtime_last_index_count() > 0 &&
     @wgpu_native.runtime_last_vertex_float_count() > 0 &&
@@ -658,8 +720,12 @@ fn run_with_real_native_hooks() -> Bool {
     None => "none"
   }
   println(
-    "runtime_smoke_native_probe: tex_seed=\{payload_texture_seed} source_gen=\{source_generation} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b} sample0=\{sample0_x},\{sample0_y},\{sample0[0]},\{sample0[1]},\{sample0[2]},\{sample0[3]} sample1=\{sample1_x},\{sample1_y},\{sample1[0]},\{sample1[1]},\{sample1[2]},\{sample1[3]} sample2=\{sample2_x},\{sample2_y},\{sample2[0]},\{sample2[1]},\{sample2[2]},\{sample2[3]} read_pixels_len=\{read_pixels_len} read_pixels_4x1=\{rp0} command_count=\{command_count}",
+    "runtime_smoke_native_probe: tex_seed=\{payload_texture_seed} source_gen=\{source_generation} atlas_gen=\{atlas_generation} atlas_rgb=\{atlas_pixel_r},\{atlas_pixel_g},\{atlas_pixel_b} sample0=\{sample0_x},\{sample0_y},\{sample0[0]},\{sample0[1]},\{sample0[2]},\{sample0[3]} sample1=\{sample1_x},\{sample1_y},\{sample1[0]},\{sample1[1]},\{sample1[2]},\{sample1[3]} sample2=\{sample2_x},\{sample2_y},\{sample2[0]},\{sample2[1]},\{sample2[2]},\{sample2[3]} read_pixels_len=\{read_pixels_len} read_pixels_4x1=\{rp0} command_count=\{command_count} rect_fill_ok=\{rect_fill_ok}",
   )
+  if !rect_fill_ok {
+    println("runtime_smoke_native: rect_fill verification FAILED")
+    return false
+  }
   true
 }
 

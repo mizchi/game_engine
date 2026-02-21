@@ -351,47 +351,59 @@ fn bridge_gfx_on_draw(
 ) -> Unit {
   if active {
     let dispatch = @gfx.build_draw_command_dispatch(command)
-    @wgpu_native.runtime_record_draw_command(
-      dispatch.draw_calls,
-      dispatch.pipeline_id,
-      dispatch.uniform_hash,
-      dispatch.blend_mode,
-      dispatch.dst_image_id,
-      dispatch.shader_id,
-      dispatch.index_offset,
-      dispatch.region_count,
-      dispatch.total_index_count,
-      dispatch.vertex_float_count,
-      dispatch.index_count,
-      dispatch.src_image_count,
-      dispatch.uniform_dword_count,
-    )
-    let payload = @payload2d.decode_triangle_payload(
-      command.vertex_data,
-      command.indices,
-      command.uniform_dwords,
-      command.src_image_ids,
-    )
-    if payload.has_payload {
-      @wgpu_native.runtime_record_draw_triangle_payload(
-        payload.ax,
-        payload.ay,
-        payload.bx,
-        payload.by,
-        payload.cx,
-        payload.cy,
-        payload.au,
-        payload.av,
-        payload.bu,
-        payload.bv,
-        payload.cu,
-        payload.cv,
-        payload.uniform_r,
-        payload.uniform_g,
-        payload.uniform_b,
-        payload.uniform_a,
-        payload.texture_seed,
+    // Split draw command into individual triangles (3 indices each).
+    // Each triangle needs its own command entry paired with its payload,
+    // because runtime_record_draw_triangle_payload overwrites the last
+    // entry in planned_draw_commands. Without per-triangle command entries,
+    // quads (4 vertices, 6 indices = 2 triangles) would lose their first
+    // triangle's payload.
+    let indices = command.indices
+    let tri_count = indices.length() / 3
+    for t = 0; t < tri_count; t = t + 1 {
+      @wgpu_native.runtime_record_draw_command(
+        1,
+        dispatch.pipeline_id,
+        dispatch.uniform_hash,
+        dispatch.blend_mode,
+        dispatch.dst_image_id,
+        dispatch.shader_id,
+        dispatch.index_offset,
+        1,
+        3,
+        dispatch.vertex_float_count,
+        3,
+        dispatch.src_image_count,
+        dispatch.uniform_dword_count,
       )
+      let base = t * 3
+      let sub_indices = [indices[base], indices[base + 1], indices[base + 2]]
+      let payload = @payload2d.decode_triangle_payload(
+        command.vertex_data,
+        sub_indices,
+        command.uniform_dwords,
+        command.src_image_ids,
+      )
+      if payload.has_payload {
+        @wgpu_native.runtime_record_draw_triangle_payload(
+          payload.ax,
+          payload.ay,
+          payload.bx,
+          payload.by,
+          payload.cx,
+          payload.cy,
+          payload.au,
+          payload.av,
+          payload.bu,
+          payload.bv,
+          payload.cu,
+          payload.cv,
+          payload.uniform_r,
+          payload.uniform_g,
+          payload.uniform_b,
+          payload.uniform_a,
+          payload.texture_seed,
+        )
+      }
     }
   }
 }
