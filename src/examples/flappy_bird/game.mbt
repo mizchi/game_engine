@@ -330,6 +330,25 @@ fn draw_dot_text(
 }
 
 ///|
+fn[T : @gfx.GraphicsDriver] render_frame(
+  state : FlappyState,
+  graphics : T,
+  dst : @gfx.ImageHandle,
+  shader : @gfx.ShaderHandle,
+) -> Unit raise {
+  let pass = @gfx.new_render_pass_desc(
+    @gfx.new_color(0.0, 0.0, 0.0, 1.0),
+    true,
+  )
+  graphics.begin(pass)
+  let cmds = state.build_draw_commands(dst, shader)
+  for cmd in cmds {
+    graphics.draw_triangles(cmd)
+  }
+  graphics.end(true)
+}
+
+///|
 fn draw_score_digits(
   cmds : Array[@gfx.DrawTrianglesCommand],
   dst : @gfx.ImageHandle,
