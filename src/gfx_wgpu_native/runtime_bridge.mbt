@@ -1281,6 +1281,21 @@ pub fn runtime_read_pixels(x : Int, y : Int, w : Int, h : Int) -> Array[Int]? {
 }
 
 ///|
+/// Load font binary data from a file path. Returns Array[Int] of byte values, or None on failure.
+pub fn runtime_load_font_data(path : String) -> Array[Int]? {
+  let size = load_font_file(path)
+  if size <= 0 {
+    return None
+  }
+  let data : Array[Int] = Array::make(size, 0)
+  for i in 0..<size {
+    data[i] = font_file_byte_at(i)
+  }
+  font_file_release()
+  Some(data)
+}
+
+///|
 pub fn shutdown_runtime_context() -> Unit {
   match runtime_context.val {
     Some(ctx) => {

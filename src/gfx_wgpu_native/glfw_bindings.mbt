@@ -377,3 +377,32 @@ pub fn get_window_content_scale(window : GLFWwindow) -> Double {
 pub fn request_window_attention(window : GLFWwindow) -> Unit {
   moonbit_glfw_request_window_attention_safe(window)
 }
+
+// ---------------------------------------------------------------------------
+// Font file I/O FFI
+// ---------------------------------------------------------------------------
+
+///|
+extern "C" fn moonbit_load_font_file(path : Bytes, path_len : Int) -> Int = "moonbit_load_font_file"
+
+///|
+extern "C" fn moonbit_font_file_byte_at(offset : Int) -> Int = "moonbit_font_file_byte_at"
+
+///|
+extern "C" fn moonbit_font_file_release() = "moonbit_font_file_release"
+
+///|
+pub fn load_font_file(path : String) -> Int {
+  let bytes = path.to_bytes()
+  moonbit_load_font_file(bytes, bytes.length())
+}
+
+///|
+pub fn font_file_byte_at(offset : Int) -> Int {
+  moonbit_font_file_byte_at(offset)
+}
+
+///|
+pub fn font_file_release() -> Unit {
+  moonbit_font_file_release()
+}

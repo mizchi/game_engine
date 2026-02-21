@@ -2797,6 +2797,186 @@ fn bridge_web_request_attention(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Font load bridge (JS)
+// ---------------------------------------------------------------------------
+
+///|
+extern "js" fn js_load_font_data(name : String) -> Int =
+  #| (name) => {
+  #|   const root = globalThis;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   if (!state || !state.fonts || !state.fonts[name]) return -1;
+  #|   const data = state.fonts[name];
+  #|   if (!(data instanceof Uint8Array)) return -1;
+  #|   state._fontLoadBuffer = data;
+  #|   return data.length;
+  #| }
+
+///|
+extern "js" fn js_load_font_data_byte(offset : Int) -> Int =
+  #| (offset) => {
+  #|   const root = globalThis;
+  #|   const state = root.__gameEngineWebRuntime;
+  #|   if (!state || !state._fontLoadBuffer) return 0;
+  #|   if (offset < 0 || offset >= state._fontLoadBuffer.length) return 0;
+  #|   return state._fontLoadBuffer[offset];
+  #| }
+
+///|
+fn bridge_load_font_data(name : String) -> Array[Int]? {
+  let size = js_load_font_data(name)
+  if size <= 0 {
+    return None
+  }
+  let data : Array[Int] = Array::make(size, 0)
+  for i in 0..<size {
+    data[i] = js_load_font_data_byte(i)
+  }
+  Some(data)
+}
+
+// ---------------------------------------------------------------------------
+// Audio Web Backend (JS) — ScriptProcessorNode + ring buffer
+// ---------------------------------------------------------------------------
+
+///|
+extern "js" fn js_audio_try_initialize(sample_rate : Int, channels : Int) -> Bool =
+  #| (sampleRate, channels) => {
+  #|   try {
+  #|     const root = globalThis;
+  #|     const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|     if (state.audio && state.audio.ctx) return true;
+  #|     const ctx = new (root.AudioContext || root.webkitAudioContext)({ sampleRate });
+  #|     const bufSize = 4096;
+  #|     const ringSize = bufSize * 8;
+  #|     const ring = new Float32Array(ringSize * channels);
+  #|     let writePos = 0;
+  #|     let readPos = 0;
+  #|     const node = ctx.createScriptProcessor(bufSize, 0, channels);
+  #|     node.onaudioprocess = (e) => {
+  #|       const out = e.outputBuffer;
+  #|       const frames = out.length;
+  #|       for (let ch = 0; ch < channels; ch++) {
+  #|         const chData = out.getChannelData(ch);
+  #|         for (let i = 0; i < frames; i++) {
+  #|           const idx = ((readPos + i) % ringSize) * channels + ch;
+  #|           chData[i] = ring[idx];
+  #|         }
+  #|       }
+  #|       readPos = (readPos + frames) % ringSize;
+  #|     };
+  #|     node.connect(ctx.destination);
+  #|     state.audio = { ctx, node, ring, ringSize, writePos, readPos: () => readPos, channels };
+  #|     return true;
+  #|   } catch(e) { return false; }
+  #| }
+
+///|
+extern "js" fn js_audio_write_frames(frames : Int) -> Int =
+  #| (frames) => {
+  #|   const root = globalThis;
+  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   if (!a) return 0;
+  #|   return frames;
+  #| }
+
+///|
+extern "js" fn js_audio_write_sample(pos : Int, channel : Int, value : Double) -> Unit =
+  #| (pos, channel, value) => {
+  #|   const root = globalThis;
+  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   if (!a) return;
+  #|   const idx = (pos % a.ringSize) * a.channels + channel;
+  #|   a.ring[idx] = value;
+  #| }
+
+///|
+extern "js" fn js_audio_advance_write(frames : Int) -> Unit =
+  #| (frames) => {
+  #|   const root = globalThis;
+  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   if (!a) return;
+  #|   a.writePos = (a.writePos + frames) % a.ringSize;
+  #| }
+
+///|
+extern "js" fn js_audio_get_write_pos() -> Int =
+  #| () => {
+  #|   const root = globalThis;
+  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   return a ? a.writePos : 0;
+  #| }
+
+///|
+extern "js" fn js_audio_suspend() -> Unit =
+  #| () => {
+  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   if (a?.ctx) a.ctx.suspend();
+  #| }
+
+///|
+extern "js" fn js_audio_resume() -> Unit =
+  #| () => {
+  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   if (a?.ctx) a.ctx.resume();
+  #| }
+
+///|
+extern "js" fn js_audio_close() -> Unit =
+  #| () => {
+  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   if (a) {
+  #|     if (a.node) { a.node.disconnect(); a.node = null; }
+  #|     if (a.ctx) { a.ctx.close(); a.ctx = null; }
+  #|     globalThis.__gameEngineWebRuntime.audio = null;
+  #|   }
+  #| }
+
+///|
+extern "js" fn js_audio_output_latency() -> Double =
+  #| () => {
+  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   if (a?.ctx) return a.ctx.outputLatency || 0;
+  #|   return 0;
+  #| }
+
+///|
+fn bridge_audio_try_initialize(format : @audio.AudioFormat) -> Bool {
+  js_audio_try_initialize(format.sample_rate, format.channels)
+}
+
+///|
+fn bridge_audio_write_frames(output : FixedArray[Float], frames : Int) -> Int {
+  let channels = 2
+  let write_pos = js_audio_get_write_pos()
+  for i in 0..<frames {
+    for ch in 0..<channels {
+      let idx = i * channels + ch
+      let value = if idx < output.length() { output[idx].to_double() } else { 0.0 }
+      js_audio_write_sample(write_pos + i, ch, value)
+    }
+  }
+  js_audio_advance_write(frames)
+  let _ = js_audio_write_frames(frames)
+  frames
+}
+
+///|
+fn bridge_audio_suspend() -> Unit {
+  js_audio_suspend()
+}
+
+///|
+fn bridge_audio_resume() -> Unit {
+  js_audio_resume()
+}
+
+///|
+fn bridge_audio_close() -> Unit {
+  js_audio_close()
+}
+
 ///|
 pub fn install(canvas_selector : String) -> Unit {
   web_canvas_selector.val = canvas_selector
@@ -2825,6 +3005,13 @@ pub fn install(canvas_selector : String) -> Unit {
       bridge_web_gfx_on_draw, bridge_web_gfx_on_resize,
     ),
   )
+  @text.set_font_load_hooks(@text.new_font_load_hooks(bridge_load_font_data))
+  @audio.set_audio_output_hooks(
+    @audio.new_audio_output_hooks_full(
+      bridge_audio_try_initialize, bridge_audio_write_frames, bridge_audio_suspend,
+      bridge_audio_resume, bridge_audio_close, js_audio_output_latency,
+    ),
+  )
 }
 
 ///|
@@ -2838,6 +3025,8 @@ pub fn uninstall() -> Unit {
   js_set_should_close(false)
   @gfx.reset_web_graphics_hooks()
   @platform.reset_web_canvas_hooks()
+  @text.reset_font_load_hooks()
+  @audio.reset_audio_output_hooks()
 }
 
 ///|

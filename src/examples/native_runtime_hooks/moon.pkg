@@ -6,6 +6,7 @@ import {
   "mizchi/game_engine/image_palette" @image_palette,
   "mizchi/game_engine/payload2d" @payload2d,
   "mizchi/game_engine/platform" @platform,
+  "mizchi/game_engine/text" @text,
 }
 
 warnings = "-29"

@@ -722,6 +722,73 @@ test "detect_font_format with exactly 4 bytes" {
 }
 
 ///|
+test "font_data_to_bytes converts correctly" {
+  let data = [0x00, 0x01, 0xFF, 0x80]
+  let bytes = font_data_to_bytes(data)
+  assert_eq(bytes.length(), 4)
+  assert_eq(bytes[0], b'\x00')
+  assert_eq(bytes[1], b'\x01')
+  assert_eq(bytes[2], b'\xFF')
+  assert_eq(bytes[3], b'\x80')
+}
+
+///|
+test "font_data_to_bytes empty array" {
+  let data : Array[Int] = []
+  let bytes = font_data_to_bytes(data)
+  assert_eq(bytes.length(), 0)
+}
+
+///|
+test "load_font returns None with default hooks" {
+  reset_font_load_hooks()
+  let result = load_font("nonexistent.ttf")
+  assert_true(result is None)
+}
+
+///|
+test "load_font calls custom hook" {
+  let mut called_with = ""
+  set_font_load_hooks({
+    load_font_data: fn(name) {
+      called_with = name
+      // Return invalid font data — parse will fail but hook was called
+      Some([0xFF, 0xFE, 0xFD, 0xFC])
+    },
+  })
+  let result = load_font("test_font.ttf")
+  assert_eq(called_with, "test_font.ttf")
+  // Invalid data → parse fails → None
+  assert_true(result is None)
+  reset_font_load_hooks()
+}
+
+///|
+test "load_text_renderer returns None with default hooks" {
+  reset_font_load_hooks()
+  let result = load_text_renderer("nonexistent.ttf", 256, 1, 0)
+  assert_true(result is None)
+}
+
+///|
+test "set_font_load_hooks and reset_font_load_hooks" {
+  let mut hook_called = false
+  set_font_load_hooks({
+    load_font_data: fn(_name) {
+      hook_called = true
+      None
+    },
+  })
+  let _ = load_font("test")
+  assert_true(hook_called)
+  // Reset should restore default (no-op) behavior
+  reset_font_load_hooks()
+  hook_called = false
+  let _ = load_font("test")
+  assert_false(hook_called)
+}
+
+///|
 test "SimpleTextBatchBuilder skips unresolvable glyphs in full atlas" {
   // Use a tiny atlas that can only fit one glyph
   let cache = GlyphCache::new(15.0, 15.0, 1)

@@ -664,6 +664,99 @@ fn bridge_web_gfx_on_read_pixels(
   Some(result)
 }
 
+// ---------------------------------------------------------------------------
+// Font load bridge (WASM)
+// ---------------------------------------------------------------------------
+
+///|
+extern "wasm" fn host_load_font_name_len(len : Int) -> Unit = "game_engine_web" "load_font_name_len"
+
+///|
+extern "wasm" fn host_load_font_name_byte(index : Int, byte_val : Int) -> Unit = "game_engine_web" "load_font_name_byte"
+
+///|
+extern "wasm" fn host_load_font_data_begin() -> Int = "game_engine_web" "load_font_data_begin"
+
+///|
+extern "wasm" fn host_load_font_data_byte(offset : Int) -> Int = "game_engine_web" "load_font_data_byte"
+
+///|
+fn bridge_load_font_data(name : String) -> Array[Int]? {
+  let bytes = name.to_bytes()
+  let len = bytes.length()
+  host_load_font_name_len(len)
+  for i in 0..<len {
+    host_load_font_name_byte(i, bytes[i].to_int())
+  }
+  let size = host_load_font_data_begin()
+  if size <= 0 {
+    return None
+  }
+  let data : Array[Int] = Array::make(size, 0)
+  for i in 0..<size {
+    data[i] = host_load_font_data_byte(i)
+  }
+  Some(data)
+}
+
+// ---------------------------------------------------------------------------
+// Audio Web Backend (WASM)
+// ---------------------------------------------------------------------------
+
+///|
+extern "wasm" fn host_audio_try_initialize(sample_rate : Int, channels : Int) -> Int = "game_engine_web" "audio_try_initialize"
+
+///|
+extern "wasm" fn host_audio_write_frame(channel : Int, value : Double) -> Unit = "game_engine_web" "audio_write_frame"
+
+///|
+extern "wasm" fn host_audio_write_end(frames : Int) -> Int = "game_engine_web" "audio_write_end"
+
+///|
+extern "wasm" fn host_audio_suspend() -> Unit = "game_engine_web" "audio_suspend"
+
+///|
+extern "wasm" fn host_audio_resume() -> Unit = "game_engine_web" "audio_resume"
+
+///|
+extern "wasm" fn host_audio_close() -> Unit = "game_engine_web" "audio_close"
+
+///|
+extern "wasm" fn host_audio_output_latency() -> Double = "game_engine_web" "audio_output_latency"
+
+///|
+fn bridge_audio_try_initialize(format : @audio.AudioFormat) -> Bool {
+  host_audio_try_initialize(format.sample_rate, format.channels) != 0
+}
+
+///|
+fn bridge_audio_write_frames(output : FixedArray[Float], frames : Int) -> Int {
+  let channels = 2
+  for i in 0..<frames {
+    for ch in 0..<channels {
+      let idx = i * channels + ch
+      let value = if idx < output.length() { output[idx].to_double() } else { 0.0 }
+      host_audio_write_frame(ch, value)
+    }
+  }
+  host_audio_write_end(frames)
+}
+
+///|
+fn bridge_audio_suspend() -> Unit {
+  host_audio_suspend()
+}
+
+///|
+fn bridge_audio_resume() -> Unit {
+  host_audio_resume()
+}
+
+///|
+fn bridge_audio_close() -> Unit {
+  host_audio_close()
+}
+
 ///|
 pub fn install(canvas_selector : String) -> Unit {
   web_canvas_selector.val = canvas_selector
@@ -694,6 +787,13 @@ pub fn install(canvas_selector : String) -> Unit {
       bridge_web_gfx_on_draw, bridge_web_gfx_on_resize, bridge_web_gfx_on_read_pixels,
     ),
   )
+  @text.set_font_load_hooks(@text.new_font_load_hooks(bridge_load_font_data))
+  @audio.set_audio_output_hooks(
+    @audio.new_audio_output_hooks_full(
+      bridge_audio_try_initialize, bridge_audio_write_frames, bridge_audio_suspend,
+      bridge_audio_resume, bridge_audio_close, host_audio_output_latency,
+    ),
+  )
 }
 
 ///|
@@ -706,6 +806,8 @@ pub fn uninstall() -> Unit {
   host_shutdown()
   @gfx.reset_web_graphics_hooks()
   @platform.reset_web_canvas_hooks()
+  @text.reset_font_load_hooks()
+  @audio.reset_audio_output_hooks()
 }
 
 ///|

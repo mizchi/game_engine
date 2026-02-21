@@ -569,3 +569,82 @@ pub fn TextRenderer::clear(self : TextRenderer) -> Unit {
     self.atlas.pixels[i] = 0
   }
 }
+
+// ---------------------------------------------------------------------------
+// Font Load Hooks — pluggable font binary loading for platform integration
+// ---------------------------------------------------------------------------
+
+///|
+/// Hooks for loading font binary data from platform-specific sources.
+pub struct FontLoadHooks {
+  /// Load font binary data by name/path. Returns Array[Int] of byte values, or None if not found.
+  load_font_data : (String) -> Array[Int]?
+}
+
+///|
+pub fn new_font_load_hooks(
+  load_font_data : (String) -> Array[Int]?,
+) -> FontLoadHooks {
+  { load_font_data, }
+}
+
+///|
+fn default_load_font_data(_name : String) -> Array[Int]? {
+  None
+}
+
+///|
+fn default_font_load_hooks() -> FontLoadHooks {
+  { load_font_data: default_load_font_data }
+}
+
+///|
+let font_load_hooks : Ref[FontLoadHooks] = Ref::new(default_font_load_hooks())
+
+///|
+pub fn set_font_load_hooks(hooks : FontLoadHooks) -> Unit {
+  font_load_hooks.val = hooks
+}
+
+///|
+pub fn reset_font_load_hooks() -> Unit {
+  font_load_hooks.val = default_font_load_hooks()
+}
+
+///|
+/// Convert Array[Int] (byte values 0-255) to Bytes.
+pub fn font_data_to_bytes(data : Array[Int]) -> Bytes {
+  let arr : FixedArray[Byte] = FixedArray::make(data.length(), b'\x00')
+  for i, v in data {
+    arr[i] = v.to_byte()
+  }
+  Bytes::from_array(arr)
+}
+
+///|
+/// Load a font by name using the installed FontLoadHooks.
+/// Returns a parsed TTFont, or None if loading or parsing fails.
+pub fn load_font(name : String) -> @font.TTFont? {
+  match (font_load_hooks.val.load_font_data)(name) {
+    None => None
+    Some(data) => {
+      let bytes = font_data_to_bytes(data)
+      parse_font_bytes(bytes)
+    }
+  }
+}
+
+///|
+/// Load a TextRenderer by font name using FontLoadHooks.
+/// Returns None if font loading or parsing fails.
+pub fn load_text_renderer(
+  name : String,
+  atlas_size : Int,
+  page_id : Int,
+  pipeline_id : Int,
+) -> TextRenderer? {
+  match load_font(name) {
+    None => None
+    Some(font) => Some(TextRenderer::new(font, atlas_size, page_id, pipeline_id))
+  }
+}

@@ -3604,3 +3604,68 @@ int32_t moonbit_read_pixels_channel(int32_t offset) {
   }
   return (int32_t)g_readback_data[offset];
 }
+
+// ---------------------------------------------------------------------------
+// Font file I/O
+// ---------------------------------------------------------------------------
+static uint8_t *g_font_file_buffer = NULL;
+static int32_t  g_font_file_size   = 0;
+
+int32_t moonbit_load_font_file(const uint8_t *path_ptr, int32_t path_len) {
+  if (g_font_file_buffer) {
+    free(g_font_file_buffer);
+    g_font_file_buffer = NULL;
+    g_font_file_size = 0;
+  }
+  if (!path_ptr || path_len <= 0) return -1;
+
+  char path[4096];
+  int32_t copy_len = path_len < 4095 ? path_len : 4095;
+  memcpy(path, path_ptr, copy_len);
+  path[copy_len] = '\0';
+
+  FILE *fp = fopen(path, "rb");
+  if (!fp) return -1;
+
+  fseek(fp, 0, SEEK_END);
+  long file_size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  if (file_size <= 0 || file_size > 64 * 1024 * 1024) {
+    fclose(fp);
+    return -1;
+  }
+
+  g_font_file_buffer = (uint8_t *)malloc(file_size);
+  if (!g_font_file_buffer) {
+    fclose(fp);
+    return -1;
+  }
+
+  size_t read = fread(g_font_file_buffer, 1, file_size, fp);
+  fclose(fp);
+
+  if ((long)read != file_size) {
+    free(g_font_file_buffer);
+    g_font_file_buffer = NULL;
+    return -1;
+  }
+
+  g_font_file_size = (int32_t)file_size;
+  return g_font_file_size;
+}
+
+int32_t moonbit_font_file_byte_at(int32_t offset) {
+  if (!g_font_file_buffer || offset < 0 || offset >= g_font_file_size) {
+    return 0;
+  }
+  return (int32_t)g_font_file_buffer[offset];
+}
+
+void moonbit_font_file_release(void) {
+  if (g_font_file_buffer) {
+    free(g_font_file_buffer);
+    g_font_file_buffer = NULL;
+    g_font_file_size = 0;
+  }
+}

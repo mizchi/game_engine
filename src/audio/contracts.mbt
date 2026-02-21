@@ -730,6 +730,18 @@ pub fn new_audio_output_hooks(
 }
 
 ///|
+pub fn new_audio_output_hooks_full(
+  try_initialize : (AudioFormat) -> Bool,
+  write_frames : (FixedArray[Float], Int) -> Int,
+  suspend : () -> Unit,
+  resume : () -> Unit,
+  close : () -> Unit,
+  output_latency : () -> Double,
+) -> AudioOutputHooks {
+  { try_initialize, write_frames, suspend, resume, close, output_latency }
+}
+
+///|
 fn default_audio_try_initialize(_format : AudioFormat) -> Bool {
   false
 }

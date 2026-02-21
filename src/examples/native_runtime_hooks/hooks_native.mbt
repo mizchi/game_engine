@@ -648,6 +648,12 @@ pub fn install(title : String) -> Unit {
       bridge_gfx_on_resize, bridge_gfx_on_read_pixels, bridge_gfx_on_new_image,
     ),
   )
+  @text.set_font_load_hooks(@text.new_font_load_hooks(bridge_load_font_data))
+}
+
+///|
+fn bridge_load_font_data(name : String) -> Array[Int]? {
+  @wgpu_native.runtime_load_font_data(name)
 }
 
 ///|
@@ -656,6 +662,7 @@ pub fn uninstall() -> Unit {
   reset_touch_capture_state()
   @gfx.reset_native_graphics_hooks()
   @platform.reset_desktop_native_hooks()
+  @text.reset_font_load_hooks()
 }
 
 ///|
