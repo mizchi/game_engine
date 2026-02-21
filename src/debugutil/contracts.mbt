@@ -56,6 +56,16 @@ pub fn color_transparent() -> @gfx.Color {
 }
 
 ///|
+pub fn color_to_uniform_dwords(color : @gfx.Color) -> Array[Int] {
+  [
+    (color.r * 255.0).to_int(),
+    (color.g * 255.0).to_int(),
+    (color.b * 255.0).to_int(),
+    (color.a * 255.0).to_int(),
+  ]
+}
+
+///|
 /// Build vertex data for a line segment as a thin quad.
 /// Returns (vertex_data, indices) for a DrawTrianglesCommand.
 pub fn line_vertices(
@@ -167,10 +177,7 @@ pub fn new_rect_fill_command(
   pipeline_id : Int,
 ) -> @gfx.DrawTrianglesCommand {
   let (vertices, indices) = rect_fill_vertices(x, y, w, h)
-  let r_int = (color.r * 255.0).to_int()
-  let g_int = (color.g * 255.0).to_int()
-  let b_int = (color.b * 255.0).to_int()
-  let a_int = (color.a * 255.0).to_int()
+  let uniform = color_to_uniform_dwords(color)
   @gfx.new_draw_triangles_command(
     dst,
     shader,
@@ -182,7 +189,7 @@ pub fn new_rect_fill_command(
     vertices,
     indices,
     [],
-    [r_int, g_int, b_int, a_int],
+    uniform,
   )
 }
 
@@ -285,10 +292,7 @@ pub fn new_line_command(
   pipeline_id : Int,
 ) -> @gfx.DrawTrianglesCommand {
   let (vertices, indices) = line_vertices(x0, y0, x1, y1, width)
-  let r_int = (color.r * 255.0).to_int()
-  let g_int = (color.g * 255.0).to_int()
-  let b_int = (color.b * 255.0).to_int()
-  let a_int = (color.a * 255.0).to_int()
+  let uniform = color_to_uniform_dwords(color)
   let min_x = if x0 < x1 { x0 } else { x1 }
   let min_y = if y0 < y1 { y0 } else { y1 }
   let max_x = if x0 > x1 { x0 } else { x1 }
@@ -312,6 +316,88 @@ pub fn new_line_command(
     vertices,
     indices,
     [],
-    [r_int, g_int, b_int, a_int],
+    uniform,
+  )
+}
+
+///|
+/// Build vertex data for a filled rectangle in NDC (pixel coords → clip space).
+pub fn ndc_rect_fill_vertices(
+  px : Double,
+  py : Double,
+  pw : Double,
+  ph : Double,
+  screen_w : Double,
+  screen_h : Double,
+) -> (Array[Double], Array[Int]) {
+  let x0 = px / screen_w * 2.0 - 1.0
+  let y0 = 1.0 - py / screen_h * 2.0
+  let x1 = (px + pw) / screen_w * 2.0 - 1.0
+  let y1 = 1.0 - (py + ph) / screen_h * 2.0
+  let vertices = [
+    x0, y0, 0.0, 0.0,
+    x1, y0, 1.0, 0.0,
+    x1, y1, 1.0, 1.0,
+    x0, y1, 0.0, 1.0,
+  ]
+  let indices = [0, 1, 2, 2, 3, 0]
+  (vertices, indices)
+}
+
+///|
+/// Build a draw command for a filled rectangle in NDC coordinates.
+pub fn new_ndc_rect_fill_command(
+  dst : @gfx.ImageHandle,
+  shader : @gfx.ShaderHandle,
+  px : Double,
+  py : Double,
+  pw : Double,
+  ph : Double,
+  screen_w : Double,
+  screen_h : Double,
+  color : @gfx.Color,
+  pipeline_id : Int,
+) -> @gfx.DrawTrianglesCommand {
+  let (vertices, indices) = ndc_rect_fill_vertices(
+    px, py, pw, ph, screen_w, screen_h,
+  )
+  let uniform = color_to_uniform_dwords(color)
+  @gfx.new_draw_triangles_command(
+    dst,
+    shader,
+    [@gfx.new_dst_region(0, 0, screen_w.to_int(), screen_h.to_int(), 6)],
+    0,
+    pipeline_id,
+    0,
+    @gfx.blend_mode_from_int(1),
+    vertices,
+    indices,
+    [],
+    uniform,
+  )
+}
+
+///|
+/// Build a simple draw command with common defaults.
+pub fn new_simple_draw_command(
+  dst : @gfx.ImageHandle,
+  shader : @gfx.ShaderHandle,
+  vertices : Array[Double],
+  indices : Array[Int],
+  color : @gfx.Color,
+) -> @gfx.DrawTrianglesCommand {
+  let uniform = color_to_uniform_dwords(color)
+  @gfx.new_draw_triangles_command(
+    dst,
+    shader,
+    [@gfx.new_dst_region(0, 0, 0, 0, indices.length())],
+    0,
+    0,
+    0,
+    @gfx.blend_mode_from_int(1),
+    vertices,
+    indices,
+    [],
+    uniform,
   )
 }

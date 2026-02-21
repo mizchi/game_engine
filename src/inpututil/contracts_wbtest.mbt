@@ -292,6 +292,43 @@ test "touch rapid press release repress tracks correctly" {
 }
 
 ///|
+test "InputHelper initial state" {
+  let helper = new_input_helper()
+  let empty = @core.empty_input_snapshot()
+  assert_true(!is_any_action_just_pressed(helper, empty))
+}
+
+///|
+test "InputHelper key press detected" {
+  let helper = new_input_helper()
+  let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [32])
+  update_input_helper(helper, input)
+  assert_true(is_any_action_just_pressed(helper, input))
+  // Second frame: same key held → not just pressed
+  update_input_helper(helper, input)
+  assert_true(!is_any_action_just_pressed(helper, input))
+}
+
+///|
+test "InputHelper mouse click detected" {
+  let helper = new_input_helper()
+  let input = @core.new_input_snapshot_full(0.0, 0.0, 0.0, 0.0, [], [0], [], [])
+  update_input_helper(helper, input)
+  assert_true(is_any_action_just_pressed(helper, input))
+}
+
+///|
+test "InputHelper touch detected" {
+  let helper = new_input_helper()
+  let empty_keys = @core.empty_input_snapshot()
+  update_input_helper(helper, empty_keys)
+  let input_with_touch = @core.new_input_snapshot_full(
+    0.0, 0.0, 0.0, 0.0, [], [], [@core.new_touch_point(1, 10.0, 20.0)], [],
+  )
+  assert_true(is_any_action_just_pressed(helper, input_with_touch))
+}
+
+///|
 test "multiple gamepads tracked independently" {
   let state = new_gamepad_input_state()
   update_gamepad_input_state(

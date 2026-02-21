@@ -3354,3 +3354,12 @@ pub fn source_image_pixel_channel(
     None => -1
   }
 }
+
+///|
+extern "js" fn js_request_animation_frame(f : () -> Unit) -> Unit =
+  #| (f) => { requestAnimationFrame(f); }
+
+///|
+pub fn request_animation_frame(f : () -> Unit) -> Unit {
+  js_request_animation_frame(f)
+}

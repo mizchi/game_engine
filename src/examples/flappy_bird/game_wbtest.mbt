@@ -44,13 +44,11 @@ test "build_draw_commands: game over with END text" {
 }
 
 ///|
-test "ndc_rect: full screen covers -1..1" {
+test "ndc_rect_fill: full screen covers -1..1" {
   let dst = @gfx.new_image_handle(1, 320, 240)
   let shader = @gfx.new_shader_handle(1, "test")
   let color = @debugutil.color_from_hex(0xFF0000)
-  let cmd = ndc_rect(dst, shader, 0.0, 0.0, 320.0, 240.0, 320.0, 240.0, color)
-  // vertex_data: [x0, y0, u0, v0, x1, y1, u1, v1, ...]
-  // Full screen: x0=-1, y0=1, x1=1, y1=-1
+  let cmd = @debugutil.new_ndc_rect_fill_command(dst, shader, 0.0, 0.0, 320.0, 240.0, 320.0, 240.0, color, 0)
   let vd = cmd.vertex_data
   // Top-left
   assert_true!(vd[0] < -0.99 && vd[0] > -1.01) // x0 ≈ -1
@@ -67,17 +65,13 @@ test "ndc_rect: full screen covers -1..1" {
 }
 
 ///|
-test "ndc_rect: half-screen rect maps correctly" {
+test "ndc_rect_fill: half-screen rect maps correctly" {
   let dst = @gfx.new_image_handle(1, 320, 240)
   let shader = @gfx.new_shader_handle(1, "test")
   let color = @debugutil.color_from_hex(0x00FF00)
   // Bird at pixel (60, 100) size 12x12 on 320x240 screen
-  let cmd = ndc_rect(dst, shader, 60.0, 100.0, 12.0, 12.0, 320.0, 240.0, color)
+  let cmd = @debugutil.new_ndc_rect_fill_command(dst, shader, 60.0, 100.0, 12.0, 12.0, 320.0, 240.0, color, 0)
   let vd = cmd.vertex_data
-  // x0 = 60/320*2-1 = 0.375-1 = -0.625
-  // y0 = 1 - 100/240*2 = 1 - 0.833 = 0.167
-  // x1 = 72/320*2-1 = 0.45-1 = -0.55
-  // y1 = 1 - 112/240*2 = 1 - 0.933 = 0.067
   let eps = 0.01
   assert_true!((vd[0] - -0.625).abs() < eps)
   assert_true!((vd[1] - 0.1667).abs() < eps)
@@ -86,11 +80,11 @@ test "ndc_rect: half-screen rect maps correctly" {
 }
 
 ///|
-test "ndc_rect: color encoding" {
+test "ndc_rect_fill: color encoding" {
   let dst = @gfx.new_image_handle(1, 320, 240)
   let shader = @gfx.new_shader_handle(1, "test")
   let color = @debugutil.color_from_hex(0x87CEEB) // sky blue
-  let cmd = ndc_rect(dst, shader, 0.0, 0.0, 10.0, 10.0, 320.0, 240.0, color)
+  let cmd = @debugutil.new_ndc_rect_fill_command(dst, shader, 0.0, 0.0, 10.0, 10.0, 320.0, 240.0, color, 0)
   // uniform_dwords = [R, G, B, A]
   inspect!(cmd.uniform_dwords[0], content="135") // 0x87
   inspect!(cmd.uniform_dwords[1], content="206") // 0xCE
@@ -99,7 +93,7 @@ test "ndc_rect: color encoding" {
 }
 
 ///|
-test "ndc_rect: sky command is first and uses correct indices" {
+test "ndc_rect_fill: sky command is first and uses correct indices" {
   let state = FlappyState::new()
   state.game_mode = 1
   state.bird_y = 120.0
@@ -128,7 +122,7 @@ test "ndc_rect: sky command is first and uses correct indices" {
 }
 
 ///|
-test "ndc_rect: ground position" {
+test "ndc_rect_fill: ground position" {
   let state = FlappyState::new()
   state.game_mode = 1
   state.bird_y = 120.0
@@ -137,9 +131,6 @@ test "ndc_rect: ground position" {
   let cmds = state.build_draw_commands(dst, shader)
   // Second command is ground
   let ground = cmds[1]
-  // ground_y = 240 - 20 = 220
-  // NDC: y_top = 1 - 220/240*2 = 1 - 1.833 = -0.833
-  //       y_bot = 1 - 240/240*2 = 1 - 2 = -1.0
   let vd = ground.vertex_data
   let eps = 0.01
   assert_true!((vd[0] - -1.0).abs() < eps) // x0 = -1 (full width)
@@ -153,7 +144,7 @@ test "ndc_rect: ground position" {
 }
 
 ///|
-test "ndc_rect: pipe upper and lower" {
+test "ndc_rect_fill: pipe upper and lower" {
   let state = FlappyState::new()
   state.game_mode = 1
   state.bird_y = 120.0
@@ -161,14 +152,8 @@ test "ndc_rect: pipe upper and lower" {
   let dst = @gfx.new_image_handle(1, 320, 240)
   let shader = @gfx.new_shader_handle(1, "test")
   let cmds = state.build_draw_commands(dst, shader)
-  // cmds: sky, ground, upper_pipe, lower_pipe, bird, score...
   let upper = cmds[2]
   let lower = cmds[3]
-  // Upper pipe: x=160, y=0, w=36, h=80
-  // NDC x0 = 160/320*2-1 = 0.0
-  // NDC y0 = 1 - 0/240*2 = 1.0
-  // NDC x1 = 196/320*2-1 = 0.225
-  // NDC y1 = 1 - 80/240*2 = 0.333
   let eps = 0.02
   assert_true!((upper.vertex_data[0] - 0.0).abs() < eps)
   assert_true!((upper.vertex_data[1] - 1.0).abs() < eps)
@@ -176,8 +161,6 @@ test "ndc_rect: pipe upper and lower" {
   inspect!(upper.uniform_dwords[0], content="34")
   inspect!(upper.uniform_dwords[1], content="139")
   inspect!(upper.uniform_dwords[2], content="34")
-  // Lower pipe: x=160, y=80+70=150, h=220-150=70
-  // NDC y0 = 1 - 150/240*2 = 1 - 1.25 = -0.25
   let eps2 = 0.02
   assert_true!((lower.vertex_data[1] - -0.25).abs() < eps2)
 }

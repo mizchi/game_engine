@@ -1135,3 +1135,8 @@ pub fn source_image_pixel_channel(
     None => -1
   }
 }
+
+///|
+pub fn request_animation_frame(_f : () -> Unit) -> Unit {
+  ()
+}

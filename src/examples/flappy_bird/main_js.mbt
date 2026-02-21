@@ -1,8 +1,4 @@
 ///|
-extern "js" fn js_raf(f : () -> Unit) -> Unit =
-  #| (f) => { requestAnimationFrame(f); }
-
-///|
 fn[T : @gfx.GraphicsDriver] render_frame(
   state : FlappyState,
   graphics : T,
@@ -64,7 +60,7 @@ fn main {
     render_frame(state, graphics, dst, shader) catch {
       _ => ()
     }
-    js_raf(frame)
+    @web_hooks.request_animation_frame(frame)
   }
-  js_raf(frame)
+  @web_hooks.request_animation_frame(frame)
 }

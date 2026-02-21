@@ -4,6 +4,27 @@ fn approx(a : Double, b : Double) -> Bool {
 }
 
 ///|
+test "color_to_uniform_dwords" {
+  let c = color_from_hex(0xFF8000)
+  let dwords = color_to_uniform_dwords(c)
+  assert_eq(dwords.length(), 4)
+  assert_eq(dwords[0], 255) // R
+  assert_eq(dwords[1], 128) // G
+  assert_eq(dwords[2], 0) // B
+  assert_eq(dwords[3], 255) // A
+}
+
+///|
+test "color_to_uniform_dwords with alpha" {
+  let c = @gfx.new_color(0.0, 1.0, 0.0, 0.5)
+  let dwords = color_to_uniform_dwords(c)
+  assert_eq(dwords[0], 0)
+  assert_eq(dwords[1], 255)
+  assert_eq(dwords[2], 0)
+  assert_eq(dwords[3], 127)
+}
+
+///|
 test "color_from_hex" {
   let c = color_from_hex(0xFF8000)
   assert_true(approx(c.r, 1.0))
@@ -170,6 +191,63 @@ test "rect_fill_vertices zero size" {
   // All vertices should be at the same point
   assert_true(approx(verts[0], 5.0))
   assert_true(approx(verts[4], 5.0))
+}
+
+///|
+test "ndc_rect_fill_vertices full screen" {
+  let (verts, indices) = ndc_rect_fill_vertices(
+    0.0, 0.0, 320.0, 240.0, 320.0, 240.0,
+  )
+  assert_eq(verts.length(), 16)
+  assert_eq(indices.length(), 6)
+  // Top-left: (-1, 1)
+  assert_true(approx(verts[0], -1.0))
+  assert_true(approx(verts[1], 1.0))
+  // Bottom-right: (1, -1)
+  assert_true(approx(verts[8], 1.0))
+  assert_true(approx(verts[9], -1.0))
+}
+
+///|
+test "ndc_rect_fill_vertices center rect" {
+  let (verts, _) = ndc_rect_fill_vertices(
+    160.0, 120.0, 0.0, 0.0, 320.0, 240.0,
+  )
+  // Center point: (0, 0) in NDC
+  assert_true(approx(verts[0], 0.0))
+  assert_true(approx(verts[1], 0.0))
+}
+
+///|
+test "new_ndc_rect_fill_command" {
+  let dst = @gfx.new_image_handle(1, 320, 240)
+  let shader = @gfx.new_shader_handle(1, "test")
+  let cmd = new_ndc_rect_fill_command(
+    dst, shader, 60.0, 100.0, 12.0, 12.0, 320.0, 240.0, color_red(), 0,
+  )
+  assert_eq(cmd.vertex_data.length(), 16)
+  assert_eq(cmd.indices.length(), 6)
+  assert_eq(cmd.uniform_dwords[0], 255) // R
+  assert_eq(cmd.uniform_dwords[3], 255) // A
+  // x0 = 60/320*2-1 = -0.625
+  let eps = 0.001
+  assert_true((cmd.vertex_data[0] - -0.625).abs() < eps)
+}
+
+///|
+test "new_simple_draw_command" {
+  let dst = @gfx.new_image_handle(1, 320, 240)
+  let shader = @gfx.new_shader_handle(1, "test")
+  let vertices = [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+  let indices = [0, 1, 2]
+  let cmd = new_simple_draw_command(dst, shader, vertices, indices, color_green())
+  assert_eq(cmd.vertex_data.length(), 12)
+  assert_eq(cmd.indices.length(), 3)
+  assert_eq(cmd.uniform_dwords[0], 0) // R
+  assert_eq(cmd.uniform_dwords[1], 255) // G
+  assert_eq(cmd.uniform_dwords[2], 0) // B
+  assert_eq(cmd.uniform_dwords[3], 255) // A
+  assert_eq(cmd.src_image_ids.length(), 0)
 }
 
 ///|

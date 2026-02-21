@@ -13,8 +13,7 @@ struct FlappyState {
   mut frame_count : Int
   mut pipes : Array[Pipe]
   mut pipe_timer : Int
-  key_state : @inpututil.KeyInputState
-  mouse_state : @inpututil.MouseButtonInputState
+  input : @inpututil.InputHelper
   // constants
   screen_w : Double
   screen_h : Double
@@ -41,8 +40,7 @@ fn FlappyState::new() -> FlappyState {
     frame_count: 0,
     pipes: [],
     pipe_timer: 0,
-    key_state: @inpututil.new_key_input_state(),
-    mouse_state: @inpututil.new_mouse_input_state(),
+    input: @inpututil.new_input_helper(),
     screen_w,
     screen_h,
     bird_x: 60.0,
@@ -75,19 +73,10 @@ fn FlappyState::reset(self : FlappyState) -> Unit {
 }
 
 ///|
-fn FlappyState::action_pressed(self : FlappyState, input : @core.InputSnapshot) -> Bool {
-  // Accept any key just pressed (not only Space)
-  self.key_state.just_pressed_keys.length() > 0 ||
-    self.mouse_state.just_pressed_buttons.length() > 0 ||
-    input.touches.length() > 0
-}
-
-///|
 fn FlappyState::update(self : FlappyState, input : @core.InputSnapshot) -> Unit {
-  @inpututil.update_key_input_state(self.key_state, input)
-  @inpututil.update_mouse_input_state(self.mouse_state, input)
+  @inpututil.update_input_helper(self.input, input)
   self.frame_count = self.frame_count + 1
-  let action = self.action_pressed(input)
+  let action = @inpututil.is_any_action_just_pressed(self.input, input)
   match self.game_mode {
     0 => {
       // Title screen
@@ -163,47 +152,6 @@ fn FlappyState::update(self : FlappyState, input : @core.InputSnapshot) -> Unit 
   }
 }
 
-// --- NDC rect drawing ---
-// The WebGPU vertex shader passes pos directly as clip-space coordinates.
-// We must convert pixel coordinates to NDC: x in [-1,1], y in [1,-1] (y-down).
-
-///|
-fn ndc_rect(
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  px : Double,
-  py : Double,
-  pw : Double,
-  ph : Double,
-  sw : Double,
-  sh : Double,
-  color : @gfx.Color,
-) -> @gfx.DrawTrianglesCommand {
-  let x0 = px / sw * 2.0 - 1.0
-  let y0 = 1.0 - py / sh * 2.0
-  let x1 = (px + pw) / sw * 2.0 - 1.0
-  let y1 = 1.0 - (py + ph) / sh * 2.0
-  let vertices = [x0, y0, 0.0, 0.0, x1, y0, 1.0, 0.0, x1, y1, 1.0, 1.0, x0, y1, 0.0, 1.0]
-  let indices = [0, 1, 2, 2, 3, 0]
-  let r_int = (color.r * 255.0).to_int()
-  let g_int = (color.g * 255.0).to_int()
-  let b_int = (color.b * 255.0).to_int()
-  let a_int = (color.a * 255.0).to_int()
-  @gfx.new_draw_triangles_command(
-    dst,
-    shader,
-    [@gfx.new_dst_region(0, 0, sw.to_int(), sh.to_int(), 6)],
-    0,
-    0,
-    0,
-    @gfx.blend_mode_from_int(1),
-    vertices,
-    indices,
-    [],
-    [r_int, g_int, b_int, a_int],
-  )
-}
-
 ///|
 fn FlappyState::build_draw_commands(
   self : FlappyState,
@@ -219,19 +167,19 @@ fn FlappyState::build_draw_commands(
   let bird_color = @debugutil.color_from_hex(0xFFD700)
   let white = @debugutil.color_white()
   // Sky background
-  cmds.push(ndc_rect(dst, shader, 0.0, 0.0, sw, sh, sw, sh, sky_color))
+  cmds.push(@debugutil.new_ndc_rect_fill_command(dst, shader, 0.0, 0.0, sw, sh, sw, sh, sky_color, 0))
   // Ground
   let ground_y = sh - self.ground_h
   cmds.push(
-    ndc_rect(dst, shader, 0.0, ground_y, sw, self.ground_h, sw, sh, ground_color),
+    @debugutil.new_ndc_rect_fill_command(dst, shader, 0.0, ground_y, sw, self.ground_h, sw, sh, ground_color, 0),
   )
   // Pipes
   for pipe in self.pipes {
     // Upper pipe
     if pipe.gap_y > 0.0 {
       cmds.push(
-        ndc_rect(
-          dst, shader, pipe.x, 0.0, self.pipe_width, pipe.gap_y, sw, sh, pipe_color,
+        @debugutil.new_ndc_rect_fill_command(
+          dst, shader, pipe.x, 0.0, self.pipe_width, pipe.gap_y, sw, sh, pipe_color, 0,
         ),
       )
     }
@@ -240,24 +188,16 @@ fn FlappyState::build_draw_commands(
     let lower_h = ground_y - lower_y
     if lower_h > 0.0 {
       cmds.push(
-        ndc_rect(
-          dst, shader, pipe.x, lower_y, self.pipe_width, lower_h, sw, sh, pipe_color,
+        @debugutil.new_ndc_rect_fill_command(
+          dst, shader, pipe.x, lower_y, self.pipe_width, lower_h, sw, sh, pipe_color, 0,
         ),
       )
     }
   }
   // Bird
   cmds.push(
-    ndc_rect(
-      dst,
-      shader,
-      self.bird_x,
-      self.bird_y,
-      self.bird_size,
-      self.bird_size,
-      sw,
-      sh,
-      bird_color,
+    @debugutil.new_ndc_rect_fill_command(
+      dst, shader, self.bird_x, self.bird_y, self.bird_size, self.bird_size, sw, sh, bird_color, 0,
     ),
   )
   // Score display
@@ -276,8 +216,8 @@ fn FlappyState::build_draw_commands(
     // Dark overlay background
     let overlay_color = @debugutil.color_from_hex_alpha(0x000000, 0.5)
     cmds.push(
-      ndc_rect(
-        dst, shader, sw / 2.0 - 50.0, sh / 2.0 - 20.0, 100.0, 40.0, sw, sh, overlay_color,
+      @debugutil.new_ndc_rect_fill_command(
+        dst, shader, sw / 2.0 - 50.0, sh / 2.0 - 20.0, 100.0, 40.0, sw, sh, overlay_color, 0,
       ),
     )
     // "END" text
@@ -347,7 +287,7 @@ fn draw_single_digit(
       if pattern[row * 3 + col] == 1 {
         let x = ox + col.to_double() * px_size
         let y = oy + row.to_double() * px_size
-        cmds.push(ndc_rect(dst, shader, x, y, px_size, px_size, sw, sh, color))
+        cmds.push(@debugutil.new_ndc_rect_fill_command(dst, shader, x, y, px_size, px_size, sw, sh, color, 0))
       }
     }
   }
@@ -382,7 +322,7 @@ fn draw_dot_text(
         if pattern[row * 3 + col] == 1 {
           let x = ox + col.to_double() * px_size
           let y = start_y + row.to_double() * px_size
-          cmds.push(ndc_rect(dst, shader, x, y, px_size, px_size, sw, sh, color))
+          cmds.push(@debugutil.new_ndc_rect_fill_command(dst, shader, x, y, px_size, px_size, sw, sh, color, 0))
         }
       }
     }
