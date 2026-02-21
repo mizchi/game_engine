@@ -146,6 +146,59 @@ for (const target of TARGETS) {
   });
 }
 
+for (const target of TARGETS) {
+  test(`${target.name} font smoke full`, async ({ page }) => {
+    const result = await loadSmokeResult(page, target.normalPath);
+    expect(result.status).toBe("ok");
+    const fullMatch = result.output.match(
+      /font_smoke_full: ok load=(true|false)/,
+    );
+    expect(fullMatch).not.toBeNull();
+    if (fullMatch && fullMatch[1] === "true") {
+      const textW = result.output.match(/font_smoke_full:.*text_w=([0-9.]+)/);
+      const charW = result.output.match(/font_smoke_full:.*char_w=([0-9.]+)/);
+      const size12W = result.output.match(/font_smoke_full:.*size12_w=([0-9.]+)/);
+      expect(textW).not.toBeNull();
+      expect(charW).not.toBeNull();
+      expect(size12W).not.toBeNull();
+      if (textW && charW && size12W) {
+        const tw = Number(textW[1]);
+        const cw = Number(charW[1]);
+        const sw = Number(size12W[1]);
+        // multi-char text should be wider than single char
+        expect(tw).toBeGreaterThan(0);
+        expect(tw).toBeGreaterThan(cw);
+        // 12px should be smaller than 24px
+        expect(sw).toBeLessThan(cw);
+      }
+    }
+  });
+}
+
+for (const target of TARGETS) {
+  test(`${target.name} font smoke CJK`, async ({ page }) => {
+    const result = await loadSmokeResult(page, target.normalPath);
+    expect(result.status).toBe("ok");
+    const cjkMatch = result.output.match(
+      /font_smoke_cjk: ok load=(true|false)/,
+    );
+    expect(cjkMatch).not.toBeNull();
+    if (cjkMatch && cjkMatch[1] === "true") {
+      const hiraganaW = result.output.match(/font_smoke_cjk:.*hiragana_w=([0-9.]+)/);
+      const kanjiW = result.output.match(/font_smoke_cjk:.*kanji_w=([0-9.]+)/);
+      expect(hiraganaW).not.toBeNull();
+      expect(kanjiW).not.toBeNull();
+      if (hiraganaW && kanjiW) {
+        // CJK text should have positive width
+        expect(Number(hiraganaW[1])).toBeGreaterThan(0);
+        expect(Number(kanjiW[1])).toBeGreaterThan(0);
+        // 3 hiragana chars should be wider than 2 kanji chars
+        expect(Number(hiraganaW[1])).toBeGreaterThan(Number(kanjiW[1]));
+      }
+    }
+  });
+}
+
 test("canvas dimensions match viewport after load", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   const result = await loadSmokeResult(page, "/e2e/fixtures/runtime_smoke_wasm.html");

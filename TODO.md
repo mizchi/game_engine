@@ -12,18 +12,15 @@
 
 ## 実装状況スナップショット (2026-02-21)
 
-- `moon test --target native`: 563 passed / 0 failed
-- `moon test --target js`: 562 passed / 0 failed
+- `moon test --target native`: 575 passed / 0 failed
+- `moon test --target js`: 574 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass
-- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + audio_smoke)
+- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + hook_font_load_full + hook_font_load_cjk + audio_smoke)
+- `pnpm e2e:smoke`: 21 passed / 0 failed
 
 ## 現在の優先タスク (優先順位順)
 
-### P3: 次に着手
-
-1. 複数フォント・複数サイズの本格運用
-   - 現状: 単一グリフ 'I' の subset フォントで検証済み
-   - 残課題: フルセットフォントでの日本語テキスト等
+(なし — MVP 第一段階の全タスク完了)
 
 ## 完了条件 (第一段階)
 

@@ -141,6 +141,8 @@ pub struct GlyphAtlas {
   width : Int
   height : Int
   pixels : Array[Int]
+  mut dirty : Bool
+  mut last_used_generation : Int
 }
 
 ///|
@@ -152,6 +154,8 @@ pub fn GlyphAtlas::new(width : Int, height : Int, page_id : Int) -> GlyphAtlas {
     width,
     height,
     pixels,
+    dirty: false,
+    last_used_generation: 0,
   }
 }
 
@@ -385,6 +389,7 @@ pub fn GlyphAtlas::rasterize_glyph(
             entry.atlas_x.to_int(),
             entry.atlas_y.to_int(),
           )
+          self.dirty = true
           Some(entry)
         }
       }
@@ -435,36 +440,73 @@ pub fn GlyphAtlas::rasterize_text(
 }
 
 ///|
+/// Info about an atlas page, returned by flush_dirty_pages.
+pub struct AtlasPageInfo {
+  page_id : Int
+  width : Int
+  height : Int
+  dirty : Bool
+} derive(Show)
+
+///|
 /// High-level text renderer that ties together font, atlas, and batch builder
 /// into a single easy-to-use API for rendering text as draw commands.
+///
+/// Supports multi-page atlas: when one page fills up, new pages are
+/// automatically created. When max_pages is reached, the oldest page
+/// is cleared and reused.
 ///
 /// Usage:
 ///   let renderer = TextRenderer::new(font, 512, page_id, pipeline_id)
 ///   let commands = renderer.render_text("Hello", 24.0, 10.0, 50.0, dst, shader, blend, [255,255,255,255])
-///   // Upload renderer.get_atlas().get_pixels() as source texture for page_id
+///   // Upload dirty pages' pixel data as source textures
 ///   // Submit commands to the graphics pipeline
 pub struct TextRenderer {
-  atlas : GlyphAtlas
+  mut pages : Array[GlyphAtlas]
   font : @font.TTFont
   pipeline_id : Int
+  atlas_size : Int
+  base_page_id : Int
+  max_pages : Int
+  mut generation : Int
 }
 
 ///|
 pub fn TextRenderer::new(
   font : @font.TTFont,
   atlas_size : Int,
-  page_id : Int,
+  base_page_id : Int,
   pipeline_id : Int,
 ) -> TextRenderer {
-  { atlas: GlyphAtlas::new(atlas_size, atlas_size, page_id), font, pipeline_id }
+  TextRenderer::new_with_options(font, atlas_size, base_page_id, pipeline_id, 16)
+}
+
+///|
+pub fn TextRenderer::new_with_options(
+  font : @font.TTFont,
+  atlas_size : Int,
+  base_page_id : Int,
+  pipeline_id : Int,
+  max_pages : Int,
+) -> TextRenderer {
+  {
+    pages: [GlyphAtlas::new(atlas_size, atlas_size, base_page_id)],
+    font,
+    pipeline_id,
+    atlas_size,
+    base_page_id,
+    max_pages,
+    generation: 0,
+  }
 }
 
 ///|
 /// Render text at the given position, returning draw commands ready
 /// for the graphics pipeline. Also rasterizes any new glyphs into the atlas.
 ///
-/// The caller must ensure the atlas pixel data (from `get_atlas().get_pixels()`)
-/// is uploaded as a source texture bound to the atlas page_id.
+/// Multi-page: glyphs are distributed across pages. When a page is full,
+/// new pages are created up to max_pages. Beyond that, the oldest page
+/// is cleared and reused.
 pub fn TextRenderer::render_text(
   self : TextRenderer,
   text : String,
@@ -476,56 +518,153 @@ pub fn TextRenderer::render_text(
   blend : @gfx.BlendMode,
   uniform_dwords : Array[Int],
 ) -> Array[@gfx.DrawTrianglesCommand] {
-  let quads = self.atlas.rasterize_text(self.font, text, size_px)
-  if quads.length() == 0 {
-    return []
-  }
-  // Offset quads by (x, y) for positioning
-  let offset_quads : Array[GlyphQuad] = []
-  for q in quads {
-    offset_quads.push({
-      glyph_id: q.glyph_id,
-      atlas_x: q.atlas_x,
-      atlas_y: q.atlas_y,
-      atlas_w: q.atlas_w,
-      atlas_h: q.atlas_h,
-      dst_x: q.dst_x + x,
-      dst_y: q.dst_y + y,
-      dst_w: q.dst_w,
-      dst_h: q.dst_h,
-    })
-  }
-  let builder = SimpleTextBatchBuilder::new(
-    self.atlas.get_cache(),
-    self.pipeline_id,
-  )
-  let commands = builder.build_draw_commands(dst, offset_quads, shader) catch {
-    _ => return []
-  }
-  // Patch uniform_dwords into each command if provided
-  if uniform_dwords.length() > 0 {
-    let patched : Array[@gfx.DrawTrianglesCommand] = []
-    for cmd in commands {
-      patched.push(
-        @gfx.new_draw_triangles_command(
-          cmd.dst,
-          cmd.shader,
-          cmd.dst_regions,
-          cmd.index_offset,
-          cmd.pipeline_id,
-          cmd.uniform_hash,
-          blend,
-          cmd.vertex_data,
-          cmd.indices,
-          cmd.src_image_ids,
-          uniform_dwords,
-        ),
-      )
+  self.generation += 1
+  let scale = size_px / self.font.units_per_em.to_double()
+  let positions = self.font.layout_text(text, size_px)
+  // Group: page_index -> Array[GlyphQuad]
+  let page_quads : Map[Int, Array[GlyphQuad]] = {}
+  for pos in positions {
+    if pos.glyph_id == 0 {
+      continue
     }
-    patched
-  } else {
-    commands
+    let codepoint = pos.codepoint
+    let cache_key = make_glyph_cache_key(pos.glyph_id, size_px)
+    // Search existing pages for cached glyph
+    let mut found_page_index = -1
+    for i, page in self.pages {
+      match page.cache.get(cache_key) {
+        Some(_) => {
+          page.last_used_generation = self.generation
+          found_page_index = i
+          break
+        }
+        None => ()
+      }
+    }
+    // Cache miss: try rasterizing into existing pages
+    if found_page_index < 0 {
+      for i, page in self.pages {
+        match page.rasterize_glyph(self.font, codepoint, size_px) {
+          Some(_) => {
+            page.last_used_generation = self.generation
+            found_page_index = i
+            break
+          }
+          None => ()
+        }
+      }
+    }
+    // All pages full: add new page or evict oldest
+    if found_page_index < 0 {
+      if self.pages.length() < self.max_pages {
+        let new_page_id = self.base_page_id + self.pages.length()
+        let new_page = GlyphAtlas::new(
+          self.atlas_size, self.atlas_size, new_page_id,
+        )
+        self.pages.push(new_page)
+        let new_idx = self.pages.length() - 1
+        match self.pages[new_idx].rasterize_glyph(
+          self.font, codepoint, size_px,
+        ) {
+          Some(_) => {
+            self.pages[new_idx].last_used_generation = self.generation
+            found_page_index = new_idx
+          }
+          None => ()
+        }
+      } else {
+        // Evict oldest page
+        let mut oldest_idx = 0
+        let mut oldest_gen = self.pages[0].last_used_generation
+        for i = 1; i < self.pages.length(); i = i + 1 {
+          if self.pages[i].last_used_generation < oldest_gen {
+            oldest_gen = self.pages[i].last_used_generation
+            oldest_idx = i
+          }
+        }
+        let evicted = self.pages[oldest_idx]
+        evicted.cache.clear()
+        for j in 0..<evicted.pixels.length() {
+          evicted.pixels[j] = 0
+        }
+        evicted.dirty = true
+        match evicted.rasterize_glyph(self.font, codepoint, size_px) {
+          Some(_) => {
+            evicted.last_used_generation = self.generation
+            found_page_index = oldest_idx
+          }
+          None => ()
+        }
+      }
+    }
+    if found_page_index < 0 {
+      continue
+    }
+    let page = self.pages[found_page_index]
+    let entry = page.cache.get(cache_key)
+    match entry {
+      None => continue
+      Some(entry) => {
+        let metrics = self.font.glyph_metrics(pos.glyph_id)
+        let bbox = metrics.bbox
+        let dst_x = pos.x_offset +
+          metrics.left_side_bearing.to_double() * scale +
+          x
+        let dst_y = -(bbox.y_max.to_double() * scale) + y
+        let quad : GlyphQuad = {
+          glyph_id: cache_key,
+          atlas_x: entry.atlas_x,
+          atlas_y: entry.atlas_y,
+          atlas_w: entry.atlas_w,
+          atlas_h: entry.atlas_h,
+          dst_x,
+          dst_y,
+          dst_w: entry.atlas_w,
+          dst_h: entry.atlas_h,
+        }
+        match page_quads.get(found_page_index) {
+          Some(arr) => arr.push(quad)
+          None => page_quads.set(found_page_index, [quad])
+        }
+      }
+    }
   }
+  // Build draw commands per page
+  let all_commands : Array[@gfx.DrawTrianglesCommand] = []
+  page_quads.each(fn(page_idx, quads) {
+    if quads.length() == 0 {
+      return
+    }
+    let page = self.pages[page_idx]
+    let builder = SimpleTextBatchBuilder::new(page.get_cache(), self.pipeline_id)
+    let commands = builder.build_draw_commands(dst, quads, shader) catch {
+      _ => return
+    }
+    if uniform_dwords.length() > 0 {
+      for cmd in commands {
+        all_commands.push(
+          @gfx.new_draw_triangles_command(
+            cmd.dst,
+            cmd.shader,
+            cmd.dst_regions,
+            cmd.index_offset,
+            cmd.pipeline_id,
+            cmd.uniform_hash,
+            blend,
+            cmd.vertex_data,
+            cmd.indices,
+            cmd.src_image_ids,
+            uniform_dwords,
+          ),
+        )
+      }
+    } else {
+      for cmd in commands {
+        all_commands.push(cmd)
+      }
+    }
+  })
+  all_commands
 }
 
 ///|
@@ -543,31 +682,82 @@ pub fn TextRenderer::measure(
 
 ///|
 /// Get the underlying atlas for pixel data access (GPU upload).
+/// Returns the first page for backward compatibility.
 pub fn TextRenderer::get_atlas(self : TextRenderer) -> GlyphAtlas {
-  self.atlas
+  self.pages[0]
 }
 
 ///|
 /// Get the atlas page ID used as the source image ID in draw commands.
+/// Returns the base page ID for backward compatibility.
 pub fn TextRenderer::get_page_id(self : TextRenderer) -> Int {
-  self.atlas.cache.atlas_page_id
+  self.base_page_id
 }
 
 ///|
-/// Check if the atlas has been modified (new glyphs rasterized) and needs
-/// re-upload to the GPU. Returns the number of cached glyph entries.
+/// Total number of cached glyph entries across all pages.
 pub fn TextRenderer::glyph_count(self : TextRenderer) -> Int {
-  self.atlas.cache.entry_count()
+  let mut total = 0
+  for page in self.pages {
+    total += page.cache.entry_count()
+  }
+  total
 }
 
 ///|
-/// Clear all cached glyphs and atlas data. Use when switching fonts or sizes.
+/// Clear all cached glyphs and atlas data. Resets to a single page.
 pub fn TextRenderer::clear(self : TextRenderer) -> Unit {
-  self.atlas.cache.clear()
-  // Zero out pixel buffer
-  for i in 0..<self.atlas.pixels.length() {
-    self.atlas.pixels[i] = 0
+  let first = self.pages[0]
+  first.cache.clear()
+  for i in 0..<first.pixels.length() {
+    first.pixels[i] = 0
   }
+  first.dirty = false
+  first.last_used_generation = 0
+  self.pages = [first]
+  self.generation = 0
+}
+
+///|
+/// Get the number of atlas pages currently in use.
+pub fn TextRenderer::page_count(self : TextRenderer) -> Int {
+  self.pages.length()
+}
+
+///|
+/// Get a specific atlas page by index.
+pub fn TextRenderer::get_page(self : TextRenderer, index : Int) -> GlyphAtlas {
+  self.pages[index]
+}
+
+///|
+/// Get all page IDs currently in use.
+pub fn TextRenderer::get_page_ids(self : TextRenderer) -> Array[Int] {
+  let ids : Array[Int] = []
+  for page in self.pages {
+    ids.push(page.cache.atlas_page_id)
+  }
+  ids
+}
+
+///|
+/// Get info about dirty pages and clear their dirty flags.
+pub fn TextRenderer::flush_dirty_pages(
+  self : TextRenderer,
+) -> Array[AtlasPageInfo] {
+  let result : Array[AtlasPageInfo] = []
+  for page in self.pages {
+    if page.dirty {
+      result.push({
+        page_id: page.cache.atlas_page_id,
+        width: page.width,
+        height: page.height,
+        dirty: true,
+      })
+      page.dirty = false
+    }
+  }
+  result
 }
 
 // ---------------------------------------------------------------------------

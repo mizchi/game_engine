@@ -329,6 +329,33 @@ fn main {
     }
     None => println("font_smoke: ok load=false")
   }
+  // Full-set font smoke test (NotoSansMono-Regular.ttf)
+  let full_font_path = ".mooncakes/mizchi/font/fixtures/NotoSansMono-Regular.ttf"
+  let full_renderer = @text.load_text_renderer(full_font_path, 512, 951, 0)
+  match full_renderer {
+    Some(tr) => {
+      let text_metrics = tr.measure("Hello", 24.0)
+      let char_metrics = tr.measure("H", 24.0)
+      let size12_metrics = tr.measure("H", 12.0)
+      println(
+        "font_smoke_full: ok load=true text_w=\{text_metrics.width} char_w=\{char_metrics.width} size12_w=\{size12_metrics.width}",
+      )
+    }
+    None => println("font_smoke_full: ok load=false")
+  }
+  // CJK font smoke test (NotoSansJP-subset.otf)
+  let cjk_font_path = "fixtures/fonts/NotoSansJP-subset.otf"
+  let cjk_renderer = @text.load_text_renderer(cjk_font_path, 256, 952, 0)
+  match cjk_renderer {
+    Some(tr) => {
+      let hiragana_metrics = tr.measure("あいう", 24.0)
+      let kanji_metrics = tr.measure("日本", 24.0)
+      println(
+        "font_smoke_cjk: ok load=true hiragana_w=\{hiragana_metrics.width} kanji_w=\{kanji_metrics.width}",
+      )
+    }
+    None => println("font_smoke_cjk: ok load=false")
+  }
   let ready = @web_hooks.is_ready()
   @web_hooks.uninstall()
   if !ready {

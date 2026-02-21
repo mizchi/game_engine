@@ -870,6 +870,8 @@ const run = async () => {
   // Pre-fetch font files for font smoke test
   const fontPaths = [
     ".mooncakes/mizchi/font/fixtures/NotoSans-subset.otf",
+    ".mooncakes/mizchi/font/fixtures/NotoSansMono-Regular.ttf",
+    "fixtures/fonts/NotoSansJP-subset.otf",
   ];
   for (const fontPath of fontPaths) {
     try {

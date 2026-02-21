@@ -447,6 +447,49 @@ fn verify_hook_font_load() -> Bool {
       )
     }
   }
+  // CJK font verification (NotoSansJP-subset.otf)
+  let cjk_renderer = @text.load_text_renderer(
+    "fixtures/fonts/NotoSansJP-subset.otf", 256, 952, 0,
+  )
+  match cjk_renderer {
+    None => {
+      println("runtime_smoke_native: hook_font_load_cjk failed")
+      return false
+    }
+    Some(tr) => {
+      let hiragana_metrics = tr.measure("あいう", 24.0)
+      let kanji_metrics = tr.measure("日本", 24.0)
+      if hiragana_metrics.width <= 0.0 || kanji_metrics.width <= 0.0 {
+        println("runtime_smoke_native: hook_font_load_cjk measure invalid")
+        return false
+      }
+      println(
+        "runtime_smoke_native: hook_font_load_cjk ok, hiragana_w=\{hiragana_metrics.width} kanji_w=\{kanji_metrics.width}",
+      )
+    }
+  }
+  // Full-set font verification (NotoSansMono-Regular.ttf)
+  let full_renderer = @text.load_text_renderer(
+    ".mooncakes/mizchi/font/fixtures/NotoSansMono-Regular.ttf", 512, 951, 0,
+  )
+  match full_renderer {
+    None => {
+      println("runtime_smoke_native: hook_font_load_full failed")
+      return false
+    }
+    Some(tr) => {
+      let text_metrics = tr.measure("Hello", 24.0)
+      let char_metrics = tr.measure("H", 24.0)
+      let size12_metrics = tr.measure("H", 12.0)
+      if text_metrics.width <= 0.0 || char_metrics.width <= 0.0 || size12_metrics.width <= 0.0 {
+        println("runtime_smoke_native: hook_font_load_full measure invalid")
+        return false
+      }
+      println(
+        "runtime_smoke_native: hook_font_load_full ok, text_w=\{text_metrics.width} char_w=\{char_metrics.width} size12_w=\{size12_metrics.width}",
+      )
+    }
+  }
   true
 }
 

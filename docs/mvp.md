@@ -7,11 +7,11 @@
 
 ### 実行確認スナップショット (2026-02-21)
 
-- `moon test --target native`: 563 passed / 0 failed
-- `moon test --target js`: 562 passed / 0 failed
+- `moon test --target native`: 575 passed / 0 failed
+- `moon test --target js`: 574 passed / 0 failed
 - `moon run src/examples/runtime_smoke --target js`: pass (`runtime_smoke(js): ok (hooked)`)
-- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + audio_smoke)
-- `pnpm e2e:smoke`: 16 passed / 0 failed
+- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + hook_font_load_full + hook_font_load_cjk + audio_smoke)
+- `pnpm e2e:smoke`: 21 passed / 0 failed
 
 ### 機能領域 (判定: 完了)
 
@@ -51,6 +51,8 @@
 - P2-2: Native Audio Backend（miniaudio + ring buffer + MoonBit FFI bridge + native hooks 接続）
 - P3-2: WASM Audio Backend 接続（WASM host extern 7関数 + font stub + runtime_smoke audio smoke E2E）
 - P3-1: E2E テスト拡張（WASM font load 実装 + font smoke + native hook_font_load/audio_smoke アサーション, 16 tests）
+- P3-3: 複数フォント・複数サイズ本格運用（full-set TTF multi-char measure + multi-size + missing glyph degradation + atlas stress, 18 e2e tests）
+- P4-1: 日本語テキスト対応（CJK サブセットフォント + multi-page atlas + eviction + CJK E2E 検証, 21 e2e tests）
 
 ## NOTE
 

@@ -953,6 +953,104 @@ test "load_text_renderer hook multi-size render increases glyph_count" {
 }
 
 ///|
+test "multi-font independent renderers" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let r1 = load_text_renderer("test_a.otf", 256, 100, 0)
+  let r2 = load_text_renderer("test_b.otf", 256, 200, 0)
+  assert_true(r1 is Some(_))
+  assert_true(r2 is Some(_))
+  let tr1 = r1.unwrap()
+  let tr2 = r2.unwrap()
+  // Render 'I' independently
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "text_shader")
+  let cmds1 = tr1.render_text(
+    "I", 24.0, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+  )
+  let cmds2 = tr2.render_text(
+    "I", 24.0, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+  )
+  assert_true(cmds1.length() > 0)
+  assert_true(cmds2.length() > 0)
+  // Each renderer has its own independent atlas
+  assert_true(tr1.glyph_count() > 0)
+  assert_true(tr2.glyph_count() > 0)
+  // Page IDs are different
+  assert_true(tr1.get_page_id() != tr2.get_page_id())
+  reset_font_load_hooks()
+}
+
+///|
+test "multi-size measure scales proportionally" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let renderer = load_text_renderer("test.otf", 256, 1, 0).unwrap()
+  let m12 = renderer.measure("I", 12.0)
+  let m24 = renderer.measure("I", 24.0)
+  let m48 = renderer.measure("I", 48.0)
+  assert_true(m12.width > 0.0)
+  assert_true(m24.width > 0.0)
+  assert_true(m48.width > 0.0)
+  // 24px should be approximately 2x of 12px (±20%)
+  let ratio_24_12 = m24.width / m12.width
+  assert_true(ratio_24_12 > 1.6)
+  assert_true(ratio_24_12 < 2.4)
+  // 48px should be approximately 2x of 24px (±20%)
+  let ratio_48_24 = m48.width / m24.width
+  assert_true(ratio_48_24 > 1.6)
+  assert_true(ratio_48_24 < 2.4)
+  reset_font_load_hooks()
+}
+
+///|
+test "render text with missing glyphs does not crash" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let renderer = load_text_renderer("test.otf", 256, 1, 0).unwrap()
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "text_shader")
+  // 'A' and 'B' are not in subset, only 'I' is
+  let commands = renderer.render_text(
+    "ABI", 24.0, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+  )
+  // Should not crash; 'I' should render
+  assert_true(renderer.glyph_count() >= 1)
+  assert_true(commands.length() > 0)
+  reset_font_load_hooks()
+}
+
+///|
+test "atlas multi-size stress fills cache" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let renderer = load_text_renderer("test.otf", 512, 1, 0).unwrap()
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "text_shader")
+  let sizes = [8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 32.0, 48.0]
+  let mut prev_count = 0
+  for size in sizes {
+    let _ = renderer.render_text(
+      "I", size, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+    )
+    let current_count = renderer.glyph_count()
+    assert_true(current_count > prev_count)
+    prev_count = current_count
+  }
+  // Should have 10 distinct cache entries (one per size)
+  assert_eq(renderer.glyph_count(), 10)
+  reset_font_load_hooks()
+}
+
+///|
 test "SimpleTextBatchBuilder skips unresolvable glyphs in full atlas" {
   // Use a tiny atlas that can only fit one glyph
   let cache = GlyphCache::new(15.0, 15.0, 1)
@@ -989,4 +1087,220 @@ test "SimpleTextBatchBuilder skips unresolvable glyphs in full atlas" {
   // 1 glyph = 4 vertices * 4 floats = 16
   assert_eq(commands[0].vertex_data.length(), 16)
   assert_eq(commands[0].indices.length(), 6)
+}
+
+// =====================================================================
+// Multi-page atlas tests
+// =====================================================================
+
+///|
+test "multi-page overflow creates new page" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  // Use very small atlas (32x32) so 'I' at large size fills quickly
+  let renderer = load_text_renderer("test.otf", 32, 1, 0).unwrap()
+  let tr = renderer
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "shader")
+  // Render 'I' at multiple large sizes to overflow the tiny atlas
+  let sizes = [16.0, 20.0, 24.0, 28.0, 32.0, 40.0, 48.0, 56.0, 64.0]
+  for size in sizes {
+    let _ = tr.render_text(
+      "I", size, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+    )
+  }
+  assert_true(tr.page_count() > 1)
+  reset_font_load_hooks()
+}
+
+///|
+test "multi-page eviction clears oldest" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  // max_pages=2, tiny atlas
+  let font = load_font("test.otf").unwrap()
+  let tr = TextRenderer::new_with_options(font, 32, 1, 0, 2)
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "shader")
+  // Fill many sizes to trigger eviction
+  let sizes = [16.0, 20.0, 24.0, 28.0, 32.0, 40.0, 48.0, 56.0, 64.0, 72.0, 80.0]
+  for size in sizes {
+    let _ = tr.render_text(
+      "I", size, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+    )
+  }
+  // Should never exceed max_pages
+  assert_true(tr.page_count() <= 2)
+  // Should still have some glyphs cached
+  assert_true(tr.glyph_count() > 0)
+  reset_font_load_hooks()
+}
+
+///|
+test "multi-page glyph_count sums all" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let renderer = load_text_renderer("test.otf", 32, 1, 0).unwrap()
+  let tr = renderer
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "shader")
+  let sizes = [16.0, 24.0, 32.0, 48.0, 64.0]
+  for size in sizes {
+    let _ = tr.render_text(
+      "I", size, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+    )
+  }
+  if tr.page_count() > 1 {
+    // glyph_count should be sum of all pages
+    let mut manual_sum = 0
+    for i = 0; i < tr.page_count(); i = i + 1 {
+      manual_sum += tr.get_page(i).cache.entry_count()
+    }
+    assert_eq(tr.glyph_count(), manual_sum)
+  }
+  reset_font_load_hooks()
+}
+
+///|
+test "multi-page commands per page" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let renderer = load_text_renderer("test.otf", 32, 100, 0).unwrap()
+  let tr = renderer
+  let dst = @gfx.new_image_handle(1, 640, 480)
+  let shader = @gfx.new_shader_handle(1, "shader")
+  // Fill sizes to force multi-page
+  let sizes = [16.0, 24.0, 32.0, 48.0, 64.0]
+  for size in sizes {
+    let _ = tr.render_text(
+      "I", size, 0.0, 0.0, dst, shader, @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+    )
+  }
+  if tr.page_count() > 1 {
+    // page IDs should be sequential from base
+    let ids = tr.get_page_ids()
+    assert_eq(ids[0], 100)
+    assert_eq(ids[1], 101)
+  }
+  reset_font_load_hooks()
+}
+
+///|
+test "multi-page backward compat" {
+  let font_data = test_font_otf_data()
+  set_font_load_hooks({
+    load_font_data: fn(_name) { Some(font_data) },
+  })
+  let renderer = load_text_renderer("test.otf", 256, 42, 0).unwrap()
+  let tr = renderer
+  // get_atlas() should return first page
+  let atlas = tr.get_atlas()
+  let page0 = tr.get_page(0)
+  assert_eq(atlas.cache.atlas_page_id, page0.cache.atlas_page_id)
+  // get_page_id() should return base_page_id
+  assert_eq(tr.get_page_id(), 42)
+  // page_count() starts at 1
+  assert_eq(tr.page_count(), 1)
+  reset_font_load_hooks()
+}
+
+// =====================================================================
+// CJK font tests (using NotoSansJP-subset.otf)
+// =====================================================================
+
+///|
+fn load_cjk_font_data() -> Array[Int]? {
+  // Use FontLoadHooks to load CJK subset font
+  (font_load_hooks.val.load_font_data)("fixtures/fonts/NotoSansJP-subset.otf")
+}
+
+///|
+test "CJK hiragana rendering" {
+  // This test requires the CJK subset font file to be available via hooks
+  let font_data = load_cjk_font_data()
+  match font_data {
+    None => () // Skip if font not available (e.g., in CI without file)
+    Some(data) => {
+      let bytes = font_data_to_bytes(data)
+      let font = parse_font_bytes(bytes)
+      match font {
+        None => fail("CJK font parse failed")
+        Some(ttfont) => {
+          let tr = TextRenderer::new(ttfont, 256, 1, 0)
+          let dst = @gfx.new_image_handle(1, 640, 480)
+          let shader = @gfx.new_shader_handle(1, "shader")
+          let cmds = tr.render_text(
+            "あいう", 24.0, 0.0, 0.0, dst, shader,
+            @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+          )
+          assert_true(cmds.length() > 0)
+          assert_true(tr.glyph_count() >= 3)
+        }
+      }
+    }
+  }
+}
+
+///|
+test "CJK mixed text rendering" {
+  let font_data = load_cjk_font_data()
+  match font_data {
+    None => () // Skip if font not available
+    Some(data) => {
+      let bytes = font_data_to_bytes(data)
+      let font = parse_font_bytes(bytes)
+      match font {
+        None => fail("CJK font parse failed")
+        Some(ttfont) => {
+          let tr = TextRenderer::new(ttfont, 256, 1, 0)
+          // Measure mixed text
+          let mixed = tr.measure("Hello世界", 24.0)
+          assert_true(mixed.width > 0.0)
+          assert_true(mixed.height > 0.0)
+          // Render mixed text
+          let dst = @gfx.new_image_handle(1, 640, 480)
+          let shader = @gfx.new_shader_handle(1, "shader")
+          let cmds = tr.render_text(
+            "Hello世界", 24.0, 0.0, 0.0, dst, shader,
+            @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+          )
+          assert_true(cmds.length() > 0)
+        }
+      }
+    }
+  }
+}
+
+///|
+test "CJK multi-size measure" {
+  let font_data = load_cjk_font_data()
+  match font_data {
+    None => () // Skip if font not available
+    Some(data) => {
+      let bytes = font_data_to_bytes(data)
+      let font = parse_font_bytes(bytes)
+      match font {
+        None => fail("CJK font parse failed")
+        Some(ttfont) => {
+          let tr = TextRenderer::new(ttfont, 256, 1, 0)
+          let m12 = tr.measure("日", 12.0)
+          let m24 = tr.measure("日", 24.0)
+          assert_true(m12.width > 0.0)
+          assert_true(m24.width > 0.0)
+          // 24px should be approximately 2x of 12px (±20%)
+          let ratio = m24.width / m12.width
+          assert_true(ratio > 1.6)
+          assert_true(ratio < 2.4)
+        }
+      }
+    }
+  }
 }

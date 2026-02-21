@@ -35,6 +35,40 @@ test.describe("runtime smoke native", () => {
     // hook_font_load should succeed with real font file
     const fontMatch = output.match(/hook_font_load ok/);
     expect(fontMatch, "hook_font_load ok should appear in output").not.toBeNull();
+    // hook_font_load_full should succeed with full-set font
+    const fullMatch = output.match(/hook_font_load_full ok/);
+    expect(fullMatch, "hook_font_load_full ok should appear in output").not.toBeNull();
+    if (fullMatch) {
+      const textW = output.match(/hook_font_load_full ok, text_w=([0-9.]+)/);
+      const charW = output.match(/hook_font_load_full ok,.*char_w=([0-9.]+)/);
+      const size12W = output.match(/hook_font_load_full ok,.*size12_w=([0-9.]+)/);
+      expect(textW).not.toBeNull();
+      expect(charW).not.toBeNull();
+      expect(size12W).not.toBeNull();
+      if (textW && charW && size12W) {
+        expect(Number(textW[1])).toBeGreaterThan(0);
+        expect(Number(charW[1])).toBeGreaterThan(0);
+        expect(Number(size12W[1])).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("runtime_smoke_native hook_font_load_cjk", () => {
+    const result = runMoon(["run", "src/examples/runtime_smoke_native", "--target", "native"]);
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(result.status, output).toBe(0);
+    const cjkMatch = output.match(/hook_font_load_cjk ok/);
+    expect(cjkMatch, "hook_font_load_cjk ok should appear in output").not.toBeNull();
+    if (cjkMatch) {
+      const hiraganaW = output.match(/hook_font_load_cjk ok, hiragana_w=([0-9.]+)/);
+      const kanjiW = output.match(/hook_font_load_cjk ok,.*kanji_w=([0-9.]+)/);
+      expect(hiraganaW).not.toBeNull();
+      expect(kanjiW).not.toBeNull();
+      if (hiraganaW && kanjiW) {
+        expect(Number(hiraganaW[1])).toBeGreaterThan(0);
+        expect(Number(kanjiW[1])).toBeGreaterThan(0);
+      }
+    }
   });
 
   test("runtime_smoke_native audio_smoke", () => {
