@@ -4,55 +4,38 @@ struct Pipe {
   gap_y : Double
 }
 
-///|
-struct FlappyState {
-  mut bird_y : Double
-  mut velocity : Double
-  mut game_mode : Int // 0=title, 1=playing, 2=gameover
-  mut score : Int
-  mut frame_count : Int
-  mut pipes : Array[Pipe]
-  mut pipe_timer : Int
-  input : @inpututil.InputHelper
-  // constants
-  screen_w : Double
-  screen_h : Double
-  bird_x : Double
-  bird_size : Double
-  gravity : Double
-  jump_velocity : Double
-  pipe_width : Double
-  pipe_gap : Double
-  pipe_speed : Double
-  pipe_interval : Int
-  ground_h : Double
-}
+let screen_w : Int = 320
+
+let screen_h : Int = 240
+
+let bird_x : Double = 60.0
+
+let bird_size : Double = 12.0
+
+let gravity : Double = 0.25
+
+let jump_velocity : Double = -4.5
+
+let pipe_width : Double = 36.0
+
+let pipe_gap : Double = 70.0
+
+let pipe_speed : Double = 1.5
+
+let pipe_interval : Int = 120
+
+let ground_h : Double = 20.0
 
 ///|
-fn FlappyState::new() -> FlappyState {
-  let screen_w = 320.0
-  let screen_h = 240.0
-  {
-    bird_y: screen_h / 2.0,
-    velocity: 0.0,
-    game_mode: 0, // title screen
-    score: 0,
-    frame_count: 0,
-    pipes: [],
-    pipe_timer: 0,
-    input: @inpututil.new_input_helper(),
-    screen_w,
-    screen_h,
-    bird_x: 60.0,
-    bird_size: 12.0,
-    gravity: 0.25,
-    jump_velocity: -4.5,
-    pipe_width: 36.0,
-    pipe_gap: 70.0,
-    pipe_speed: 1.5,
-    pipe_interval: 120,
-    ground_h: 20.0,
-  }
+struct Game {
+  game_mode : @signals.Signal[Int]
+  score : @signals.Signal[Int]
+  bird_y : @signals.Signal[Double]
+  frame_count : @signals.Signal[Int]
+  pipes : @signals.Signal[Array[Pipe]]
+  mut velocity : Double
+  mut pipe_timer : Int
+  input : @inpututil.InputHelper
 }
 
 ///|
@@ -63,248 +46,192 @@ fn pseudo_random(seed : Int) -> Double {
 }
 
 ///|
-fn FlappyState::reset(self : FlappyState) -> Unit {
-  self.bird_y = self.screen_h / 2.0
+fn Game::new() -> Game {
+  {
+    game_mode: @signals.signal(0),
+    score: @signals.signal(0),
+    bird_y: @signals.signal(screen_h.to_double() / 2.0),
+    frame_count: @signals.signal(0),
+    pipes: @signals.signal([]),
+    velocity: 0.0,
+    pipe_timer: 0,
+    input: @inpututil.new_input_helper(),
+  }
+}
+
+///|
+fn Game::reset(self : Game) -> Unit {
+  self.bird_y.set(screen_h.to_double() / 2.0)
   self.velocity = 0.0
-  self.game_mode = 0
-  self.score = 0
-  self.pipes = []
+  self.game_mode.set(0)
+  self.score.set(0)
+  self.pipes.set([])
   self.pipe_timer = 0
 }
 
 ///|
-fn FlappyState::update(self : FlappyState, input : @core.InputSnapshot) -> Unit {
+fn Game::update(self : Game, input : @core.InputSnapshot) -> Unit {
   @inpututil.update_input_helper(self.input, input)
-  self.frame_count = self.frame_count + 1
-  let action = @inpututil.is_any_action_just_pressed(self.input, input)
-  match self.game_mode {
-    0 =>
-      // Title screen
-      if action {
-        self.game_mode = 1
-        self.velocity = self.jump_velocity
-      }
-    1 => {
-      // Playing
-      self.velocity = self.velocity + self.gravity
-      self.bird_y = self.bird_y + self.velocity
-      if action {
-        self.velocity = self.jump_velocity
-      }
-      // Pipe generation
-      self.pipe_timer = self.pipe_timer + 1
-      if self.pipe_timer >= self.pipe_interval {
-        self.pipe_timer = 0
-        let min_gap_y = 40.0
-        let max_gap_y = self.screen_h - self.ground_h - self.pipe_gap - 40.0
-        let gap_y = min_gap_y +
-          pseudo_random(self.frame_count) * (max_gap_y - min_gap_y)
-        self.pipes.push({ x: self.screen_w, gap_y })
-      }
-      // Move pipes and check scoring
-      let mut i = 0
-      while i < self.pipes.length() {
-        let pipe = self.pipes[i]
-        let old_x = pipe.x
-        pipe.x = pipe.x - self.pipe_speed
-        // Score: bird passes pipe right edge
-        let pipe_right = old_x + self.pipe_width
-        let pipe_right_new = pipe.x + self.pipe_width
-        if pipe_right >= self.bird_x && pipe_right_new < self.bird_x {
-          self.score = self.score + 1
-        }
-        i = i + 1
-      }
-      // Remove off-screen pipes
-      let new_pipes : Array[Pipe] = []
-      for pipe in self.pipes {
-        if pipe.x + self.pipe_width > 0.0 {
-          new_pipes.push(pipe)
+  @signals.batch(fn() {
+    self.frame_count.set(self.frame_count.get() + 1)
+    let action = @inpututil.is_any_action_just_pressed(self.input, input)
+    match self.game_mode.get() {
+      0 => {
+        if action {
+          self.game_mode.set(1)
+          self.velocity = jump_velocity
         }
       }
-      self.pipes = new_pipes
-      // Collision detection
-      let ground_top = self.screen_h - self.ground_h
-      if self.bird_y + self.bird_size > ground_top || self.bird_y < 0.0 {
-        self.game_mode = 2
-      }
-      // Pipe collision
-      for pipe in self.pipes {
-        let bird_right = self.bird_x + self.bird_size
-        let bird_bottom = self.bird_y + self.bird_size
-        let pipe_right = pipe.x + self.pipe_width
-        // Check horizontal overlap
-        if bird_right > pipe.x && self.bird_x < pipe_right {
-          // Check if bird is outside the gap
-          let gap_bottom = pipe.gap_y + self.pipe_gap
-          if self.bird_y < pipe.gap_y || bird_bottom > gap_bottom {
-            self.game_mode = 2
+      1 => {
+        // Physics
+        self.velocity = self.velocity + gravity
+        self.bird_y.set(self.bird_y.get() + self.velocity)
+        if action {
+          self.velocity = jump_velocity
+        }
+        // Pipe generation
+        self.pipe_timer = self.pipe_timer + 1
+        if self.pipe_timer >= pipe_interval {
+          self.pipe_timer = 0
+          let sw = screen_w.to_double()
+          let sh = screen_h.to_double()
+          let min_gap_y = 40.0
+          let max_gap_y = sh - ground_h - pipe_gap - 40.0
+          let gap_y = min_gap_y +
+            pseudo_random(self.frame_count.get()) * (max_gap_y - min_gap_y)
+          let current_pipes = self.pipes.get()
+          current_pipes.push({ x: sw, gap_y })
+          self.pipes.set(current_pipes)
+        }
+        // Move pipes and check scoring
+        let pipes = self.pipes.get()
+        let mut i = 0
+        while i < pipes.length() {
+          let pipe = pipes[i]
+          let old_x = pipe.x
+          pipe.x = pipe.x - pipe_speed
+          let pipe_right = old_x + pipe_width
+          let pipe_right_new = pipe.x + pipe_width
+          if pipe_right >= bird_x && pipe_right_new < bird_x {
+            self.score.set(self.score.get() + 1)
+          }
+          i = i + 1
+        }
+        // Remove off-screen pipes
+        let new_pipes : Array[Pipe] = []
+        for pipe in pipes {
+          if pipe.x + pipe_width > 0.0 {
+            new_pipes.push(pipe)
+          }
+        }
+        self.pipes.set(new_pipes)
+        // Collision: ground/ceiling
+        let ground_top = screen_h.to_double() - ground_h
+        if self.bird_y.get() + bird_size > ground_top || self.bird_y.get() < 0.0 {
+          self.game_mode.set(2)
+        }
+        // Collision: pipes
+        for pipe in self.pipes.get() {
+          let bird_right = bird_x + bird_size
+          let bird_bottom = self.bird_y.get() + bird_size
+          let pipe_right = pipe.x + pipe_width
+          if bird_right > pipe.x && bird_x < pipe_right {
+            let gap_bottom = pipe.gap_y + pipe_gap
+            if self.bird_y.get() < pipe.gap_y || bird_bottom > gap_bottom {
+              self.game_mode.set(2)
+            }
           }
         }
       }
-    }
-    _ =>
-      // Game over
-      if action {
-        self.reset()
+      _ => {
+        if action {
+          self.reset()
+        }
       }
-  }
+    }
+  })
 }
 
 ///|
-fn FlappyState::build_draw_commands(
-  self : FlappyState,
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Array[@gfx.DrawTrianglesCommand] {
-  let cmds : Array[@gfx.DrawTrianglesCommand] = []
-  let sw = self.screen_w
-  let sh = self.screen_h
-  let sky_color = @debugutil.color_from_hex(0x87CEEB)
-  let ground_color = @debugutil.color_from_hex(0x8B4513)
-  let pipe_color = @debugutil.color_from_hex(0x228B22)
-  let bird_color = @debugutil.color_from_hex(0xFFD700)
-  let white = @debugutil.color_white()
-  // Sky background
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, 0.0, 0.0, sw, sh, sw, sh, sky_color, 0,
-    ),
-  )
-  // Ground
-  let ground_y = sh - self.ground_h
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst,
-      shader,
-      0.0,
-      ground_y,
-      sw,
-      self.ground_h,
-      sw,
-      sh,
-      ground_color,
-      0,
-    ),
-  )
-  // Pipes
-  for pipe in self.pipes {
-    // Upper pipe
-    if pipe.gap_y > 0.0 {
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          pipe.x,
-          0.0,
-          self.pipe_width,
-          pipe.gap_y,
-          sw,
-          sh,
-          pipe_color,
-          0,
-        ),
-      )
-    }
-    // Lower pipe
-    let lower_y = pipe.gap_y + self.pipe_gap
-    let lower_h = ground_y - lower_y
-    if lower_h > 0.0 {
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          pipe.x,
-          lower_y,
-          self.pipe_width,
-          lower_h,
-          sw,
-          sh,
-          pipe_color,
-          0,
-        ),
-      )
-    }
-  }
-  // Bird
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst,
-      shader,
-      self.bird_x,
-      self.bird_y,
-      self.bird_size,
-      self.bird_size,
-      sw,
-      sh,
-      bird_color,
-      0,
-    ),
-  )
-  // Score display
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    self.score,
-    sw / 2.0 - 10.0,
-    20.0,
-    sw,
-    sh,
-    white,
-    1.0,
-  )
-  // Title / Game Over overlay
-  if self.game_mode == 0 {
-    // "TAP" text, blinking
-    if self.frame_count / 30 % 2 == 0 {
-      let text_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.8)
-      // T=84, A=65, P=80
-      @debugutil.draw_dot_text(
-        cmds,
-        dst,
-        shader,
-        [84, 65, 80],
-        sw / 2.0,
-        sh / 2.0 + 30.0,
-        sw,
-        sh,
-        text_color,
-        2.0,
-      )
-    }
-  } else if self.game_mode == 2 {
-    // Dark overlay background
-    let overlay_color = @debugutil.color_from_hex_alpha(0x000000, 0.5)
-    cmds.push(
-      @debugutil.new_ndc_rect_fill_command(
-        dst,
-        shader,
-        sw / 2.0 - 50.0,
-        sh / 2.0 - 20.0,
-        100.0,
-        40.0,
-        sw,
-        sh,
-        overlay_color,
-        0,
+fn Game::view(self : Game) -> @scene.SceneNode {
+  let sw = screen_w.to_double()
+  let sh = screen_h.to_double()
+  let ground_y = sh - ground_h
+  @scene.fragment(
+    [
+      // Sky
+      @scene.rect(w=sw, h=sh, fill=0x87CEEB),
+      // Ground
+      @scene.rect(x=0.0, y=ground_y, w=sw, h=ground_h, fill=0x8B4513),
+      // Pipes
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for pipe in self.pipes.get() {
+          if pipe.gap_y > 0.0 {
+            nodes.push(
+              @scene.rect(x=pipe.x, w=pipe_width, h=pipe.gap_y, fill=0x228B22),
+            )
+          }
+          let lower_y = pipe.gap_y + pipe_gap
+          let lower_h = ground_y - lower_y
+          if lower_h > 0.0 {
+            nodes.push(
+              @scene.rect(
+                x=pipe.x,
+                y=lower_y,
+                w=pipe_width,
+                h=lower_h,
+                fill=0x228B22,
+              ),
+            )
+          }
+        }
+        nodes
+      }),
+      // Bird
+      @scene.rect(
+        x=bird_x,
+        y=self.bird_y.get(),
+        w=bird_size,
+        h=bird_size,
+        fill=0xFFD700,
       ),
-    )
-    // "END" text
-    let text_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.9)
-    // E=69, N=78, D=68
-    @debugutil.draw_dot_text(
-      cmds,
-      dst,
-      shader,
-      [69, 78, 68],
-      sw / 2.0,
-      sh / 2.0,
-      sw,
-      sh,
-      text_color,
-      2.0,
-    )
-  }
-  cmds
+      // Score
+      @scene.label(
+        x=sw / 2.0 - 10.0,
+        y=20.0,
+        content=self.score.get().to_string(),
+      ),
+      // Title "TAP" (blinking)
+      @scene.show(
+        fn() {
+          self.game_mode.get() == 0 && self.frame_count.get() / 30 % 2 == 0
+        },
+        fn() {
+          @scene.label(x=sw / 2.0, y=sh / 2.0 + 30.0, content="TAP", scale=2.0)
+        },
+      ),
+      // Game over overlay
+      @scene.show(fn() { self.game_mode.get() == 2 }, fn() {
+        @scene.fragment(
+          [
+            @scene.rect(
+              x=sw / 2.0 - 50.0,
+              y=sh / 2.0 - 20.0,
+              w=100.0,
+              h=40.0,
+              fill=0x000000,
+              alpha=0.5,
+            ),
+            @scene.label(
+              x=sw / 2.0,
+              y=sh / 2.0,
+              content="END",
+              scale=2.0,
+            ),
+          ],
+        )
+      }),
+    ],
+  )
 }

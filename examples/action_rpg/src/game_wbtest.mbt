@@ -496,52 +496,6 @@ test "text style creation" {
 }
 
 // ============================================================
-// Draw Command Tests
-// ============================================================
-
-///|
-test "build_draw_commands returns commands for title" {
-  let state = ShowcaseState::new()
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  assert_true(cmds.length() > 0)
-}
-
-///|
-test "build_draw_commands returns commands for playing" {
-  let state = ShowcaseState::new()
-  state.mode = mode_playing
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  assert_true(cmds.length() > 0)
-}
-
-///|
-test "game over draw commands" {
-  let state = ShowcaseState::new()
-  state.mode = mode_gameover
-  state.score = 250
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  assert_true(cmds.length() > 0)
-}
-
-///|
-test "paused mode draw commands include menu" {
-  let state = ShowcaseState::new()
-  state.mode = mode_paused
-  let _ = state.focus_mgr.focus(state.menu_node_ids[0])
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  // Should have more commands than playing mode (overlay + menu text)
-  assert_true(cmds.length() > 5)
-}
-
-// ============================================================
 // Image Palette Tests
 // ============================================================
 

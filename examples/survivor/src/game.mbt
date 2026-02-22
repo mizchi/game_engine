@@ -824,551 +824,359 @@ fn SurvivorState::update_gameover(self : SurvivorState) -> Unit {
 // ============================================================
 
 ///|
-fn upgrade_name_chars(upgrade : Int) -> Array[Int] {
+fn upgrade_name(upgrade : Int) -> String {
   match upgrade {
-    // PROJ_RATE -> "RATE"
-    0 => [82, 65, 84, 69]
-    // PROJ_DMG -> "DMG"
-    1 => [68, 77, 71]
-    // ORBIT_ADD -> "ORB+"
-    2 => [79, 82, 66, 43]
-    // ORBIT_SPD -> "ORBS"
-    3 => [79, 82, 66, 83]
-    // AREA_RAD -> "AREA"
-    4 => [65, 82, 69, 65]
-    // AREA_DMG -> "ADMG"
-    5 => [65, 68, 77, 71]
-    // HP_HEAL -> "HEAL"
-    6 => [72, 69, 65, 76]
-    // SPEED_UP -> "SPED"
-    _ => [83, 80, 69, 68]
+    0 => "RATE"
+    1 => "DMG"
+    2 => "ORB+"
+    3 => "ORBS"
+    4 => "AREA"
+    5 => "ADMG"
+    6 => "HEAL"
+    _ => "SPED"
   }
 }
 
 // ============================================================
-// Rendering
+// View (Declarative Scene API)
 // ============================================================
 
 ///|
-fn SurvivorState::build_draw_commands(
-  self : SurvivorState,
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Array[@gfx.DrawTrianglesCommand] {
-  let cmds : Array[@gfx.DrawTrianglesCommand] = []
+fn SurvivorState::view(self : SurvivorState) -> @scene.SceneNode {
+  match self.game_mode {
+    0 => self.view_title()
+    1 => self.view_play()
+    2 => @scene.fragment([self.view_play(), self.view_levelup_overlay()])
+    _ => self.view_gameover()
+  }
+}
+
+///|
+fn SurvivorState::view_title(self : SurvivorState) -> @scene.SceneNode {
   let sw = self.screen_w
   let sh = self.screen_h
-  match self.game_mode {
-    0 => self.draw_title(cmds, dst, shader, sw, sh)
-    1 => self.draw_play(cmds, dst, shader, sw, sh)
-    2 => {
-      self.draw_play(cmds, dst, shader, sw, sh)
-      self.draw_levelup_overlay(cmds, dst, shader, sw, sh)
-    }
-    _ => self.draw_gameover(cmds, dst, shader, sw, sh)
-  }
-  cmds
+  @scene.fragment(
+    [
+      @scene.rect(w=sw, h=sh, fill=0x1A1A2E),
+      @scene.label(
+        x=sw / 2.0,
+        y=sh / 2.0 - 30.0,
+        content="SURVIVOR",
+        color=0xFF6600,
+        scale=2.0,
+      ),
+      @scene.show(fn() { self.frame_count / 30 % 2 == 0 }, fn() {
+        @scene.label(x=sw / 2.0, y=sh / 2.0 + 30.0, content="SPACE")
+      }),
+    ],
+  )
 }
 
 ///|
-fn SurvivorState::draw_title(
-  self : SurvivorState,
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  sw : Double,
-  sh : Double,
-) -> Unit {
-  // Dark background
-  let bg = @debugutil.color_from_hex(0x1A1A2E)
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, 0.0, 0.0, sw, sh, sw, sh, bg, 0,
-    ),
-  )
-  // "SURVIVOR" text
-  let title_color = @debugutil.color_from_hex(0xFF6600)
-  // S=83, U=85, R=82, V=86, I=73, V=86, O=79, R=82
-  @debugutil.draw_dot_text(
-    cmds,
-    dst,
-    shader,
-    [83, 85, 82, 86, 73, 86, 79, 82],
-    sw / 2.0,
-    sh / 2.0 - 30.0,
-    sw,
-    sh,
-    title_color,
-    2.0,
-  )
-  // "PRESS SPACE" blinking
-  if self.frame_count / 30 % 2 == 0 {
-    let hint_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.7)
-    // P=80, R=82, E=69, S=83, S=83, ' '=32, K=75, E=69, Y=0(skip)
-    // Simplified: "SPACE"
-    @debugutil.draw_dot_text(
-      cmds,
-      dst,
-      shader,
-      [83, 80, 65, 67, 69],
-      sw / 2.0,
-      sh / 2.0 + 30.0,
-      sw,
-      sh,
-      hint_color,
-      1.0,
-    )
-  }
-}
-
-///|
-fn SurvivorState::draw_play(
-  self : SurvivorState,
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  sw : Double,
-  sh : Double,
-) -> Unit {
-  // Background (dark green)
-  let bg_color = @debugutil.color_from_hex(0x1A2E1A)
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, 0.0, 0.0, sw, sh, sw, sh, bg_color, 0,
-    ),
-  )
-  // Grid lines (world-space, camera-offset)
-  let grid_color = @debugutil.color_from_hex_alpha(0x2A4E2A, 0.5)
-  let grid_spacing = 64.0
-  // Vertical lines
-  let start_gx = @math.floor(self.camera.x / grid_spacing) * grid_spacing
-  let mut gx = start_gx
-  while gx < self.camera.x + sw + grid_spacing {
-    let screen_x = gx - self.camera.x
-    if screen_x >= 0.0 && screen_x < sw {
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst, shader, screen_x, 0.0, 1.0, sh, sw, sh, grid_color, 0,
-        ),
-      )
-    }
-    gx = gx + grid_spacing
-  }
-  // Horizontal lines
-  let start_gy = @math.floor(self.camera.y / grid_spacing) * grid_spacing
-  let mut gy = start_gy
-  while gy < self.camera.y + sh + grid_spacing {
-    let screen_y = gy - self.camera.y
-    if screen_y >= 0.0 && screen_y < sh {
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst, shader, 0.0, screen_y, sw, 1.0, sw, sh, grid_color, 0,
-        ),
-      )
-    }
-    gy = gy + grid_spacing
-  }
-  // Gems
-  let gem_color = @debugutil.color_from_hex(0x00FFFF)
-  for gem in self.gems {
-    if not(gem.alive) {
-      continue
-    }
-    let gsx = self.camera.world_to_screen_x(gem.x)
-    let gsy = self.camera.world_to_screen_y(gem.y)
-    if gsx > -8.0 && gsx < sw + 8.0 && gsy > -8.0 && gsy < sh + 8.0 {
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          gsx - 3.0,
-          gsy - 3.0,
-          6.0,
-          6.0,
-          sw,
-          sh,
-          gem_color,
-          0,
-        ),
-      )
-    }
-  }
-  // Enemies
-  for e in self.enemies {
-    if not(e.alive) {
-      continue
-    }
-    let esx = self.camera.world_to_screen_x(e.x)
-    let esy = self.camera.world_to_screen_y(e.y)
-    if esx > -20.0 && esx < sw + 20.0 && esy > -20.0 && esy < sh + 20.0 {
-      let ecolor = if e.hit_timer > 0 {
-        @debugutil.color_white()
-      } else {
-        match e.kind {
-          1 => @debugutil.color_from_hex(0xFF8800)
-          2 => @debugutil.color_from_hex(0x880000)
-          _ => @debugutil.color_from_hex(0xCC2222)
-        }
-      }
-      let half_e = e.size / 2.0
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          esx - half_e,
-          esy - half_e,
-          e.size,
-          e.size,
-          sw,
-          sh,
-          ecolor,
-          0,
-        ),
-      )
-    }
-  }
-  // Area weapon effect
-  if self.area_weapon.active_frames > 0 {
-    let area_color = @debugutil.color_from_hex_alpha(0xFFFF00, 0.3)
-    let psx = self.camera.world_to_screen_x(self.player.x)
-    let psy = self.camera.world_to_screen_y(self.player.y)
-    let r = self.area_weapon.radius
-    cmds.push(
-      @debugutil.new_ndc_rect_fill_command(
-        dst,
-        shader,
-        psx - r,
-        psy - r,
-        r * 2.0,
-        r * 2.0,
-        sw,
-        sh,
-        area_color,
-        0,
-      ),
-    )
-  }
-  // Projectiles
-  let proj_color = @debugutil.color_from_hex(0xFFFF00)
-  for proj in self.projectiles {
-    if not(proj.alive) {
-      continue
-    }
-    let prsx = self.camera.world_to_screen_x(proj.x)
-    let prsy = self.camera.world_to_screen_y(proj.y)
-    if prsx > -8.0 && prsx < sw + 8.0 && prsy > -8.0 && prsy < sh + 8.0 {
-      let half_p = proj.size / 2.0
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          prsx - half_p,
-          prsy - half_p,
-          proj.size,
-          proj.size,
-          sw,
-          sh,
-          proj_color,
-          0,
-        ),
-      )
-    }
-  }
-  // Orbit weapons
-  let orb_color = @debugutil.color_white()
-  for orb in self.orbit_weapons {
-    let ox = self.player.x + @math.cos(orb.angle) * orb.radius
-    let oy = self.player.y + @math.sin(orb.angle) * orb.radius
-    let osx = self.camera.world_to_screen_x(ox)
-    let osy = self.camera.world_to_screen_y(oy)
-    let half_o = orb.size / 2.0
-    cmds.push(
-      @debugutil.new_ndc_rect_fill_command(
-        dst,
-        shader,
-        osx - half_o,
-        osy - half_o,
-        orb.size,
-        orb.size,
-        sw,
-        sh,
-        orb_color,
-        0,
-      ),
-    )
-  }
-  // Player
-  let player_color = @debugutil.color_from_hex(0x00FFCC)
-  let psx = self.camera.world_to_screen_x(self.player.x)
-  let psy = self.camera.world_to_screen_y(self.player.y)
-  let half_pl = self.player.size / 2.0
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst,
-      shader,
-      psx - half_pl,
-      psy - half_pl,
-      self.player.size,
-      self.player.size,
-      sw,
-      sh,
-      player_color,
-      0,
-    ),
-  )
-  // UI: HP bar
-  let hp_bg_color = @debugutil.color_from_hex(0x440000)
-  let hp_fg_color = @debugutil.color_from_hex(0x00CC00)
+fn SurvivorState::view_play(self : SurvivorState) -> @scene.SceneNode {
+  let sw = self.screen_w
+  let sh = self.screen_h
   let hp_bar_w = 60.0
   let hp_bar_h = 6.0
-  let hp_bar_x = 4.0
-  let hp_bar_y = 4.0
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, hp_bar_x, hp_bar_y, hp_bar_w, hp_bar_h, sw, sh, hp_bg_color, 0,
-    ),
-  )
   let hp_ratio = self.player.hp.to_double() / self.player.max_hp.to_double()
   let hp_fill_w = hp_bar_w * hp_ratio
-  if hp_fill_w > 0.0 {
-    cmds.push(
-      @debugutil.new_ndc_rect_fill_command(
-        dst, shader, hp_bar_x, hp_bar_y, hp_fill_w, hp_bar_h, sw, sh, hp_fg_color,
-        0,
-      ),
-    )
-  }
-  // UI: XP bar
-  let xp_bg_color = @debugutil.color_from_hex(0x000044)
-  let xp_fg_color = @debugutil.color_from_hex(0x0066FF)
-  let xp_bar_y = hp_bar_y + hp_bar_h + 2.0
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, hp_bar_x, xp_bar_y, hp_bar_w, hp_bar_h, sw, sh, xp_bg_color, 0,
-    ),
-  )
   let xp_ratio = if self.xp_to_next > 0 {
     self.xp.to_double() / self.xp_to_next.to_double()
   } else {
     0.0
   }
   let xp_fill_w = hp_bar_w * @cmp.minimum(1.0, xp_ratio)
-  if xp_fill_w > 0.0 {
-    cmds.push(
-      @debugutil.new_ndc_rect_fill_command(
-        dst, shader, hp_bar_x, xp_bar_y, xp_fill_w, hp_bar_h, sw, sh, xp_fg_color,
-        0,
+  let psx = self.camera.world_to_screen_x(self.player.x)
+  let psy = self.camera.world_to_screen_y(self.player.y)
+  let half_pl = self.player.size / 2.0
+  let seconds = self.survival_time / 60
+  @scene.fragment(
+    [
+      // Background
+      @scene.rect(w=sw, h=sh, fill=0x1A2E1A),
+      // Grid lines
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        let grid_spacing = 64.0
+        let start_gx = @math.floor(self.camera.x / grid_spacing) * grid_spacing
+        let mut gx = start_gx
+        while gx < self.camera.x + sw + grid_spacing {
+          let screen_x = gx - self.camera.x
+          if screen_x >= 0.0 && screen_x < sw {
+            nodes.push(
+              @scene.rect(x=screen_x, w=1.0, h=sh, fill=0x2A4E2A, alpha=0.5),
+            )
+          }
+          gx = gx + grid_spacing
+        }
+        let start_gy = @math.floor(self.camera.y / grid_spacing) * grid_spacing
+        let mut gy = start_gy
+        while gy < self.camera.y + sh + grid_spacing {
+          let screen_y = gy - self.camera.y
+          if screen_y >= 0.0 && screen_y < sh {
+            nodes.push(
+              @scene.rect(y=screen_y, w=sw, h=1.0, fill=0x2A4E2A, alpha=0.5),
+            )
+          }
+          gy = gy + grid_spacing
+        }
+        nodes
+      }),
+      // Gems
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for gem in self.gems {
+          if not(gem.alive) {
+            continue
+          }
+          let gsx = self.camera.world_to_screen_x(gem.x)
+          let gsy = self.camera.world_to_screen_y(gem.y)
+          if gsx > -8.0 && gsx < sw + 8.0 && gsy > -8.0 && gsy < sh + 8.0 {
+            nodes.push(
+              @scene.rect(
+                x=gsx - 3.0,
+                y=gsy - 3.0,
+                w=6.0,
+                h=6.0,
+                fill=0x00FFFF,
+              ),
+            )
+          }
+        }
+        nodes
+      }),
+      // Enemies
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for e in self.enemies {
+          if not(e.alive) {
+            continue
+          }
+          let esx = self.camera.world_to_screen_x(e.x)
+          let esy = self.camera.world_to_screen_y(e.y)
+          if esx > -20.0 &&
+            esx < sw + 20.0 &&
+            esy > -20.0 &&
+            esy < sh + 20.0 {
+            let fill = if e.hit_timer > 0 {
+              0xFFFFFF
+            } else {
+              match e.kind {
+                1 => 0xFF8800
+                2 => 0x880000
+                _ => 0xCC2222
+              }
+            }
+            let half_e = e.size / 2.0
+            nodes.push(
+              @scene.rect(
+                x=esx - half_e,
+                y=esy - half_e,
+                w=e.size,
+                h=e.size,
+                fill=fill,
+              ),
+            )
+          }
+        }
+        nodes
+      }),
+      // Area weapon effect
+      @scene.show(fn() { self.area_weapon.active_frames > 0 }, fn() {
+        let r = self.area_weapon.radius
+        @scene.rect(
+          x=psx - r,
+          y=psy - r,
+          w=r * 2.0,
+          h=r * 2.0,
+          fill=0xFFFF00,
+          alpha=0.3,
+        )
+      }),
+      // Projectiles
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for proj in self.projectiles {
+          if not(proj.alive) {
+            continue
+          }
+          let prsx = self.camera.world_to_screen_x(proj.x)
+          let prsy = self.camera.world_to_screen_y(proj.y)
+          if prsx > -8.0 &&
+            prsx < sw + 8.0 &&
+            prsy > -8.0 &&
+            prsy < sh + 8.0 {
+            let half_p = proj.size / 2.0
+            nodes.push(
+              @scene.rect(
+                x=prsx - half_p,
+                y=prsy - half_p,
+                w=proj.size,
+                h=proj.size,
+                fill=0xFFFF00,
+              ),
+            )
+          }
+        }
+        nodes
+      }),
+      // Orbit weapons
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for orb in self.orbit_weapons {
+          let ox = self.player.x + @math.cos(orb.angle) * orb.radius
+          let oy = self.player.y + @math.sin(orb.angle) * orb.radius
+          let osx = self.camera.world_to_screen_x(ox)
+          let osy = self.camera.world_to_screen_y(oy)
+          let half_o = orb.size / 2.0
+          nodes.push(
+            @scene.rect(
+              x=osx - half_o,
+              y=osy - half_o,
+              w=orb.size,
+              h=orb.size,
+              fill=0xFFFFFF,
+            ),
+          )
+        }
+        nodes
+      }),
+      // Player
+      @scene.rect(
+        x=psx - half_pl,
+        y=psy - half_pl,
+        w=self.player.size,
+        h=self.player.size,
+        fill=0x00FFCC,
       ),
-    )
-  }
-  // UI: Survival time (top-right)
-  let time_color = @debugutil.color_white()
-  let seconds = self.survival_time / 60
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    seconds,
-    sw - 30.0,
-    8.0,
-    sw,
-    sh,
-    time_color,
-    0.6,
-  )
-  // UI: Score
-  let score_color = @debugutil.color_from_hex(0xFFCC00)
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    self.score,
-    sw - 30.0,
-    22.0,
-    sw,
-    sh,
-    score_color,
-    0.6,
-  )
-  // UI: Level indicator
-  let level_color = @debugutil.color_from_hex(0xCCCCCC)
-  // "LV" + number
-  let lv_chars : Array[Int] = [76, 86] // L, V
-  @debugutil.draw_dot_text(
-    cmds, dst, shader, lv_chars, 22.0, 26.0, sw, sh, level_color, 0.5,
-  )
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    self.level,
-    46.0,
-    26.0,
-    sw,
-    sh,
-    level_color,
-    0.5,
+      // HP bar
+      @scene.group(
+        x=4.0,
+        y=4.0,
+        children=[
+          @scene.rect(w=hp_bar_w, h=hp_bar_h, fill=0x440000),
+          @scene.show(fn() { hp_fill_w > 0.0 }, fn() {
+            @scene.rect(w=hp_fill_w, h=hp_bar_h, fill=0x00CC00)
+          }),
+        ],
+      ),
+      // XP bar
+      @scene.group(
+        x=4.0,
+        y=12.0,
+        children=[
+          @scene.rect(w=hp_bar_w, h=hp_bar_h, fill=0x000044),
+          @scene.show(fn() { xp_fill_w > 0.0 }, fn() {
+            @scene.rect(w=xp_fill_w, h=hp_bar_h, fill=0x0066FF)
+          }),
+        ],
+      ),
+      // Survival time
+      @scene.label(
+        x=sw - 30.0,
+        y=8.0,
+        content=seconds.to_string(),
+        scale=0.6,
+      ),
+      // Score
+      @scene.label(
+        x=sw - 30.0,
+        y=22.0,
+        content=self.score.to_string(),
+        color=0xFFCC00,
+        scale=0.6,
+      ),
+      // Level
+      @scene.label(
+        x=22.0,
+        y=26.0,
+        content="LV" + self.level.to_string(),
+        color=0xCCCCCC,
+        scale=0.5,
+      ),
+    ],
   )
 }
 
 ///|
-fn SurvivorState::draw_levelup_overlay(
+fn SurvivorState::view_levelup_overlay(
   self : SurvivorState,
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  sw : Double,
-  sh : Double,
-) -> Unit {
-  // Semi-transparent overlay
-  let overlay = @debugutil.color_from_hex_alpha(0x000000, 0.7)
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, 0.0, 0.0, sw, sh, sw, sh, overlay, 0,
-    ),
+) -> @scene.SceneNode {
+  let sw = self.screen_w
+  let sh = self.screen_h
+  @scene.fragment(
+    [
+      @scene.rect(w=sw, h=sh, fill=0x000000, alpha=0.7),
+      @scene.label(
+        x=sw / 2.0,
+        y=40.0,
+        content="LEVEL UP",
+        color=0xFFFF00,
+        scale=1.2,
+      ),
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for i = 0; i < self.upgrade_choices.length(); i = i + 1 {
+          let choice_y = 80.0 + i.to_double() * 40.0
+          if i == self.selected_upgrade {
+            nodes.push(
+              @scene.rect(
+                x=40.0,
+                y=choice_y - 12.0,
+                w=sw - 80.0,
+                h=30.0,
+                fill=0xFFFF00,
+                alpha=0.3,
+              ),
+            )
+            nodes.push(
+              @scene.label(x=55.0, y=choice_y, content=">", color=0xFFFF00),
+            )
+          }
+          nodes.push(
+            @scene.label(
+              x=sw / 2.0,
+              y=choice_y,
+              content=upgrade_name(self.upgrade_choices[i]),
+            ),
+          )
+        }
+        nodes
+      }),
+    ],
   )
-  // "LEVEL UP" title
-  let title_color = @debugutil.color_from_hex(0xFFFF00)
-  // L=76, E=69, V=86, E=69, L=76, ' '=32, U=85, P=80
-  @debugutil.draw_dot_text(
-    cmds,
-    dst,
-    shader,
-    [76, 69, 86, 69, 76, 32, 85, 80],
-    sw / 2.0,
-    40.0,
-    sw,
-    sh,
-    title_color,
-    1.2,
-  )
-  // Draw 3 upgrade choices
-  for i = 0; i < self.upgrade_choices.length(); i = i + 1 {
-    let choice_y = 80.0 + i.to_double() * 40.0
-    // Highlight selected
-    if i == self.selected_upgrade {
-      let sel_color = @debugutil.color_from_hex_alpha(0xFFFF00, 0.3)
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          40.0,
-          choice_y - 12.0,
-          sw - 80.0,
-          30.0,
-          sw,
-          sh,
-          sel_color,
-          0,
-        ),
-      )
-      // Arrow ">"
-      let arrow_color = @debugutil.color_from_hex(0xFFFF00)
-      @debugutil.draw_dot_text(
-        cmds,
-        dst,
-        shader,
-        [62],
-        55.0,
-        choice_y,
-        sw,
-        sh,
-        arrow_color,
-        1.0,
-      )
-    }
-    // Upgrade name
-    let name_color = @debugutil.color_white()
-    let chars = upgrade_name_chars(self.upgrade_choices[i])
-    @debugutil.draw_dot_text(
-      cmds,
-      dst,
-      shader,
-      chars,
-      sw / 2.0,
-      choice_y,
-      sw,
-      sh,
-      name_color,
-      1.0,
-    )
-  }
 }
 
 ///|
-fn SurvivorState::draw_gameover(
-  self : SurvivorState,
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-  sw : Double,
-  sh : Double,
-) -> Unit {
-  // Dark background
-  let bg = @debugutil.color_from_hex(0x1A0000)
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst, shader, 0.0, 0.0, sw, sh, sw, sh, bg, 0,
-    ),
-  )
-  // "GAME OVER"
-  let go_color = @debugutil.color_from_hex(0xFF0000)
-  // G=71, A=65, M=77, E=69, ' '=32, O=79, V=86, E=69, R=82
-  @debugutil.draw_dot_text(
-    cmds,
-    dst,
-    shader,
-    [71, 65, 77, 69, 32, 79, 86, 69, 82],
-    sw / 2.0,
-    sh / 2.0 - 40.0,
-    sw,
-    sh,
-    go_color,
-    1.5,
-  )
-  // Score
-  let score_color = @debugutil.color_from_hex(0xFFCC00)
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    self.score,
-    sw / 2.0,
-    sh / 2.0,
-    sw,
-    sh,
-    score_color,
-    1.5,
-  )
-  // Survival time in seconds
-  let time_color = @debugutil.color_white()
+fn SurvivorState::view_gameover(self : SurvivorState) -> @scene.SceneNode {
+  let sw = self.screen_w
+  let sh = self.screen_h
   let seconds = self.survival_time / 60
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    seconds,
-    sw / 2.0,
-    sh / 2.0 + 30.0,
-    sw,
-    sh,
-    time_color,
-    1.0,
+  @scene.fragment(
+    [
+      @scene.rect(w=sw, h=sh, fill=0x1A0000),
+      @scene.label(
+        x=sw / 2.0,
+        y=sh / 2.0 - 40.0,
+        content="GAME OVER",
+        color=0xFF0000,
+        scale=1.5,
+      ),
+      @scene.label(
+        x=sw / 2.0,
+        y=sh / 2.0,
+        content=self.score.to_string(),
+        color=0xFFCC00,
+        scale=1.5,
+      ),
+      @scene.label(
+        x=sw / 2.0,
+        y=sh / 2.0 + 30.0,
+        content=seconds.to_string(),
+      ),
+      @scene.show(fn() { self.frame_count / 30 % 2 == 0 }, fn() {
+        @scene.label(x=sw / 2.0, y=sh / 2.0 + 70.0, content="SPACE")
+      }),
+    ],
   )
-  // "SPACE" blinking
-  if self.frame_count / 30 % 2 == 0 {
-    let hint_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.7)
-    @debugutil.draw_dot_text(
-      cmds,
-      dst,
-      shader,
-      [83, 80, 65, 67, 69],
-      sw / 2.0,
-      sh / 2.0 + 70.0,
-      sw,
-      sh,
-      hint_color,
-      1.0,
-    )
-  }
 }

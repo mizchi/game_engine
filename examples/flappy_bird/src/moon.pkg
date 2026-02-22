@@ -1,10 +1,8 @@
 import {
+  "mizchi/signals" @signals,
+  "mizchi/kagura/scene" @scene,
   "mizchi/kagura/core" @core,
-  "mizchi/kagura/debugutil" @debugutil,
-  "mizchi/kagura/gfx" @gfx,
   "mizchi/kagura/inpututil" @inpututil,
-  "mizchi/kagura/platform" @platform,
-  "mizchi/kagura/runtime" @runtime,
   "mizchi/web_runtime_hooks" @web_hooks,
   "mizchi/native_runtime_hooks" @native_hooks,
 }
@@ -18,5 +16,5 @@ options(
       "cc-link-flags": "-L../../deps/wgpu-macos/lib -L/usr/local/lib -L/opt/homebrew/lib -lwgpu_native -lglfw -Wl,-rpath,../../deps/wgpu-macos/lib -Wl,-rpath,/usr/local/lib -Wl,-rpath,/opt/homebrew/lib -framework Metal -framework QuartzCore -framework IOKit -framework CoreFoundation -framework Cocoa -framework Foundation",
     },
   },
-  targets: { "main_js.mbt": [ "js" ], "main_native.mbt": [ "native" ] },
+  targets: { "main_js.mbt": ["js"], "main_native.mbt": ["native"] },
 )

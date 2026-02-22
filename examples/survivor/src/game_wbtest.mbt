@@ -553,58 +553,6 @@ test "levelup: select and confirm" {
 }
 
 // ============================================================
-// Draw Command Tests
-// ============================================================
-
-///|
-test "draw: title screen produces commands" {
-  let state = SurvivorState::new()
-  state.game_mode = 0
-  state.frame_count = 0
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  // Background + SURVIVOR text + SPACE text
-  assert_true(cmds.length() > 10)
-}
-
-///|
-test "draw: play screen has background and player" {
-  let state = SurvivorState::new()
-  state.game_mode = 1
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  // At minimum: bg + grid lines + player + HP bar(2) + XP bar(2) + time + score + level
-  assert_true(cmds.length() >= 5)
-}
-
-///|
-test "draw: gameover screen produces commands" {
-  let state = SurvivorState::new()
-  state.game_mode = 3
-  state.frame_count = 0
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  // Background + GAME OVER text + score + time + SPACE text
-  assert_true(cmds.length() > 10)
-}
-
-///|
-test "draw: levelup overlay adds to play commands" {
-  let state = SurvivorState::new()
-  state.game_mode = 2
-  state.upgrade_choices = [0, 1, 2]
-  state.selected_upgrade = 0
-  let dst = @gfx.new_image_handle(1, 320, 240)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  // Play commands + overlay + LEVEL UP text + 3 choices
-  assert_true(cmds.length() > 20)
-}
-
-// ============================================================
 // Enemy Collision Tests
 // ============================================================
 

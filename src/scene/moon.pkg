@@ -1,0 +1,17 @@
+import {
+  "mizchi/signals/ui" @ui,
+  "mizchi/kagura/core" @core,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/debugutil" @debugutil,
+  "mizchi/kagura/platform" @platform,
+  "mizchi/kagura/runtime" @runtime,
+}
+
+warnings = "-6-53-68"
+
+options(
+  targets: {
+    "app_js.mbt": ["js"],
+    "app_native.mbt": ["native"],
+  },
+)

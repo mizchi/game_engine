@@ -620,520 +620,323 @@ fn ShowcaseState::check_wall_collision(
   false
 }
 
-// === Draw Commands ===
+// === View (Declarative Scene API) ===
 
 ///|
-fn ShowcaseState::build_draw_commands(
-  self : ShowcaseState,
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Array[@gfx.DrawTrianglesCommand] {
-  let cmds : Array[@gfx.DrawTrianglesCommand] = []
-  let pipeline_id = 0
-  let uniform_hash = 0
-  let blend = @gfx.blend_mode_from_int(1)
-  let white_uniform : Array[Int] = [255, 255, 255, 255]
-  let dst_region = @gfx.new_dst_region(
-    0,
-    0,
-    screen_w.to_int(),
-    screen_h.to_int(),
-    6,
-  )
+fn ShowcaseState::view(self : ShowcaseState) -> @scene.SceneNode {
   match self.mode {
-    m if m == mode_title => self.draw_title(cmds, dst, shader)
-    m if m == mode_playing || m == mode_paused => {
+    m if m == mode_title => self.view_title()
+    m if m == mode_playing || m == mode_paused => self.view_playing()
+    m if m == mode_gameover => self.view_gameover()
+    _ => @scene.rect(w=screen_w, h=screen_h, fill=0x000000)
+  }
+}
+
+///|
+fn ShowcaseState::view_title(self : ShowcaseState) -> @scene.SceneNode {
+  @scene.fragment(
+    [
+      @scene.rect(w=screen_w, h=screen_h, fill=0x1A1A2E),
+      @scene.label(
+        x=screen_w / 2.0,
+        y=screen_h / 2.0 - 30.0,
+        content="DUNGEON",
+        scale=3.0,
+      ),
+      @scene.show(fn() { self.frame_count / 30 % 2 == 0 }, fn() {
+        @scene.label(
+          x=screen_w / 2.0,
+          y=screen_h / 2.0 + 30.0,
+          content="PRESS SPACE",
+          color=0xFFCC00,
+        )
+      }),
+    ],
+  )
+}
+
+///|
+fn ShowcaseState::view_playing(self : ShowcaseState) -> @scene.SceneNode {
+  let view_left = self.camera.x
+  let view_top = self.camera.y
+  let px = self.player.x - view_left
+  let py = self.player.y - view_top
+  let phs = self.player.size / 2.0
+  let player_fill = if self.player.damage_timer > 0 { 0xFFFFFF } else { 0x00FFCC }
+  let hp_ratio = self.player.hp.to_double() / self.player.max_hp.to_double()
+  let hp_width = 60.0 * hp_ratio
+  let item_visible = self.frame_count / 8 % 2 == 0
+  @scene.fragment(
+    [
       // Background
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          0.0,
-          0.0,
-          screen_w,
-          screen_h,
-          screen_w,
-          screen_h,
-          @debugutil.color_black(),
-          pipeline_id,
-        ),
-      )
-      // Tilemap - render each tile as a solid-color rectangle
-      let view_left = self.camera.x
-      let view_top = self.camera.y
-      let view_right = view_left + screen_w
-      let view_bottom = view_top + screen_h
-      let floor_color = @debugutil.color_from_hex(0x555555)
-      let wall_color = @debugutil.color_from_hex(0x6B4226)
-      let water_color = @debugutil.color_from_hex(0x2244AA)
-      for row = 0; row < map_rows; row = row + 1 {
-        for col = 0; col < map_columns; col = col + 1 {
-          let sx = col.to_double() * tile_size - view_left
-          let sy = row.to_double() * tile_size - view_top
-          if sx > -tile_size &&
-            sx < screen_w + tile_size &&
-            sy > -tile_size &&
-            sy < screen_h + tile_size {
-            let idx = row * map_columns + col
-            let tile_color = match self.tilemap[idx] {
-              t if t == tile_wall => wall_color
-              t if t == tile_water => water_color
-              _ => floor_color
+      @scene.rect(w=screen_w, h=screen_h, fill=0x000000),
+      // Tilemap
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for row = 0; row < map_rows; row = row + 1 {
+          for col = 0; col < map_columns; col = col + 1 {
+            let sx = col.to_double() * tile_size - view_left
+            let sy = row.to_double() * tile_size - view_top
+            if sx > -tile_size &&
+              sx < screen_w + tile_size &&
+              sy > -tile_size &&
+              sy < screen_h + tile_size {
+              let idx = row * map_columns + col
+              let fill = match self.tilemap[idx] {
+                t if t == tile_wall => 0x6B4226
+                t if t == tile_water => 0x2244AA
+                _ => 0x555555
+              }
+              nodes.push(
+                @scene.rect(x=sx, y=sy, w=tile_size, h=tile_size, fill=fill),
+              )
             }
-            cmds.push(
-              @debugutil.new_ndc_rect_fill_command(
-                dst, shader, sx, sy, tile_size, tile_size, screen_w, screen_h,
-                tile_color, pipeline_id,
+          }
+        }
+        nodes
+      }),
+      // Grid lines
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        let grid_spacing = tile_size
+        let start_gx = @math.floor(view_left / grid_spacing) * grid_spacing
+        let mut gx = start_gx
+        while gx < view_left + screen_w + grid_spacing {
+          let screen_x = gx - view_left
+          if screen_x >= 0.0 && screen_x < screen_w {
+            nodes.push(
+              @scene.rect(
+                x=screen_x,
+                w=1.0,
+                h=screen_h,
+                fill=0x444444,
+                alpha=0.3,
               ),
             )
           }
+          gx = gx + grid_spacing
         }
-      }
-      // Grid lines on floor tiles
-      let grid_color = @debugutil.color_from_hex_alpha(0x444444, 0.3)
-      let grid_spacing = tile_size
-      // Vertical grid lines
-      let start_gx = @math.floor(view_left / grid_spacing) * grid_spacing
-      let mut gx = start_gx
-      while gx < view_right + grid_spacing {
-        let screen_x = gx - view_left
-        if screen_x >= 0.0 && screen_x < screen_w {
-          cmds.push(
-            @debugutil.new_ndc_rect_fill_command(
-              dst, shader, screen_x, 0.0, 1.0, screen_h, screen_w, screen_h, grid_color,
-              pipeline_id,
-            ),
-          )
-        }
-        gx = gx + grid_spacing
-      }
-      // Horizontal grid lines
-      let start_gy = @math.floor(view_top / grid_spacing) * grid_spacing
-      let mut gy = start_gy
-      while gy < view_bottom + grid_spacing {
-        let screen_y = gy - view_top
-        if screen_y >= 0.0 && screen_y < screen_h {
-          cmds.push(
-            @debugutil.new_ndc_rect_fill_command(
-              dst, shader, 0.0, screen_y, screen_w, 1.0, screen_w, screen_h, grid_color,
-              pipeline_id,
-            ),
-          )
-        }
-        gy = gy + grid_spacing
-      }
-      // Items - blink to stand out
-      let item_visible = self.frame_count / 8 % 2 == 0
-      for item in self.items {
-        if not(item.collected) && item_visible {
-          let sx = item.x - view_left
-          let sy = item.y - view_top
-          if sx >= -10.0 &&
-            sx <= screen_w + 10.0 &&
-            sy >= -10.0 &&
-            sy <= screen_h + 10.0 {
-            let item_color = if item.kind == 0 {
-              @debugutil.color_from_hex(0x00FFFF) // Cyan gem
-            } else {
-              @debugutil.color_from_hex(0x00FF66) // Bright green health
-            }
-            cmds.push(
-              @debugutil.new_ndc_rect_fill_command(
-                dst,
-                shader,
-                sx - 4.0,
-                sy - 4.0,
-                8.0,
-                8.0,
-                screen_w,
-                screen_h,
-                item_color,
-                pipeline_id,
+        let start_gy = @math.floor(view_top / grid_spacing) * grid_spacing
+        let mut gy = start_gy
+        while gy < view_top + screen_h + grid_spacing {
+          let screen_y = gy - view_top
+          if screen_y >= 0.0 && screen_y < screen_h {
+            nodes.push(
+              @scene.rect(
+                y=screen_y,
+                w=screen_w,
+                h=1.0,
+                fill=0x444444,
+                alpha=0.3,
               ),
             )
           }
+          gy = gy + grid_spacing
         }
-      }
-      // Enemies
-      for enemy in self.enemies {
-        if enemy.alive {
-          let sx = enemy.x - view_left
-          let sy = enemy.y - view_top
-          if sx >= -20.0 &&
-            sx <= screen_w + 20.0 &&
-            sy >= -20.0 &&
-            sy <= screen_h + 20.0 {
-            // White flash on damage, dark red otherwise
-            let enemy_color = if enemy.damage_timer > 0 {
-              @debugutil.color_white()
-            } else {
-              @debugutil.color_from_hex(0xCC2222)
+        nodes
+      }),
+      // Items (blinking)
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for item in self.items {
+          if not(item.collected) && item_visible {
+            let sx = item.x - view_left
+            let sy = item.y - view_top
+            if sx >= -10.0 &&
+              sx <= screen_w + 10.0 &&
+              sy >= -10.0 &&
+              sy <= screen_h + 10.0 {
+              let fill = if item.kind == 0 { 0x00FFFF } else { 0x00FF66 }
+              nodes.push(
+                @scene.rect(x=sx - 4.0, y=sy - 4.0, w=8.0, h=8.0, fill=fill),
+              )
             }
-            let ehs = enemy.size / 2.0
-            cmds.push(
-              @debugutil.new_ndc_rect_fill_command(
-                dst,
-                shader,
-                sx - ehs,
-                sy - ehs,
-                enemy.size,
-                enemy.size,
-                screen_w,
-                screen_h,
-                enemy_color,
-                pipeline_id,
-              ),
-            )
-            // Mini HP bar above enemy
-            let hp_bar_w = enemy.size
-            let hp_bar_h = 2.0
-            let hp_bar_y = sy - ehs - 4.0
-            // Background
-            cmds.push(
-              @debugutil.new_ndc_rect_fill_command(
-                dst,
-                shader,
-                sx - ehs,
-                hp_bar_y,
-                hp_bar_w,
-                hp_bar_h,
-                screen_w,
-                screen_h,
-                @debugutil.color_from_hex(0x440000),
-                pipeline_id,
-              ),
-            )
-            // Fill
-            let ehp_ratio = enemy.hp.to_double() / enemy.max_hp.to_double()
-            cmds.push(
-              @debugutil.new_ndc_rect_fill_command(
-                dst,
-                shader,
-                sx - ehs,
-                hp_bar_y,
-                hp_bar_w * ehp_ratio,
-                hp_bar_h,
-                screen_w,
-                screen_h,
-                @debugutil.color_from_hex(0xCC0000),
-                pipeline_id,
-              ),
-            )
           }
         }
-      }
-      // Player - bright cyan, white flash on damage
-      let px = self.player.x - view_left
-      let py = self.player.y - view_top
-      let player_color = if self.player.damage_timer > 0 {
-        @debugutil.color_white()
-      } else {
-        @debugutil.color_from_hex(0x00FFCC)
-      }
-      let phs = self.player.size / 2.0
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          px - phs,
-          py - phs,
-          self.player.size,
-          self.player.size,
-          screen_w,
-          screen_h,
-          player_color,
-          pipeline_id,
-        ),
-      )
-      // Attack indicator - cross pattern
-      if self.attack_timer > attack_cooldown - 3 {
-        let cross_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.4)
+        nodes
+      }),
+      // Enemies with HP bars
+      @scene.for_each(fn() {
+        let nodes : Array[@scene.SceneNode] = []
+        for enemy in self.enemies {
+          if enemy.alive {
+            let sx = enemy.x - view_left
+            let sy = enemy.y - view_top
+            if sx >= -20.0 &&
+              sx <= screen_w + 20.0 &&
+              sy >= -20.0 &&
+              sy <= screen_h + 20.0 {
+              let fill = if enemy.damage_timer > 0 { 0xFFFFFF } else { 0xCC2222 }
+              let ehs = enemy.size / 2.0
+              // Enemy body
+              nodes.push(
+                @scene.rect(
+                  x=sx - ehs,
+                  y=sy - ehs,
+                  w=enemy.size,
+                  h=enemy.size,
+                  fill=fill,
+                ),
+              )
+              // HP bar background
+              nodes.push(
+                @scene.rect(
+                  x=sx - ehs,
+                  y=sy - ehs - 4.0,
+                  w=enemy.size,
+                  h=2.0,
+                  fill=0x440000,
+                ),
+              )
+              // HP bar fill
+              let ehp_ratio = enemy.hp.to_double() / enemy.max_hp.to_double()
+              nodes.push(
+                @scene.rect(
+                  x=sx - ehs,
+                  y=sy - ehs - 4.0,
+                  w=enemy.size * ehp_ratio,
+                  h=2.0,
+                  fill=0xCC0000,
+                ),
+              )
+            }
+          }
+        }
+        nodes
+      }),
+      // Player
+      @scene.rect(
+        x=px - phs,
+        y=py - phs,
+        w=self.player.size,
+        h=self.player.size,
+        fill=player_fill,
+      ),
+      // Attack indicator (cross pattern)
+      @scene.show(fn() { self.attack_timer > attack_cooldown - 3 }, fn() {
         let cross_thick = 4.0
         let cross_len = attack_range
-        // Horizontal bar
-        cmds.push(
-          @debugutil.new_ndc_rect_fill_command(
-            dst,
-            shader,
-            px - cross_len / 2.0,
-            py - cross_thick / 2.0,
-            cross_len,
-            cross_thick,
-            screen_w,
-            screen_h,
-            cross_color,
-            pipeline_id,
-          ),
+        @scene.fragment(
+          [
+            @scene.rect(
+              x=px - cross_len / 2.0,
+              y=py - cross_thick / 2.0,
+              w=cross_len,
+              h=cross_thick,
+              fill=0xFFFFFF,
+              alpha=0.4,
+            ),
+            @scene.rect(
+              x=px - cross_thick / 2.0,
+              y=py - cross_len / 2.0,
+              w=cross_thick,
+              h=cross_len,
+              fill=0xFFFFFF,
+              alpha=0.4,
+            ),
+          ],
         )
-        // Vertical bar
-        cmds.push(
-          @debugutil.new_ndc_rect_fill_command(
-            dst,
-            shader,
-            px - cross_thick / 2.0,
-            py - cross_len / 2.0,
-            cross_thick,
-            cross_len,
-            screen_w,
-            screen_h,
-            cross_color,
-            pipeline_id,
-          ),
-        )
-      }
-      // Screen flash overlay - red for damage, white for attack
-      if self.screen_flash > 0 {
+      }),
+      // Screen flash
+      @scene.show(fn() { self.screen_flash > 0 }, fn() {
         let flash_alpha = self.screen_flash.to_double() / 5.0
-        let flash_color = if self.player.damage_timer > 0 {
-          @debugutil.color_from_hex_alpha(0xFF0000, flash_alpha * 0.15 / 0.6)
+        if self.player.damage_timer > 0 {
+          @scene.rect(
+            w=screen_w,
+            h=screen_h,
+            fill=0xFF0000,
+            alpha=flash_alpha * 0.15 / 0.6,
+          )
         } else {
-          @debugutil.color_from_hex_alpha(0xFFFFFF, flash_alpha)
-        }
-        cmds.push(
-          @debugutil.new_ndc_rect_fill_command(
-            dst, shader, 0.0, 0.0, screen_w, screen_h, screen_w, screen_h, flash_color,
-            pipeline_id,
-          ),
-        )
-      }
-      // HUD: HP bar background
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          4.0,
-          4.0,
-          62.0,
-          8.0,
-          screen_w,
-          screen_h,
-          @debugutil.color_from_hex_alpha(0x440000, 0.8),
-          pipeline_id,
-        ),
-      )
-      // HUD: HP bar fill
-      let hp_ratio = self.player.hp.to_double() / self.player.max_hp.to_double()
-      let hp_width = 60.0 * hp_ratio
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          5.0,
-          5.0,
-          hp_width,
-          6.0,
-          screen_w,
-          screen_h,
-          @debugutil.color_from_hex(0x00CC00),
-          pipeline_id,
-        ),
-      )
-      // HUD: separator line
-      cmds.push(
-        @debugutil.new_ndc_rect_fill_command(
-          dst,
-          shader,
-          4.0,
-          14.0,
-          62.0,
-          1.0,
-          screen_w,
-          screen_h,
-          @debugutil.color_from_hex_alpha(0xFFFFFF, 0.2),
-          pipeline_id,
-        ),
-      )
-      // HUD: Score
-      @debugutil.draw_number(
-        cmds,
-        dst,
-        shader,
-        self.score,
-        screen_w - 60.0,
-        8.0,
-        screen_w,
-        screen_h,
-        @debugutil.color_from_hex(0xFFCC00),
-        0.8,
-      )
-      // Paused overlay
-      if self.mode == mode_paused {
-        // Semi-transparent overlay
-        cmds.push(
-          @debugutil.new_ndc_rect_fill_command(
-            dst,
-            shader,
-            0.0,
-            0.0,
-            screen_w,
-            screen_h,
-            screen_w,
-            screen_h,
-            @debugutil.color_from_hex_alpha(0x000000, 0.5),
-            pipeline_id,
-          ),
-        )
-        // "PAUSED" text
-        // P=80, A=65, U=85, S=83, E=69, D=68
-        @debugutil.draw_dot_text(
-          cmds,
-          dst,
-          shader,
-          [80, 65, 85, 83, 69, 68],
-          screen_w / 2.0,
-          screen_h / 2.0 - 20.0,
-          screen_w,
-          screen_h,
-          @debugutil.color_white(),
-          2.0,
-        )
-        // Menu items
-        let menu_labels : Array[Array[Int]] = [
-          [82, 69, 83, 85, 77, 69], // RESUME
-          [82, 69, 83, 69, 84], // RESET
-          [81, 85, 73, 84], // QUIT
-        ]
-        let focused_id = self.focus_mgr.current_focus()
-        for i, label in menu_labels {
-          let menu_color = match focused_id {
-            Some(id) if id.value == self.menu_node_ids[i].value =>
-              @debugutil.color_yellow()
-            _ => @debugutil.color_white()
-          }
-          @debugutil.draw_dot_text(
-            cmds,
-            dst,
-            shader,
-            label,
-            screen_w / 2.0,
-            screen_h / 2.0 + 10.0 + i.to_double() * 18.0,
-            screen_w,
-            screen_h,
-            menu_color,
-            1.0,
+          @scene.rect(
+            w=screen_w,
+            h=screen_h,
+            fill=0xFFFFFF,
+            alpha=flash_alpha,
           )
         }
-      }
-    }
-    m if m == mode_gameover => self.draw_gameover(cmds, dst, shader)
-    _ => ()
-  }
-  cmds
+      }),
+      // HUD: HP bar
+      @scene.group(
+        x=4.0,
+        y=4.0,
+        children=[
+          @scene.rect(w=62.0, h=8.0, fill=0x440000, alpha=0.8),
+          @scene.rect(x=1.0, y=1.0, w=hp_width, h=6.0, fill=0x00CC00),
+          @scene.rect(y=10.0, w=62.0, h=1.0, fill=0xFFFFFF, alpha=0.2),
+        ],
+      ),
+      // HUD: Score
+      @scene.label(
+        x=screen_w - 60.0,
+        y=8.0,
+        content=self.score.to_string(),
+        color=0xFFCC00,
+        scale=0.8,
+      ),
+      // Paused overlay
+      @scene.show(fn() { self.mode == mode_paused }, fn() {
+        let focused_id = self.focus_mgr.current_focus()
+        @scene.fragment(
+          [
+            @scene.rect(w=screen_w, h=screen_h, fill=0x000000, alpha=0.5),
+            @scene.label(
+              x=screen_w / 2.0,
+              y=screen_h / 2.0 - 20.0,
+              content="PAUSED",
+              scale=2.0,
+            ),
+            @scene.for_each(fn() {
+              let nodes : Array[@scene.SceneNode] = []
+              let labels = ["RESUME", "RESET", "QUIT"]
+              for i = 0; i < labels.length(); i = i + 1 {
+                let color = match focused_id {
+                  Some(id) if id.value == self.menu_node_ids[i].value =>
+                    0xFFFF00
+                  _ => 0xFFFFFF
+                }
+                nodes.push(
+                  @scene.label(
+                    x=screen_w / 2.0,
+                    y=screen_h / 2.0 + 10.0 + i.to_double() * 18.0,
+                    content=labels[i],
+                    color=color,
+                  ),
+                )
+              }
+              nodes
+            }),
+          ],
+        )
+      }),
+    ],
+  )
 }
 
 ///|
-fn ShowcaseState::draw_title(
-  self : ShowcaseState,
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Unit {
-  let pipeline_id = 0
-  // Background - dark navy
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst,
-      shader,
-      0.0,
-      0.0,
-      screen_w,
-      screen_h,
-      screen_w,
-      screen_h,
-      @debugutil.color_from_hex(0x1A1A2E),
-      pipeline_id,
-    ),
-  )
-  // Title "DUNGEON"
-  @debugutil.draw_dot_text(
-    cmds,
-    dst,
-    shader,
-    [68, 85, 78, 71, 69, 79, 78],
-    screen_w / 2.0,
-    screen_h / 2.0 - 30.0,
-    screen_w,
-    screen_h,
-    @debugutil.color_white(),
-    3.0,
-  )
-  // "PRESS SPACE" prompt - blink every 30 frames
-  if self.frame_count / 30 % 2 == 0 {
-    @debugutil.draw_dot_text(
-      cmds,
-      dst,
-      shader,
-      [80, 82, 69, 83, 83, 32, 83, 80, 65, 67, 69],
-      screen_w / 2.0,
-      screen_h / 2.0 + 30.0,
-      screen_w,
-      screen_h,
-      @debugutil.color_from_hex(0xFFCC00),
-      1.0,
-    )
-  }
-}
-
-///|
-fn ShowcaseState::draw_gameover(
-  self : ShowcaseState,
-  cmds : Array[@gfx.DrawTrianglesCommand],
-  dst : @gfx.ImageHandle,
-  shader : @gfx.ShaderHandle,
-) -> Unit {
-  let pipeline_id = 0
-  // Background - dark red
-  cmds.push(
-    @debugutil.new_ndc_rect_fill_command(
-      dst,
-      shader,
-      0.0,
-      0.0,
-      screen_w,
-      screen_h,
-      screen_w,
-      screen_h,
-      @debugutil.color_from_hex(0x2E0000),
-      pipeline_id,
-    ),
-  )
-  // "GAME OVER"
-  @debugutil.draw_dot_text(
-    cmds,
-    dst,
-    shader,
-    [71, 65, 77, 69, 32, 79, 86, 69, 82],
-    screen_w / 2.0,
-    screen_h / 2.0 - 20.0,
-    screen_w,
-    screen_h,
-    @debugutil.color_red(),
-    2.0,
-  )
-  // "SCORE" label - S=83, C=67, O=79, R=82, E=69
-  @debugutil.draw_dot_text(
-    cmds,
-    dst,
-    shader,
-    [83, 67, 79, 82, 69],
-    screen_w / 2.0,
-    screen_h / 2.0 + 10.0,
-    screen_w,
-    screen_h,
-    @debugutil.color_from_hex(0xFFCC00),
-    1.0,
-  )
-  // Score number
-  @debugutil.draw_number(
-    cmds,
-    dst,
-    shader,
-    self.score,
-    screen_w / 2.0,
-    screen_h / 2.0 + 30.0,
-    screen_w,
-    screen_h,
-    @debugutil.color_white(),
-    2.0,
+fn ShowcaseState::view_gameover(self : ShowcaseState) -> @scene.SceneNode {
+  @scene.fragment(
+    [
+      @scene.rect(w=screen_w, h=screen_h, fill=0x2E0000),
+      @scene.label(
+        x=screen_w / 2.0,
+        y=screen_h / 2.0 - 20.0,
+        content="GAME OVER",
+        color=0xFF0000,
+        scale=2.0,
+      ),
+      @scene.label(
+        x=screen_w / 2.0,
+        y=screen_h / 2.0 + 10.0,
+        content="SCORE",
+        color=0xFFCC00,
+      ),
+      @scene.label(
+        x=screen_w / 2.0,
+        y=screen_h / 2.0 + 30.0,
+        content=self.score.to_string(),
+        scale=2.0,
+      ),
+    ],
   )
 }

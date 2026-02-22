@@ -5,6 +5,7 @@
   "warn-list": "-6-29-53-68",
   "deps": {
     "mizchi/kagura": { "path": "../.." },
+    "mizchi/signals": "0.6.3",
     "mizchi/web_runtime_hooks": { "path": "../web_runtime_hooks" },
     "mizchi/native_runtime_hooks": { "path": "../native_runtime_hooks" }
   }
