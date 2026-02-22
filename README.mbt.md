@@ -29,12 +29,16 @@ camera2d/      2D camera
 vector/        Vector math
 ```
 
-### Backend Strategy
+### Platform Support
 
-| Target  | Backend              |
-|---------|----------------------|
-| Desktop | wgpu-native + GLFW   |
-| Web     | WebGPU (primary), WebGL2 (fallback) |
+| Target | Backend | Status |
+|--------|---------|--------|
+| Web (all OS) | WebGPU / WebGL2 | Supported |
+| Native macOS | wgpu-native + Metal + GLFW | Supported |
+| Native Linux | wgpu-native + Vulkan + GLFW | Planned |
+| Native Windows | wgpu-native + D3D12/Vulkan + GLFW | Planned |
+
+> JS builds (browser) work on any OS. Native builds currently support macOS only.
 
 ## Quick Start
 
