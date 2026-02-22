@@ -1,5 +1,5 @@
 {
-  "name": "mizchi/game_engine",
+  "name": "mizchi/kagura",
   "version": "0.1.0",
   "deps": {
     "mizchi/image": "0.1.1",
@@ -9,7 +9,7 @@
     "mizchi/svg": "0.1.9"
   },
   "readme": "README.mbt.md",
-  "repository": "https://github.com/mizchi/game_engine",
+  "repository": "https://github.com/mizchi/kagura",
   "license": "Apache-2.0",
   "keywords": [
     "game-engine",

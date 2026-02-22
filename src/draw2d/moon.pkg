@@ -1,4 +1,4 @@
 import {
-  "mizchi/game_engine/asset" @asset,
-  "mizchi/game_engine/gfx" @gfx,
+  "mizchi/kagura/asset" @asset,
+  "mizchi/kagura/gfx" @gfx,
 }

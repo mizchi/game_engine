@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/payload2d"
+package "mizchi/kagura/payload2d"
 
 // Values
 pub fn clamp_unit(Double) -> Double

@@ -1,6 +1,6 @@
 import {
-  "mizchi/game_engine/core" @core,
-  "mizchi/game_engine/gfx" @gfx,
-  "mizchi/game_engine/inpututil" @inpututil,
-  "mizchi/game_engine/vector" @vector,
+  "mizchi/kagura/core" @core,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/inpututil" @inpututil,
+  "mizchi/kagura/vector" @vector,
 }

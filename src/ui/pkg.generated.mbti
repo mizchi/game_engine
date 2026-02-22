@@ -1,10 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/ui"
+package "mizchi/kagura/ui"
 
 import {
-  "mizchi/game_engine/core",
-  "mizchi/game_engine/gfx",
-  "mizchi/game_engine/inpututil",
+  "mizchi/kagura/core",
+  "mizchi/kagura/gfx",
+  "mizchi/kagura/inpututil",
   "mizchi/layout/types",
 }
 

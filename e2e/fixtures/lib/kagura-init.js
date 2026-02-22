@@ -21,7 +21,7 @@ export async function initWebGPU(canvasSelector) {
 }
 
 export function setupGlobalState(canvas, device, format, context) {
-  const state = globalThis.__gameEngineWebRuntime ?? (globalThis.__gameEngineWebRuntime = {
+  const state = globalThis.__kaguraWebRuntime ?? (globalThis.__kaguraWebRuntime = {
     nextSurfaceId: 100,
     selector: "#app",
     canvas: null,
@@ -41,7 +41,7 @@ export function setupGlobalState(canvas, device, format, context) {
   });
   state.canvas = canvas;
   state.surfaceId = state.nextSurfaceId++;
-  canvas.__gameEngineSurfaceId = state.surfaceId;
+  canvas.__kaguraSurfaceId = state.surfaceId;
   state.webgpu.context = context;
   state.webgpu.device = device;
   state.webgpu.format = format;

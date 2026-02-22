@@ -1,5 +1,5 @@
 import {
-  "mizchi/game_engine/gfx" @gfx,
-  "mizchi/game_engine/image_palette" @image_palette,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/image_palette" @image_palette,
   "mizchi/image" @image,
 }

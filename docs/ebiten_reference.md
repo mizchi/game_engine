@@ -2,7 +2,7 @@
 
 本リポジトリの契約 API が、Ebiten のどの実装を参考にしているかの対応表。
 
-| game_engine | Ebiten reference |
+| kagura | Ebiten reference |
 |---|---|
 | `core.Game` / `core.run_game` | `run.go` (`Game`, `RunGame`) |
 | `core.FixedStep*` | `internal/clock/clock.go`, `internal/ui/context.go` |

@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/vector"
+package "mizchi/kagura/vector"
 
 // Values
 pub fn fill_path(Array[Vec2]) -> (Array[Double], Array[Int])

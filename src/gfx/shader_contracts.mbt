@@ -613,7 +613,7 @@ fn preprocess_shader_source(
   let normalized = source
     .replace_all(old="\r\n", new="\n")
     .replace_all(old="\r", new="\n")
-  "// game_engine:shader\n// debug:\{debug_name}\n// unit:\{shader_unit_tag(unit)}\n// vertex:\{entrypoints.vertex}\n// fragment:\{entrypoints.fragment}\n\{normalized}"
+  "// kagura:shader\n// debug:\{debug_name}\n// unit:\{shader_unit_tag(unit)}\n// vertex:\{entrypoints.vertex}\n// fragment:\{entrypoints.fragment}\n\{normalized}"
 }
 
 ///|
@@ -1200,7 +1200,7 @@ fn build_builtin_shader_source(key : BuiltinShaderKey) -> String {
   let sample_snippet = builtin_sample_snippet(key.filter)
   let color_m_snippet = builtin_color_m_snippet(key.use_color_m)
   let color_m_tag = if key.use_color_m { "on" } else { "off" }
-  let header = "// game_engine builtin shader\n" +
+  let header = "// kagura builtin shader\n" +
     "// filter:\{builtin_filter_tag(key.filter)}\n" +
     "// address:\{builtin_address_tag(key.address)}\n" +
     "// color_m:\{color_m_tag}\n"
@@ -1229,7 +1229,7 @@ pub fn build_builtin_shader_source_ex(key : BuiltinShaderKeyEx) -> String {
   let sample_snippet = builtin_sample_snippet(key.sampler.filter)
   let color_m_snippet = builtin_color_m_snippet(key.use_color_m)
   let color_m_tag = if key.use_color_m { "on" } else { "off" }
-  let header = "// game_engine builtin shader\n" +
+  let header = "// kagura builtin shader\n" +
     "// filter:\{builtin_filter_tag(key.sampler.filter)}\n" +
     "// address_u:\{builtin_address_tag(key.sampler.address_u)}\n" +
     "// address_v:\{builtin_address_tag(key.sampler.address_v)}\n" +

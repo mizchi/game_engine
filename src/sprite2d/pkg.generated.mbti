@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/sprite2d"
+package "mizchi/kagura/sprite2d"
 
 import {
-  "mizchi/game_engine/asset",
-  "mizchi/game_engine/gfx",
+  "mizchi/kagura/asset",
+  "mizchi/kagura/gfx",
 }
 
 // Values

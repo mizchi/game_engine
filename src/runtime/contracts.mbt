@@ -80,7 +80,7 @@ pub fn[G : @core.Game, P : @platform.PlatformDriver, R : @gfx.GraphicsDriver] ru
   let mut configured_height = 0
 
   let window_options = @platform.new_window_options(
-    "game_engine",
+    "kagura",
     800,
     600,
     run_options.screen_transparent,

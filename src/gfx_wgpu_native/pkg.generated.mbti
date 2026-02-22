@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/gfx_wgpu_native"
+package "mizchi/kagura/gfx_wgpu_native"
 
 // Values
 

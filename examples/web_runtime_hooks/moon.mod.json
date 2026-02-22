@@ -4,6 +4,6 @@
   "source": "src",
   "warn-list": "-6-29-53-68",
   "deps": {
-    "mizchi/game_engine": { "path": "../.." }
+    "mizchi/kagura": { "path": "../.." }
   }
 }

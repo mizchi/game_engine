@@ -1,5 +1,5 @@
 {
-  "name": "game-engine-e2e",
+  "name": "kagura-e2e",
   "private": true,
   "type": "module",
   "scripts": {

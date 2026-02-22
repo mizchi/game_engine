@@ -1,6 +1,6 @@
 ///|
 /// Image codec bridge powered by mizchi/image.
-/// Keeps game_engine's ImageSpec as the primary data shape.
+/// Keeps kagura's ImageSpec as the primary data shape.
 
 ///|
 pub enum RasterResizeMethod {

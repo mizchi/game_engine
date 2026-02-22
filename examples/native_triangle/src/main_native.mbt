@@ -1,6 +1,6 @@
 ///|
 fn main {
-  if !@native_hooks.initialize_context(800, 600, "game_engine: triangle") {
+  if !@native_hooks.initialize_context(800, 600, "kagura: triangle") {
     panic()
   }
   while !@native_hooks.should_close() {

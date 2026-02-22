@@ -1,6 +1,6 @@
 # Ebiten Shader Research Notes
 
-`hajimehoshi/ebiten` の shader 実装を、`game_engine` 契約へ写すための調査メモ。
+`hajimehoshi/ebiten` の shader 実装を、`kagura` 契約へ写すための調査メモ。
 
 ## 1. Frontend -> IR 変換は 2 段に分離
 
@@ -13,7 +13,7 @@
   - uniform 名を並べ替え（`__` 先頭を preserved として先頭に寄せる）
 
 示唆:
-- `game_engine` でも
+- `kagura` でも
   - source 前処理
   - IR compile
   - source hash
@@ -42,7 +42,7 @@
   - `graphicscommand.Shader` を遅延生成し、cleanup/deallocate を管理
 
 示唆:
-- `game_engine` 初期段階は
+- `kagura` 初期段階は
   - `clear / nearest / linear`
   の built-in source 契約を先に固定する。
 

@@ -192,7 +192,7 @@ extern "js" fn js_prepare_surface(
 ) -> Bool =
   #| (selector, fallbackWidth, fallbackHeight) => {
   #|   const root = globalThis;
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {
   #|     nextSurfaceId: 100,
   #|     selector: "#app",
   #|     canvas: null,
@@ -254,11 +254,11 @@ extern "js" fn js_prepare_surface(
   #|   if (canvas.height !== pixelHeight) {
   #|     canvas.height = pixelHeight;
   #|   }
-  #|   if (canvas.__gameEngineSurfaceId == null) {
-  #|     canvas.__gameEngineSurfaceId = state.nextSurfaceId++;
+  #|   if (canvas.__kaguraSurfaceId == null) {
+  #|     canvas.__kaguraSurfaceId = state.nextSurfaceId++;
   #|   }
   #|   state.canvas = canvas;
-  #|   state.surfaceId = Number(canvas.__gameEngineSurfaceId) | 0;
+  #|   state.surfaceId = Number(canvas.__kaguraSurfaceId) | 0;
   #|   state.width = pixelWidth;
   #|   state.height = pixelHeight;
   #|   state.dpr = dpr;
@@ -268,14 +268,14 @@ extern "js" fn js_prepare_surface(
 ///|
 extern "js" fn js_surface_id() -> Int =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   return state == null ? 1 : (Number(state.surfaceId ?? 1) | 0);
   #| }
 
 ///|
 extern "js" fn js_surface_width(fallback_width : Int) -> Int =
   #| (fallbackWidth) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return fallbackWidth;
   #|   return Math.max(1, Number(state.width ?? fallbackWidth) | 0);
   #| }
@@ -283,7 +283,7 @@ extern "js" fn js_surface_width(fallback_width : Int) -> Int =
 ///|
 extern "js" fn js_surface_height(fallback_height : Int) -> Int =
   #| (fallbackHeight) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return fallbackHeight;
   #|   return Math.max(1, Number(state.height ?? fallbackHeight) | 0);
   #| }
@@ -291,7 +291,7 @@ extern "js" fn js_surface_height(fallback_height : Int) -> Int =
 ///|
 extern "js" fn js_surface_dpr() -> Double =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 1;
   #|   return Number(state.dpr ?? 1) || 1;
   #| }
@@ -300,8 +300,8 @@ extern "js" fn js_surface_dpr() -> Double =
 extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #| (selector) => {
   #|   const root = globalThis;
-  #|   const ensureState = root.__gameEngineEnsureWindowState ?? (root.__gameEngineEnsureWindowState = (nextSelector) => {
-  #|     const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {
+  #|   const ensureState = root.__kaguraEnsureWindowState ?? (root.__kaguraEnsureWindowState = (nextSelector) => {
+  #|     const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {
   #|       nextSurfaceId: 100,
   #|       selector: "#app",
   #|       canvas: null,
@@ -376,12 +376,12 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|       }
   #|       if (!state.interactionHooksInstalled && typeof doc.addEventListener === "function") {
   #|         doc.addEventListener("fullscreenchange", () => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null || current.canvas == null) return;
   #|           current.fullscreen = doc.fullscreenElement === current.canvas;
   #|         });
   #|         doc.addEventListener("pointerlockchange", () => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           const canvas = current.canvas;
   #|           let mode = Number(current.cursorMode ?? 0) | 0;
@@ -487,24 +487,24 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|           current.cursorY = Number.isFinite(y) ? y : 0;
   #|         };
   #|         doc.addEventListener("mousemove", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           updateCursor(current, event);
   #|         });
   #|         doc.addEventListener("mousedown", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           updateCursor(current, event);
   #|           addPressedMouseButton(current, normalizeMouseButton(event));
   #|         });
   #|         doc.addEventListener("mouseup", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           updateCursor(current, event);
   #|           removePressedMouseButton(current, normalizeMouseButton(event));
   #|         });
   #|         doc.addEventListener("wheel", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           const dx = Number(event?.deltaX ?? 0);
   #|           const dy = Number(event?.deltaY ?? 0);
@@ -512,39 +512,39 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
   #|           current.wheelY = Number(current.wheelY ?? 0) + (Number.isFinite(dy) ? dy : 0);
   #|         }, { passive: true });
   #|         doc.addEventListener("touchstart", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           syncTouches(current, event);
   #|         }, { passive: true });
   #|         doc.addEventListener("touchmove", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           syncTouches(current, event);
   #|         }, { passive: true });
   #|         doc.addEventListener("touchend", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           syncTouches(current, event);
   #|         }, { passive: true });
   #|         doc.addEventListener("touchcancel", (event) => {
-  #|           const current = root.__gameEngineWebRuntime;
+  #|           const current = root.__kaguraWebRuntime;
   #|           if (current == null) return;
   #|           syncTouches(current, event);
   #|         }, { passive: true });
   #|         const targetWindow = typeof window === "undefined" ? null : window;
   #|         if (targetWindow != null && typeof targetWindow.addEventListener === "function") {
   #|           targetWindow.addEventListener("keydown", (event) => {
-  #|             const current = root.__gameEngineWebRuntime;
+  #|             const current = root.__kaguraWebRuntime;
   #|             if (current == null) return;
   #|             addPressedKey(current, normalizeKeyCode(event));
   #|           });
   #|           targetWindow.addEventListener("keyup", (event) => {
-  #|             const current = root.__gameEngineWebRuntime;
+  #|             const current = root.__kaguraWebRuntime;
   #|             if (current == null) return;
   #|             removePressedKey(current, normalizeKeyCode(event));
   #|           });
   #|           targetWindow.addEventListener("blur", () => {
-  #|             const current = root.__gameEngineWebRuntime;
+  #|             const current = root.__kaguraWebRuntime;
   #|             if (current == null) return;
   #|             current.pressedKeys = [];
   #|             current.pressedMouseButtons = [];
@@ -566,17 +566,17 @@ extern "js" fn js_ensure_window_state(selector : String) -> Unit =
 extern "js" fn js_set_should_close(value : Bool) -> Unit =
   #| (value) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState("#app");
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   state.shouldClose = !!value;
   #| }
 
 ///|
 extern "js" fn js_should_close_state() -> Bool =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return false;
   #|   return !!state.shouldClose;
   #| }
@@ -585,10 +585,10 @@ extern "js" fn js_should_close_state() -> Bool =
 extern "js" fn js_set_fullscreen(selector : String, enabled : Bool) -> Bool =
   #| (selector, enabled) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState(selector);
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState(selector);
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   const doc = typeof document === "undefined" ? null : document;
   #|   if (doc == null || typeof doc.querySelector !== "function") {
   #|     state.fullscreen = !!enabled;
@@ -606,7 +606,7 @@ extern "js" fn js_set_fullscreen(selector : String, enabled : Bool) -> Bool =
   #|     }
   #|     if (typeof target.requestFullscreen === "function") {
   #|       Promise.resolve(target.requestFullscreen()).catch(() => {
-  #|         const current = root.__gameEngineWebRuntime;
+  #|         const current = root.__kaguraWebRuntime;
   #|         if (current != null) current.fullscreen = doc.fullscreenElement === target;
   #|       });
   #|       state.fullscreen = true;
@@ -617,7 +617,7 @@ extern "js" fn js_set_fullscreen(selector : String, enabled : Bool) -> Bool =
   #|   }
   #|   if (doc.fullscreenElement != null && typeof doc.exitFullscreen === "function") {
   #|     Promise.resolve(doc.exitFullscreen()).catch(() => {
-  #|       const current = root.__gameEngineWebRuntime;
+  #|       const current = root.__kaguraWebRuntime;
   #|       if (current != null) current.fullscreen = doc.fullscreenElement === target;
   #|     });
   #|   }
@@ -629,10 +629,10 @@ extern "js" fn js_set_fullscreen(selector : String, enabled : Bool) -> Bool =
 extern "js" fn js_is_fullscreen(selector : String, fallback : Bool) -> Bool =
   #| (selector, fallback) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState(selector);
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState(selector);
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   const doc = typeof document === "undefined" ? null : document;
   #|   if (doc == null || typeof doc.querySelector !== "function") {
   #|     if (state.fullscreen == null) state.fullscreen = !!fallback;
@@ -651,11 +651,11 @@ extern "js" fn js_is_fullscreen(selector : String, fallback : Bool) -> Bool =
 extern "js" fn js_set_cursor_mode(selector : String, mode : Int) -> Int =
   #| (selector, mode) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState(selector);
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState(selector);
   #|   }
   #|   const doc = typeof document === "undefined" ? null : document;
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   let nextMode = Number(mode) | 0;
   #|   if (nextMode !== 1 && nextMode !== 2) nextMode = 0;
   #|   if (doc != null && typeof doc.querySelector === "function") {
@@ -686,10 +686,10 @@ extern "js" fn js_set_cursor_mode(selector : String, mode : Int) -> Int =
 extern "js" fn js_cursor_mode(selector : String, fallback : Int) -> Int =
   #| (selector, fallback) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState(selector);
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState(selector);
   #|   }
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   const doc = typeof document === "undefined" ? null : document;
   #|   if (doc != null && typeof doc.querySelector === "function") {
   #|     const canvas = doc.querySelector(selector);
@@ -711,10 +711,10 @@ extern "js" fn js_cursor_mode(selector : String, fallback : Int) -> Int =
 extern "js" fn js_set_device_scale_factor(scale : Double) -> Double =
   #| (scale) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState("#app");
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   const normalized = Number(scale) > 0 ? Number(scale) : 1;
   #|   state.deviceScaleOverride = normalized;
   #|   return normalized;
@@ -723,7 +723,7 @@ extern "js" fn js_set_device_scale_factor(scale : Double) -> Double =
 ///|
 extern "js" fn js_device_scale_factor(fallback : Double) -> Double =
   #| (fallback) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   const safeFallback = Number(fallback) > 0 ? Number(fallback) : 1;
   #|   if (state == null) return safeFallback;
   #|   const override = Number(state.deviceScaleOverride ?? 0);
@@ -736,10 +736,10 @@ extern "js" fn js_device_scale_factor(fallback : Double) -> Double =
 extern "js" fn js_set_vsync_enabled(enabled : Bool) -> Bool =
   #| (enabled) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState("#app");
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   state.vsyncEnabled = !!enabled;
   #|   return !!enabled;
   #| }
@@ -747,7 +747,7 @@ extern "js" fn js_set_vsync_enabled(enabled : Bool) -> Bool =
 ///|
 extern "js" fn js_is_vsync_enabled(fallback : Bool) -> Bool =
   #| (fallback) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || state.vsyncEnabled == null) return !!fallback;
   #|   return !!state.vsyncEnabled;
   #| }
@@ -755,7 +755,7 @@ extern "js" fn js_is_vsync_enabled(fallback : Bool) -> Bool =
 ///|
 extern "js" fn js_input_cursor_x() -> Double =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   return Number(state.cursorX ?? 0) || 0;
   #| }
@@ -763,7 +763,7 @@ extern "js" fn js_input_cursor_x() -> Double =
 ///|
 extern "js" fn js_input_cursor_y() -> Double =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   return Number(state.cursorY ?? 0) || 0;
   #| }
@@ -771,7 +771,7 @@ extern "js" fn js_input_cursor_y() -> Double =
 ///|
 extern "js" fn js_input_wheel_x() -> Double =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   return Number(state.wheelX ?? 0) || 0;
   #| }
@@ -779,7 +779,7 @@ extern "js" fn js_input_wheel_x() -> Double =
 ///|
 extern "js" fn js_input_wheel_y() -> Double =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   return Number(state.wheelY ?? 0) || 0;
   #| }
@@ -787,7 +787,7 @@ extern "js" fn js_input_wheel_y() -> Double =
 ///|
 extern "js" fn js_clear_input_wheel() -> Unit =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   state.wheelX = 0;
   #|   state.wheelY = 0;
@@ -796,7 +796,7 @@ extern "js" fn js_clear_input_wheel() -> Unit =
 ///|
 extern "js" fn js_input_pressed_key_count() -> Int =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.pressedKeys)) return 0;
   #|   return Math.max(0, Number(state.pressedKeys.length) | 0);
   #| }
@@ -804,7 +804,7 @@ extern "js" fn js_input_pressed_key_count() -> Int =
 ///|
 extern "js" fn js_input_pressed_key_at(index : Int) -> Int =
   #| (index) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.pressedKeys)) return 0;
   #|   const i = Number(index) | 0;
   #|   if (i < 0 || i >= state.pressedKeys.length) return 0;
@@ -814,7 +814,7 @@ extern "js" fn js_input_pressed_key_at(index : Int) -> Int =
 ///|
 extern "js" fn js_input_pressed_mouse_button_count() -> Int =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.pressedMouseButtons)) return 0;
   #|   return Math.max(0, Number(state.pressedMouseButtons.length) | 0);
   #| }
@@ -822,7 +822,7 @@ extern "js" fn js_input_pressed_mouse_button_count() -> Int =
 ///|
 extern "js" fn js_input_pressed_mouse_button_at(index : Int) -> Int =
   #| (index) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.pressedMouseButtons)) return -1;
   #|   const i = Number(index) | 0;
   #|   if (i < 0 || i >= state.pressedMouseButtons.length) return -1;
@@ -832,7 +832,7 @@ extern "js" fn js_input_pressed_mouse_button_at(index : Int) -> Int =
 ///|
 extern "js" fn js_input_touch_count() -> Int =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.touches)) return 0;
   #|   return Math.max(0, Number(state.touches.length) | 0);
   #| }
@@ -840,7 +840,7 @@ extern "js" fn js_input_touch_count() -> Int =
 ///|
 extern "js" fn js_input_touch_id_at(index : Int) -> Int =
   #| (index) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.touches)) return 0;
   #|   const i = Number(index) | 0;
   #|   if (i < 0 || i >= state.touches.length) return 0;
@@ -851,7 +851,7 @@ extern "js" fn js_input_touch_id_at(index : Int) -> Int =
 ///|
 extern "js" fn js_input_touch_x_at(index : Int) -> Double =
   #| (index) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.touches)) return 0;
   #|   const i = Number(index) | 0;
   #|   if (i < 0 || i >= state.touches.length) return 0;
@@ -862,7 +862,7 @@ extern "js" fn js_input_touch_x_at(index : Int) -> Double =
 ///|
 extern "js" fn js_input_touch_y_at(index : Int) -> Double =
   #| (index) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null || !Array.isArray(state.touches)) return 0;
   #|   const i = Number(index) | 0;
   #|   if (i < 0 || i >= state.touches.length) return 0;
@@ -874,7 +874,7 @@ extern "js" fn js_input_touch_y_at(index : Int) -> Double =
 extern "js" fn js_input_gamepad_count() -> Int =
   #| () => {
   #|   const root = globalThis;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   if (state != null && Array.isArray(state.testGamepads) && state.testGamepads.length > 0) {
   #|     return Math.max(0, Number(state.testGamepads.length) | 0);
   #|   }
@@ -895,7 +895,7 @@ extern "js" fn js_input_gamepad_id_at(index : Int) -> Int =
   #|   const root = globalThis;
   #|   const i = Number(index) | 0;
   #|   if (i < 0) return -1;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
   #|   if (testPads != null && testPads.length > 0) {
   #|     if (i >= testPads.length || testPads[i] == null) return -1;
@@ -925,7 +925,7 @@ extern "js" fn js_input_gamepad_pressed_button_count(
   #|   const root = globalThis;
   #|   const gpIndex = Number(gamepadIndex) | 0;
   #|   if (gpIndex < 0) return 0;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
   #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
   #|   if (target != null && Array.isArray(target.pressedButtons)) {
@@ -964,7 +964,7 @@ extern "js" fn js_input_gamepad_pressed_button_at(
   #|   const gpIndex = Number(gamepadIndex) | 0;
   #|   const btnIndex = Number(buttonIndex) | 0;
   #|   if (gpIndex < 0 || btnIndex < 0) return -1;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
   #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
   #|   if (target != null && Array.isArray(target.pressedButtons)) {
@@ -1004,7 +1004,7 @@ extern "js" fn js_input_gamepad_axis_count(gamepad_index : Int) -> Int =
   #|   const root = globalThis;
   #|   const gpIndex = Number(gamepadIndex) | 0;
   #|   if (gpIndex < 0) return 0;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
   #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
   #|   if (target != null && Array.isArray(target.axes)) {
@@ -1038,7 +1038,7 @@ extern "js" fn js_input_gamepad_axis_at(
   #|   const gpIndex = Number(gamepadIndex) | 0;
   #|   const axIndex = Number(axisIndex) | 0;
   #|   if (gpIndex < 0 || axIndex < 0) return 0;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   const testPads = state != null && Array.isArray(state.testGamepads) ? state.testGamepads : null;
   #|   const target = testPads != null && testPads.length > 0 ? testPads[gpIndex] : null;
   #|   if (target != null && Array.isArray(target.axes)) {
@@ -1068,10 +1068,10 @@ extern "js" fn js_input_gamepad_axis_at(
 extern "js" fn js_request_attention() -> Unit =
   #| () => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState("#app");
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   state.attentionRequests = (Number(state.attentionRequests ?? 0) | 0) + 1;
   #|   const doc = typeof document === "undefined" ? null : document;
   #|   if (doc != null && typeof doc.hasFocus === "function" && !doc.hasFocus()) {
@@ -1090,7 +1090,7 @@ extern "js" fn js_try_initialize_webgpu(
 ) -> Bool =
   #| (selector, fallbackWidth, fallbackHeight) => {
   #|   const root = globalThis;
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {
   #|     nextSurfaceId: 100,
   #|     selector: "#app",
   #|     canvas: null,
@@ -1117,11 +1117,11 @@ extern "js" fn js_try_initialize_webgpu(
   #|     const pixelHeight = Math.max(1, Math.round(cssHeight * dpr));
   #|     if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
   #|     if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-  #|     if (canvas.__gameEngineSurfaceId == null) {
-  #|       canvas.__gameEngineSurfaceId = state.nextSurfaceId++;
+  #|     if (canvas.__kaguraSurfaceId == null) {
+  #|       canvas.__kaguraSurfaceId = state.nextSurfaceId++;
   #|     }
   #|     state.canvas = canvas;
-  #|     state.surfaceId = Number(canvas.__gameEngineSurfaceId) | 0;
+  #|     state.surfaceId = Number(canvas.__kaguraSurfaceId) | 0;
   #|     state.width = pixelWidth;
   #|     state.height = pixelHeight;
   #|     state.dpr = dpr;
@@ -1183,7 +1183,7 @@ extern "js" fn js_try_initialize_webgpu(
 ///|
 extern "js" fn js_release_webgpu_resources() -> Unit =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   const gpu = state == null ? null : state.webgpu;
   #|   if (gpu == null) return;
   #|   const releaseBufferEntries = (entries) => {
@@ -1243,7 +1243,7 @@ extern "js" fn js_webgpu_begin(
   clear_a : Double,
 ) -> Unit =
   #| (r, g, b, a) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null) return;
@@ -1263,7 +1263,7 @@ extern "js" fn js_gfx_draw_begin(
   uniform_a : Int,
 ) -> Unit =
   #| (vertexCount, indexCount, srcImageId, uniformR, uniformG, uniformB, uniformA) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null) return;
@@ -1287,7 +1287,7 @@ extern "js" fn js_gfx_draw_vertex(
   v : Double,
 ) -> Unit =
   #| (offset, x, y, u, v) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null || gpu._currentDraw == null) return;
@@ -1301,7 +1301,7 @@ extern "js" fn js_gfx_draw_vertex(
 ///|
 extern "js" fn js_gfx_draw_index(offset : Int, value : Int) -> Unit =
   #| (offset, value) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null || gpu._currentDraw == null) return;
@@ -1311,7 +1311,7 @@ extern "js" fn js_gfx_draw_index(offset : Int, value : Int) -> Unit =
 ///|
 extern "js" fn js_gfx_draw_end() -> Unit =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null || gpu._currentDraw == null) return;
@@ -1327,7 +1327,7 @@ extern "js" fn js_gfx_upload_texture_begin(
   height : Int,
 ) -> Unit =
   #| (imageId, width, height) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null) return;
@@ -1348,7 +1348,7 @@ extern "js" fn js_gfx_upload_texture_pixel(
   a : Int,
 ) -> Unit =
   #| (offset, r, g, b, a) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null || gpu._pendingTexture == null) return;
@@ -1362,7 +1362,7 @@ extern "js" fn js_gfx_upload_texture_pixel(
 ///|
 extern "js" fn js_gfx_upload_texture_end() -> Unit =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null || gpu._pendingTexture == null || gpu.device == null) return;
@@ -1410,7 +1410,7 @@ extern "js" fn js_gfx_upload_texture_end() -> Unit =
 ///|
 extern "js" fn js_webgpu_present() -> Bool =
   #| () => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return false;
   #|   const gpu = state.webgpu;
   #|   const device = gpu == null ? null : gpu.device;
@@ -1636,7 +1636,7 @@ extern "js" fn js_webgpu_present() -> Bool =
   #|     if (gpu.presentScheduled) return true;
   #|     gpu.presentScheduled = true;
   #|     globalThis.requestAnimationFrame(() => {
-  #|       const current = globalThis.__gameEngineWebRuntime;
+  #|       const current = globalThis.__kaguraWebRuntime;
   #|       if (current == null) return;
   #|       if (current.webgpu != null) current.webgpu.presentScheduled = false;
   #|       try { presentNow(current); } catch (error) {
@@ -1656,19 +1656,19 @@ extern "js" fn test_setup_present_state(
 ) -> Unit =
   #| (useWebGpu, useRaf, vsyncEnabled) => {
   #|   const root = globalThis;
-  #|   if (!("__gameEnginePresentTestOriginalRAF" in root)) {
-  #|     root.__gameEnginePresentTestOriginalRAF = root.requestAnimationFrame;
+  #|   if (!("__kaguraPresentTestOriginalRAF" in root)) {
+  #|     root.__kaguraPresentTestOriginalRAF = root.requestAnimationFrame;
   #|   }
-  #|   root.__gameEnginePresentTestQueue = [];
+  #|   root.__kaguraPresentTestQueue = [];
   #|   if (useRaf) {
   #|     root.requestAnimationFrame = (callback) => {
-  #|       root.__gameEnginePresentTestQueue.push(callback);
-  #|       return root.__gameEnginePresentTestQueue.length;
+  #|       root.__kaguraPresentTestQueue.push(callback);
+  #|       return root.__kaguraPresentTestQueue.length;
   #|     };
-  #|   } else if (root.__gameEnginePresentTestOriginalRAF == null) {
+  #|   } else if (root.__kaguraPresentTestOriginalRAF == null) {
   #|     root.requestAnimationFrame = undefined;
   #|   } else {
-  #|     root.requestAnimationFrame = root.__gameEnginePresentTestOriginalRAF;
+  #|     root.requestAnimationFrame = root.__kaguraPresentTestOriginalRAF;
   #|   }
   #|   if (typeof globalThis.GPUShaderStage === "undefined") {
   #|     globalThis.GPUShaderStage = { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 };
@@ -1731,8 +1731,8 @@ extern "js" fn test_setup_present_state(
   #|       writeTexture: () => {},
   #|     },
   #|   };
-  #|   root.__gameEnginePresentTestStats = stats;
-  #|   root.__gameEngineWebRuntime = {
+  #|   root.__kaguraPresentTestStats = stats;
+  #|   root.__kaguraWebRuntime = {
   #|     canvas: null,
   #|     width: 320,
   #|     height: 240,
@@ -1758,7 +1758,7 @@ extern "js" fn test_setup_present_state(
 extern "js" fn test_drain_present_raf() -> Int =
   #| () => {
   #|   const root = globalThis;
-  #|   const queue = root.__gameEnginePresentTestQueue;
+  #|   const queue = root.__kaguraPresentTestQueue;
   #|   if (!Array.isArray(queue)) return 0;
   #|   let drained = 0;
   #|   while (queue.length > 0) {
@@ -1774,7 +1774,7 @@ extern "js" fn test_drain_present_raf() -> Int =
 ///|
 extern "js" fn test_present_raf_queue_length() -> Int =
   #| () => {
-  #|   const queue = globalThis.__gameEnginePresentTestQueue;
+  #|   const queue = globalThis.__kaguraPresentTestQueue;
   #|   if (!Array.isArray(queue)) return 0;
   #|   return queue.length | 0;
   #| }
@@ -1782,7 +1782,7 @@ extern "js" fn test_present_raf_queue_length() -> Int =
 ///|
 extern "js" fn test_present_submit_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.submits ?? 0) | 0;
   #| }
@@ -1790,7 +1790,7 @@ extern "js" fn test_present_submit_count() -> Int =
 ///|
 extern "js" fn test_present_clear_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.clears ?? 0) | 0;
   #| }
@@ -1798,7 +1798,7 @@ extern "js" fn test_present_clear_count() -> Int =
 ///|
 extern "js" fn test_present_draw_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.draws ?? 0) | 0;
   #| }
@@ -1806,7 +1806,7 @@ extern "js" fn test_present_draw_count() -> Int =
 ///|
 extern "js" fn test_present_buffer_create_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.bufferCreates ?? 0) | 0;
   #| }
@@ -1814,7 +1814,7 @@ extern "js" fn test_present_buffer_create_count() -> Int =
 ///|
 extern "js" fn test_present_buffer_destroy_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.bufferDestroys ?? 0) | 0;
   #| }
@@ -1822,7 +1822,7 @@ extern "js" fn test_present_buffer_destroy_count() -> Int =
 ///|
 extern "js" fn test_present_bind_group_create_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.bindGroupCreates ?? 0) | 0;
   #| }
@@ -1830,7 +1830,7 @@ extern "js" fn test_present_bind_group_create_count() -> Int =
 ///|
 extern "js" fn test_present_texture_destroy_count() -> Int =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return 0;
   #|   return Number(stats.textureDestroys ?? 0) | 0;
   #| }
@@ -1838,7 +1838,7 @@ extern "js" fn test_present_texture_destroy_count() -> Int =
 ///|
 extern "js" fn test_last_webgpu_shader_source() -> String =
   #| () => {
-  #|   const stats = globalThis.__gameEnginePresentTestStats;
+  #|   const stats = globalThis.__kaguraPresentTestStats;
   #|   if (stats == null) return "";
   #|   return String(stats.lastWebGpuShaderCode ?? "");
   #| }
@@ -1846,7 +1846,7 @@ extern "js" fn test_last_webgpu_shader_source() -> String =
 ///|
 extern "js" fn test_last_pipeline_id(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1856,7 +1856,7 @@ extern "js" fn test_last_pipeline_id(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_uniform_hash(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1866,7 +1866,7 @@ extern "js" fn test_last_uniform_hash(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_blend_mode(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 1;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 1;
@@ -1876,7 +1876,7 @@ extern "js" fn test_last_blend_mode(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_dst_image_id(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1886,7 +1886,7 @@ extern "js" fn test_last_dst_image_id(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_shader_id(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1896,7 +1896,7 @@ extern "js" fn test_last_shader_id(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_index_offset(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1906,7 +1906,7 @@ extern "js" fn test_last_index_offset(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_region_count(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1916,7 +1916,7 @@ extern "js" fn test_last_region_count(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_total_index_count(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1926,7 +1926,7 @@ extern "js" fn test_last_total_index_count(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_vertex_float_count(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1936,7 +1936,7 @@ extern "js" fn test_last_vertex_float_count(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_index_count(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1946,7 +1946,7 @@ extern "js" fn test_last_index_count(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_src_image_count(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1956,7 +1956,7 @@ extern "js" fn test_last_src_image_count(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_uniform_dword_count(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1966,7 +1966,7 @@ extern "js" fn test_last_uniform_dword_count(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_payload_has_triangle(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1976,7 +1976,7 @@ extern "js" fn test_last_payload_has_triangle(use_webgpu : Bool) -> Int =
 ///|
 extern "js" fn test_last_payload_ax(use_webgpu : Bool) -> Double =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -1986,7 +1986,7 @@ extern "js" fn test_last_payload_ax(use_webgpu : Bool) -> Double =
 ///|
 extern "js" fn test_last_payload_uniform_r(use_webgpu : Bool) -> Double =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 1;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 1;
@@ -1996,7 +1996,7 @@ extern "js" fn test_last_payload_uniform_r(use_webgpu : Bool) -> Double =
 ///|
 extern "js" fn test_last_payload_texture_seed(use_webgpu : Bool) -> Int =
   #| (useWebGpu) => {
-  #|   const state = globalThis.__gameEngineWebRuntime;
+  #|   const state = globalThis.__kaguraWebRuntime;
   #|   if (state == null) return 0;
   #|   const target = useWebGpu ? state.webgpu : state.webgl2;
   #|   if (target == null) return 0;
@@ -2015,10 +2015,10 @@ extern "js" fn test_set_input_state(
 ) -> Unit =
   #| (cursorX, cursorY, wheelX, wheelY, key0, key1, keyCount) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState("#app");
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   state.cursorX = Number(cursorX) || 0;
   #|   state.cursorY = Number(cursorY) || 0;
   #|   state.wheelX = Number(wheelX) || 0;
@@ -2081,10 +2081,10 @@ extern "js" fn test_set_extended_input_state(
   #|   gamepad0Button1
   #| ) => {
   #|   const root = globalThis;
-  #|   if (typeof root.__gameEngineEnsureWindowState === "function") {
-  #|     root.__gameEngineEnsureWindowState("#app");
+  #|   if (typeof root.__kaguraEnsureWindowState === "function") {
+  #|     root.__kaguraEnsureWindowState("#app");
   #|   }
-  #|   const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|   const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|   state.cursorX = Number(cursorX) || 0;
   #|   state.cursorY = Number(cursorY) || 0;
   #|   state.wheelX = Number(wheelX) || 0;
@@ -2123,7 +2123,7 @@ extern "js" fn test_set_extended_input_state(
 extern "js" fn test_reset_gamepad_state() -> Unit =
   #| () => {
   #|   const root = globalThis;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   if (state == null) return;
   #|   state.testGamepads = [];
   #| }
@@ -2132,17 +2132,17 @@ extern "js" fn test_reset_gamepad_state() -> Unit =
 extern "js" fn test_teardown_present_state() -> Unit =
   #| () => {
   #|   const root = globalThis;
-  #|   if ("__gameEnginePresentTestOriginalRAF" in root) {
-  #|     const original = root.__gameEnginePresentTestOriginalRAF;
+  #|   if ("__kaguraPresentTestOriginalRAF" in root) {
+  #|     const original = root.__kaguraPresentTestOriginalRAF;
   #|     if (original == null) {
   #|       root.requestAnimationFrame = undefined;
   #|     } else {
   #|       root.requestAnimationFrame = original;
   #|     }
   #|   }
-  #|   delete root.__gameEnginePresentTestQueue;
-  #|   delete root.__gameEnginePresentTestStats;
-  #|   delete root.__gameEngineWebRuntime;
+  #|   delete root.__kaguraPresentTestQueue;
+  #|   delete root.__kaguraPresentTestStats;
+  #|   delete root.__kaguraWebRuntime;
   #| }
 
 ///|
@@ -2805,7 +2805,7 @@ fn bridge_web_request_attention(
 extern "js" fn js_load_font_data(name : String) -> Int =
   #| (name) => {
   #|   const root = globalThis;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   if (!state || !state.fonts || !state.fonts[name]) return -1;
   #|   const data = state.fonts[name];
   #|   if (!(data instanceof Uint8Array)) return -1;
@@ -2817,7 +2817,7 @@ extern "js" fn js_load_font_data(name : String) -> Int =
 extern "js" fn js_load_font_data_byte(offset : Int) -> Int =
   #| (offset) => {
   #|   const root = globalThis;
-  #|   const state = root.__gameEngineWebRuntime;
+  #|   const state = root.__kaguraWebRuntime;
   #|   if (!state || !state._fontLoadBuffer) return 0;
   #|   if (offset < 0 || offset >= state._fontLoadBuffer.length) return 0;
   #|   return state._fontLoadBuffer[offset];
@@ -2845,7 +2845,7 @@ extern "js" fn js_audio_try_initialize(sample_rate : Int, channels : Int) -> Boo
   #| (sampleRate, channels) => {
   #|   try {
   #|     const root = globalThis;
-  #|     const state = root.__gameEngineWebRuntime ?? (root.__gameEngineWebRuntime = {});
+  #|     const state = root.__kaguraWebRuntime ?? (root.__kaguraWebRuntime = {});
   #|     if (state.audio && state.audio.ctx) return true;
   #|     const ctx = new (root.AudioContext || root.webkitAudioContext)({ sampleRate });
   #|     const bufSize = 4096;
@@ -2876,7 +2876,7 @@ extern "js" fn js_audio_try_initialize(sample_rate : Int, channels : Int) -> Boo
 extern "js" fn js_audio_write_frames(frames : Int) -> Int =
   #| (frames) => {
   #|   const root = globalThis;
-  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   const a = root.__kaguraWebRuntime?.audio;
   #|   if (!a) return 0;
   #|   return frames;
   #| }
@@ -2885,7 +2885,7 @@ extern "js" fn js_audio_write_frames(frames : Int) -> Int =
 extern "js" fn js_audio_write_sample(pos : Int, channel : Int, value : Double) -> Unit =
   #| (pos, channel, value) => {
   #|   const root = globalThis;
-  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   const a = root.__kaguraWebRuntime?.audio;
   #|   if (!a) return;
   #|   const idx = (pos % a.ringSize) * a.channels + channel;
   #|   a.ring[idx] = value;
@@ -2895,7 +2895,7 @@ extern "js" fn js_audio_write_sample(pos : Int, channel : Int, value : Double) -
 extern "js" fn js_audio_advance_write(frames : Int) -> Unit =
   #| (frames) => {
   #|   const root = globalThis;
-  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   const a = root.__kaguraWebRuntime?.audio;
   #|   if (!a) return;
   #|   a.writePos = (a.writePos + frames) % a.ringSize;
   #| }
@@ -2904,39 +2904,39 @@ extern "js" fn js_audio_advance_write(frames : Int) -> Unit =
 extern "js" fn js_audio_get_write_pos() -> Int =
   #| () => {
   #|   const root = globalThis;
-  #|   const a = root.__gameEngineWebRuntime?.audio;
+  #|   const a = root.__kaguraWebRuntime?.audio;
   #|   return a ? a.writePos : 0;
   #| }
 
 ///|
 extern "js" fn js_audio_suspend() -> Unit =
   #| () => {
-  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   const a = globalThis.__kaguraWebRuntime?.audio;
   #|   if (a?.ctx) a.ctx.suspend();
   #| }
 
 ///|
 extern "js" fn js_audio_resume() -> Unit =
   #| () => {
-  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   const a = globalThis.__kaguraWebRuntime?.audio;
   #|   if (a?.ctx) a.ctx.resume();
   #| }
 
 ///|
 extern "js" fn js_audio_close() -> Unit =
   #| () => {
-  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   const a = globalThis.__kaguraWebRuntime?.audio;
   #|   if (a) {
   #|     if (a.node) { a.node.disconnect(); a.node = null; }
   #|     if (a.ctx) { a.ctx.close(); a.ctx = null; }
-  #|     globalThis.__gameEngineWebRuntime.audio = null;
+  #|     globalThis.__kaguraWebRuntime.audio = null;
   #|   }
   #| }
 
 ///|
 extern "js" fn js_audio_output_latency() -> Double =
   #| () => {
-  #|   const a = globalThis.__gameEngineWebRuntime?.audio;
+  #|   const a = globalThis.__kaguraWebRuntime?.audio;
   #|   if (a?.ctx) return a.ctx.outputLatency || 0;
   #|   return 0;
   #| }

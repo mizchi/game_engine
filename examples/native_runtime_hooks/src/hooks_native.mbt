@@ -1,5 +1,5 @@
 ///|
-let runtime_title : Ref[String] = Ref::new("game_engine")
+let runtime_title : Ref[String] = Ref::new("kagura")
 
 ///|
 priv struct SyncedSourceGeneration {

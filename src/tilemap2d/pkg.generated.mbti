@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/tilemap2d"
+package "mizchi/kagura/tilemap2d"
 
 import {
-  "mizchi/game_engine/asset",
-  "mizchi/game_engine/gfx",
+  "mizchi/kagura/asset",
+  "mizchi/kagura/gfx",
 }
 
 // Values

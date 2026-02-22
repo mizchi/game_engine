@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/text"
+package "mizchi/kagura/text"
 
 import {
   "mizchi/font",
-  "mizchi/game_engine/gfx",
+  "mizchi/kagura/gfx",
 }
 
 // Values

@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/core"
+package "mizchi/kagura/core"
 
 // Values
 pub fn default_fixed_step_config() -> FixedStepConfig

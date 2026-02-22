@@ -1,11 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/runtime"
+package "mizchi/kagura/runtime"
 
 import {
-  "mizchi/game_engine/core",
-  "mizchi/game_engine/gfx",
-  "mizchi/game_engine/inpututil",
-  "mizchi/game_engine/platform",
+  "mizchi/kagura/core",
+  "mizchi/kagura/gfx",
+  "mizchi/kagura/inpututil",
+  "mizchi/kagura/platform",
 }
 
 // Values

@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/image_palette"
+package "mizchi/kagura/image_palette"
 
 // Values
 pub fn checker_palette_from_seed(Int) -> ImagePalette2x2

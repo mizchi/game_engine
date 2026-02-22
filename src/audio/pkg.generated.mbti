@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/audio"
+package "mizchi/kagura/audio"
 
 // Values
 pub fn audio_buffer_to_clip(@mizchi/audio.AudioBuffer, Bool) -> AudioClip

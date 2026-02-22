@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/svg"
+package "mizchi/kagura/svg"
 
 import {
-  "mizchi/game_engine/vector",
+  "mizchi/kagura/vector",
 }
 
 // Values

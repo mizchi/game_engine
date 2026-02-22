@@ -1,10 +1,10 @@
 import {
-  "mizchi/game_engine/core" @core,
-  "mizchi/game_engine/debugutil" @debugutil,
-  "mizchi/game_engine/gfx" @gfx,
-  "mizchi/game_engine/inpututil" @inpututil,
-  "mizchi/game_engine/platform" @platform,
-  "mizchi/game_engine/runtime" @runtime,
+  "mizchi/kagura/core" @core,
+  "mizchi/kagura/debugutil" @debugutil,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/inpututil" @inpututil,
+  "mizchi/kagura/platform" @platform,
+  "mizchi/kagura/runtime" @runtime,
   "mizchi/web_runtime_hooks" @web_hooks,
   "mizchi/native_runtime_hooks" @native_hooks,
 }

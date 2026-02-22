@@ -1,5 +1,5 @@
 // Survivor loader for JS target
-import { initWebGPU, setupGlobalState, loadGameScript } from "./lib/game-engine-init.js";
+import { initWebGPU, setupGlobalState, loadGameScript } from "./lib/kagura-init.js";
 
 async function init() {
   const result = await initWebGPU("#app");

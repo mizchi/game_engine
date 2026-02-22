@@ -227,32 +227,32 @@ fn backend_kind_to_int(kind : @gfx.GraphicsBackendKind) -> Int {
 }
 
 ///|
-extern "wasm" fn host_prepare_surface(width : Int, height : Int) -> Int = "game_engine_web" "prepare_surface"
+extern "wasm" fn host_prepare_surface(width : Int, height : Int) -> Int = "kagura_web" "prepare_surface"
 
 ///|
-extern "wasm" fn host_surface_kind() -> Int = "game_engine_web" "surface_kind"
+extern "wasm" fn host_surface_kind() -> Int = "kagura_web" "surface_kind"
 
 ///|
-extern "wasm" fn host_surface_id() -> Int = "game_engine_web" "surface_id"
+extern "wasm" fn host_surface_id() -> Int = "kagura_web" "surface_id"
 
 ///|
-extern "wasm" fn host_surface_width(fallback_width : Int) -> Int = "game_engine_web" "surface_width"
+extern "wasm" fn host_surface_width(fallback_width : Int) -> Int = "kagura_web" "surface_width"
 
 ///|
-extern "wasm" fn host_surface_height(fallback_height : Int) -> Int = "game_engine_web" "surface_height"
+extern "wasm" fn host_surface_height(fallback_height : Int) -> Int = "kagura_web" "surface_height"
 
 ///|
-extern "wasm" fn host_surface_dpr() -> Double = "game_engine_web" "surface_dpr"
+extern "wasm" fn host_surface_dpr() -> Double = "kagura_web" "surface_dpr"
 
 ///|
-extern "wasm" fn host_should_close() -> Int = "game_engine_web" "should_close"
+extern "wasm" fn host_should_close() -> Int = "kagura_web" "should_close"
 
 ///|
 extern "wasm" fn host_gfx_try_initialize(
   kind : Int,
   width : Int,
   height : Int,
-) -> Int = "game_engine_web" "gfx_try_initialize"
+) -> Int = "kagura_web" "gfx_try_initialize"
 
 ///|
 extern "wasm" fn host_gfx_begin(
@@ -261,13 +261,13 @@ extern "wasm" fn host_gfx_begin(
   clear_g : Double,
   clear_b : Double,
   clear_a : Double,
-) -> Unit = "game_engine_web" "gfx_begin"
+) -> Unit = "kagura_web" "gfx_begin"
 
 ///|
-extern "wasm" fn host_gfx_end(kind : Int, present : Int) -> Unit = "game_engine_web" "gfx_end"
+extern "wasm" fn host_gfx_end(kind : Int, present : Int) -> Unit = "kagura_web" "gfx_end"
 
 ///|
-extern "wasm" fn host_shutdown() -> Unit = "game_engine_web" "shutdown"
+extern "wasm" fn host_shutdown() -> Unit = "kagura_web" "shutdown"
 
 ///|
 extern "wasm" fn host_gfx_read_pixels_begin(
@@ -276,13 +276,13 @@ extern "wasm" fn host_gfx_read_pixels_begin(
   y : Int,
   w : Int,
   h : Int,
-) -> Int = "game_engine_web" "gfx_read_pixels_begin"
+) -> Int = "kagura_web" "gfx_read_pixels_begin"
 
 ///|
-extern "wasm" fn host_gfx_read_pixels_channel(offset : Int) -> Int = "game_engine_web" "gfx_read_pixels_channel"
+extern "wasm" fn host_gfx_read_pixels_channel(offset : Int) -> Int = "kagura_web" "gfx_read_pixels_channel"
 
 ///|
-extern "wasm" fn host_gfx_read_pixels_end() -> Unit = "game_engine_web" "gfx_read_pixels_end"
+extern "wasm" fn host_gfx_read_pixels_end() -> Unit = "kagura_web" "gfx_read_pixels_end"
 
 ///|
 extern "wasm" fn host_gfx_draw_begin(
@@ -293,7 +293,7 @@ extern "wasm" fn host_gfx_draw_begin(
   uniform_g : Int,
   uniform_b : Int,
   uniform_a : Int,
-) -> Unit = "game_engine_web" "gfx_draw_begin"
+) -> Unit = "kagura_web" "gfx_draw_begin"
 
 ///|
 extern "wasm" fn host_gfx_draw_vertex(
@@ -302,20 +302,20 @@ extern "wasm" fn host_gfx_draw_vertex(
   y : Double,
   u : Double,
   v : Double,
-) -> Unit = "game_engine_web" "gfx_draw_vertex"
+) -> Unit = "kagura_web" "gfx_draw_vertex"
 
 ///|
-extern "wasm" fn host_gfx_draw_index(offset : Int, value : Int) -> Unit = "game_engine_web" "gfx_draw_index"
+extern "wasm" fn host_gfx_draw_index(offset : Int, value : Int) -> Unit = "kagura_web" "gfx_draw_index"
 
 ///|
-extern "wasm" fn host_gfx_draw_end() -> Unit = "game_engine_web" "gfx_draw_end"
+extern "wasm" fn host_gfx_draw_end() -> Unit = "kagura_web" "gfx_draw_end"
 
 ///|
 extern "wasm" fn host_gfx_upload_texture_begin(
   image_id : Int,
   width : Int,
   height : Int,
-) -> Unit = "game_engine_web" "gfx_upload_texture_begin"
+) -> Unit = "kagura_web" "gfx_upload_texture_begin"
 
 ///|
 extern "wasm" fn host_gfx_upload_texture_pixel(
@@ -324,10 +324,10 @@ extern "wasm" fn host_gfx_upload_texture_pixel(
   g : Int,
   b : Int,
   a : Int,
-) -> Unit = "game_engine_web" "gfx_upload_texture_pixel"
+) -> Unit = "kagura_web" "gfx_upload_texture_pixel"
 
 ///|
-extern "wasm" fn host_gfx_upload_texture_end() -> Unit = "game_engine_web" "gfx_upload_texture_end"
+extern "wasm" fn host_gfx_upload_texture_end() -> Unit = "kagura_web" "gfx_upload_texture_end"
 
 ///|
 fn bridge_web_try_initialize(
@@ -669,16 +669,16 @@ fn bridge_web_gfx_on_read_pixels(
 // ---------------------------------------------------------------------------
 
 ///|
-extern "wasm" fn host_load_font_name_len(len : Int) -> Unit = "game_engine_web" "load_font_name_len"
+extern "wasm" fn host_load_font_name_len(len : Int) -> Unit = "kagura_web" "load_font_name_len"
 
 ///|
-extern "wasm" fn host_load_font_name_byte(index : Int, byte_val : Int) -> Unit = "game_engine_web" "load_font_name_byte"
+extern "wasm" fn host_load_font_name_byte(index : Int, byte_val : Int) -> Unit = "kagura_web" "load_font_name_byte"
 
 ///|
-extern "wasm" fn host_load_font_data_begin() -> Int = "game_engine_web" "load_font_data_begin"
+extern "wasm" fn host_load_font_data_begin() -> Int = "kagura_web" "load_font_data_begin"
 
 ///|
-extern "wasm" fn host_load_font_data_byte(offset : Int) -> Int = "game_engine_web" "load_font_data_byte"
+extern "wasm" fn host_load_font_data_byte(offset : Int) -> Int = "kagura_web" "load_font_data_byte"
 
 ///|
 fn bridge_load_font_data(name : String) -> Array[Int]? {
@@ -704,25 +704,25 @@ fn bridge_load_font_data(name : String) -> Array[Int]? {
 // ---------------------------------------------------------------------------
 
 ///|
-extern "wasm" fn host_audio_try_initialize(sample_rate : Int, channels : Int) -> Int = "game_engine_web" "audio_try_initialize"
+extern "wasm" fn host_audio_try_initialize(sample_rate : Int, channels : Int) -> Int = "kagura_web" "audio_try_initialize"
 
 ///|
-extern "wasm" fn host_audio_write_frame(channel : Int, value : Double) -> Unit = "game_engine_web" "audio_write_frame"
+extern "wasm" fn host_audio_write_frame(channel : Int, value : Double) -> Unit = "kagura_web" "audio_write_frame"
 
 ///|
-extern "wasm" fn host_audio_write_end(frames : Int) -> Int = "game_engine_web" "audio_write_end"
+extern "wasm" fn host_audio_write_end(frames : Int) -> Int = "kagura_web" "audio_write_end"
 
 ///|
-extern "wasm" fn host_audio_suspend() -> Unit = "game_engine_web" "audio_suspend"
+extern "wasm" fn host_audio_suspend() -> Unit = "kagura_web" "audio_suspend"
 
 ///|
-extern "wasm" fn host_audio_resume() -> Unit = "game_engine_web" "audio_resume"
+extern "wasm" fn host_audio_resume() -> Unit = "kagura_web" "audio_resume"
 
 ///|
-extern "wasm" fn host_audio_close() -> Unit = "game_engine_web" "audio_close"
+extern "wasm" fn host_audio_close() -> Unit = "kagura_web" "audio_close"
 
 ///|
-extern "wasm" fn host_audio_output_latency() -> Double = "game_engine_web" "audio_output_latency"
+extern "wasm" fn host_audio_output_latency() -> Double = "kagura_web" "audio_output_latency"
 
 ///|
 fn bridge_audio_try_initialize(format : @audio.AudioFormat) -> Bool {

@@ -152,11 +152,11 @@ const ensureCanvas = (fallbackWidth, fallbackHeight) => {
   if (canvas.height !== pixelHeight) {
     canvas.height = pixelHeight;
   }
-  if (canvas.__gameEngineSurfaceId == null) {
-    canvas.__gameEngineSurfaceId = webState.nextSurfaceId++;
+  if (canvas.__kaguraSurfaceId == null) {
+    canvas.__kaguraSurfaceId = webState.nextSurfaceId++;
   }
   webState.canvas = canvas;
-  webState.surfaceId = Number(canvas.__gameEngineSurfaceId) | 0;
+  webState.surfaceId = Number(canvas.__kaguraSurfaceId) | 0;
   webState.width = pixelWidth;
   webState.height = pixelHeight;
   webState.dpr = dpr;
@@ -513,7 +513,7 @@ const run = async () => {
         setOutput(output);
       },
     },
-    game_engine_web: {
+    kagura_web: {
       prepare_surface: (width, height) => {
         return toInt(ensureCanvas(Number(width), Number(height)));
       },

@@ -208,7 +208,7 @@ pub fn create_desktop_glfw_platform() -> DesktopGlfwPlatform {
     close_after_polls: 2,
     native_active: false,
     options: {
-      title: "game_engine",
+      title: "kagura",
       width: 800,
       height: 600,
       transparent: false,
@@ -238,7 +238,7 @@ pub fn create_web_canvas_platform(
     close_after_polls: 2,
     web_active: false,
     options: {
-      title: "game_engine-web",
+      title: "kagura-web",
       width: 800,
       height: 600,
       transparent: true,

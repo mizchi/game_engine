@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/asset"
+package "mizchi/kagura/asset"
 
 import {
-  "mizchi/game_engine/gfx",
-  "mizchi/game_engine/image_palette",
+  "mizchi/kagura/gfx",
+  "mizchi/kagura/image_palette",
   "mizchi/image",
 }
 

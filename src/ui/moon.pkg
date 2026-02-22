@@ -1,7 +1,7 @@
 import {
-  "mizchi/game_engine/core" @core,
-  "mizchi/game_engine/gfx" @gfx,
-  "mizchi/game_engine/inpututil" @inpututil,
+  "mizchi/kagura/core" @core,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/inpututil" @inpututil,
   "mizchi/layout" @layout,
   "mizchi/layout/types" @layout_types,
 }

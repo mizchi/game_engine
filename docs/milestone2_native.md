@@ -1,6 +1,6 @@
 # Milestone 2 Native (WGPU + GLFW)
 
-`~/Downloads/wgpu` の最小三角形実装を `game_engine` に移植した。
+`~/Downloads/wgpu` の最小三角形実装を `kagura` に移植した。
 
 ## Added Packages
 

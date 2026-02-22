@@ -16,7 +16,7 @@
 6. Tick 時点の入力スナップショット（1 tick 内の一貫性）
 7. Shader の Frontend/IR/Uniform 正規化を分離して backend 差分を局所化
 
-## Ebiten Outline -> game_engine
+## Ebiten Outline -> kagura
 
 - `ebiten/run.go`
   - 役割: 公開 `Game` インターフェース、`RunGame` エントリ

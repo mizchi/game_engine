@@ -1,7 +1,7 @@
 import {
-  "mizchi/game_engine/math3d" @math3d,
-  "mizchi/game_engine/gfx" @gfx,
-  "mizchi/game_engine/camera3d" @camera3d,
-  "mizchi/game_engine/mesh3d" @mesh3d,
-  "mizchi/game_engine/light3d" @light3d,
+  "mizchi/kagura/math3d" @math3d,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/camera3d" @camera3d,
+  "mizchi/kagura/mesh3d" @mesh3d,
+  "mizchi/kagura/light3d" @light3d,
 }

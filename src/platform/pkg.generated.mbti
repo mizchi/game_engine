@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/game_engine/platform"
+package "mizchi/kagura/platform"
 
 import {
-  "mizchi/game_engine/core",
+  "mizchi/kagura/core",
 }
 
 // Values

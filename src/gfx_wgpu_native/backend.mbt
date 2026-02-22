@@ -286,7 +286,7 @@ pub fn shutdown_triangle_context(ctx : TriangleContext) -> Unit {
 
 ///|
 pub fn run_triangle_demo() -> Unit {
-  let ctx = init_triangle_context(800, 600, "game_engine: triangle")
+  let ctx = init_triangle_context(800, 600, "kagura: triangle")
   while should_continue(ctx) {
     poll(ctx)
     render_triangle_frame(ctx)

@@ -1,4 +1,4 @@
 import {
-  "mizchi/game_engine/math3d" @math3d,
-  "mizchi/game_engine/gfx" @gfx,
+  "mizchi/kagura/math3d" @math3d,
+  "mizchi/kagura/gfx" @gfx,
 }
