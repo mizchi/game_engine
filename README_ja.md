@@ -62,6 +62,16 @@ bash scripts/setup-wgpu-native.sh
 (cd examples/runtime_smoke_native && moon run src --target native)
 ```
 
+## Web で動かす
+
+任意の example をブラウザで実行:
+
+```bash
+just dev flappy_bird
+```
+
+ビルド → ローカルサーバー起動 → `http://localhost:8080` で開けます。WebGPU 対応ブラウザ（Chrome 113+, Edge 113+）が必要です。
+
 ## Scene API で始める
 
 最小の宣言的ゲーム:

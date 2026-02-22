@@ -49,15 +49,18 @@ vector/        Vector math
 - pnpm
 - [just](https://github.com/casey/just)
 
-### Install & Run
+### Run in Browser
 
 ```bash
 pnpm install
+just dev flappy_bird
+```
 
-# JS smoke test
-(cd examples/runtime_smoke && moon run src --target js)
+Builds and serves at `http://localhost:8080`. Requires a WebGPU-capable browser (Chrome 113+, Edge 113+).
 
-# Native smoke test (macOS -- requires wgpu-native setup)
+### Native (macOS only)
+
+```bash
 bash scripts/setup-wgpu-native.sh
 (cd examples/runtime_smoke_native && moon run src --target native)
 ```

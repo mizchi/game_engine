@@ -32,6 +32,9 @@ e2e-smoke:
 info:
     moon info
 
+dev name:
+    bash scripts/dev.sh {{name}}
+
 pages:
     bash scripts/build-pages.sh
 

@@ -15,7 +15,23 @@
 pnpm install
 ```
 
-## First Run (JS smoke)
+## Run in Browser
+
+```bash
+just dev flappy_bird
+```
+
+Builds and starts a local server. Open `http://localhost:8080` in a WebGPU-capable browser.
+
+Other examples work the same way:
+
+```bash
+just dev survivor
+just dev action_rpg
+just dev scene_demo
+```
+
+## CLI Smoke Test
 
 ```bash
 (cd examples/runtime_smoke && moon run src --target js)
