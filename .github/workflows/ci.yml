@@ -13,14 +13,16 @@ jobs:
       - uses: hustcer/setup-moonbit@v1
         with:
           moonbit-version: "1.19.0"
+      - name: Setup pnpm
+        run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: "pnpm"
-      - name: Setup pnpm
-        run: corepack enable
       - name: Install E2E deps
         run: pnpm install --frozen-lockfile
+      - name: Update MoonBit registry
+        run: moon update
       - name: Format
         run: |
           moon fmt
@@ -30,7 +32,7 @@ jobs:
       - name: Test
         run: moon test --target js
       - name: Runtime Smoke (JS)
-        run: moon run src/examples/runtime_smoke --target js
+        run: cd examples/runtime_smoke && moon run src --target js
       - name: Install Playwright Browser
         run: pnpm exec playwright install --with-deps chromium
       - name: Runtime Smoke E2E (wasm/wasm-gc)
@@ -45,6 +47,8 @@ jobs:
       - uses: hustcer/setup-moonbit@v1
         with:
           moonbit-version: "1.19.0"
+      - name: Update MoonBit registry
+        run: moon update
       - name: Install native deps
         run: brew install glfw
       - name: Check
@@ -52,6 +56,6 @@ jobs:
       - name: Test
         run: moon test --target native
       - name: Runtime Smoke (Native)
-        run: moon run src/examples/runtime_smoke_native --target native
+        run: cd examples/runtime_smoke_native && moon run src --target native
       - name: Build Native Triangle
-        run: moon build src/examples/native_triangle --target native
+        run: cd examples/native_triangle && moon build src --target native
