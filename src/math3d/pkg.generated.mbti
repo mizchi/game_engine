@@ -1,0 +1,107 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/math3d"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Mat4 {
+  elements : FixedArray[Double]
+}
+pub fn Mat4::approx_eq(Self, Self, Double) -> Bool
+pub fn Mat4::determinant(Self) -> Double
+pub fn Mat4::from_cols(Vec4, Vec4, Vec4, Vec4) -> Self
+pub fn Mat4::identity() -> Self
+pub fn Mat4::inverse(Self) -> Self
+pub fn Mat4::look_at(Vec3, Vec3, Vec3) -> Self
+pub fn Mat4::mul_vec4(Self, Vec4) -> Vec4
+pub fn Mat4::multiply(Self, Self) -> Self
+pub fn Mat4::orthographic(Double, Double, Double, Double, Double, Double) -> Self
+pub fn Mat4::perspective(Double, Double, Double, Double) -> Self
+pub fn Mat4::rotation_x(Double) -> Self
+pub fn Mat4::rotation_y(Double) -> Self
+pub fn Mat4::rotation_z(Double) -> Self
+pub fn Mat4::scaling(Double, Double, Double) -> Self
+pub fn Mat4::to_flat_array(Self) -> Array[Double]
+pub fn Mat4::translation(Double, Double, Double) -> Self
+pub fn Mat4::transpose(Self) -> Self
+pub fn Mat4::zero() -> Self
+pub impl Show for Mat4
+
+pub struct Quaternion {
+  x : Double
+  y : Double
+  z : Double
+  w : Double
+}
+pub fn Quaternion::approx_eq(Self, Self, Double) -> Bool
+pub fn Quaternion::conjugate(Self) -> Self
+pub fn Quaternion::from_axis_angle(Vec3, Double) -> Self
+pub fn Quaternion::from_euler(Double, Double, Double) -> Self
+pub fn Quaternion::identity() -> Self
+pub fn Quaternion::inverse(Self) -> Self
+pub fn Quaternion::length(Self) -> Double
+pub fn Quaternion::multiply(Self, Self) -> Self
+pub fn Quaternion::new(Double, Double, Double, Double) -> Self
+pub fn Quaternion::normalize(Self) -> Self
+pub fn Quaternion::rotate_vec3(Self, Vec3) -> Vec3
+pub fn Quaternion::slerp(Self, Self, Double) -> Self
+pub fn Quaternion::to_mat4(Self) -> Mat4
+pub impl Show for Quaternion
+
+pub struct Vec3 {
+  x : Double
+  y : Double
+  z : Double
+}
+pub fn Vec3::add(Self, Self) -> Self
+pub fn Vec3::approx_eq(Self, Self, Double) -> Bool
+pub fn Vec3::clamp(Self, Self, Self) -> Self
+pub fn Vec3::cross(Self, Self) -> Self
+pub fn Vec3::distance(Self, Self) -> Double
+pub fn Vec3::distance_squared(Self, Self) -> Double
+pub fn Vec3::div(Self, Self) -> Self
+pub fn Vec3::dot(Self, Self) -> Double
+pub fn Vec3::length(Self) -> Double
+pub fn Vec3::length_squared(Self) -> Double
+pub fn Vec3::lerp(Self, Self, Double) -> Self
+pub fn Vec3::max(Self, Self) -> Self
+pub fn Vec3::min(Self, Self) -> Self
+pub fn Vec3::mul(Self, Self) -> Self
+pub fn Vec3::negate(Self) -> Self
+pub fn Vec3::new(Double, Double, Double) -> Self
+pub fn Vec3::normalize(Self) -> Self
+pub fn Vec3::one() -> Self
+pub fn Vec3::reflect(Self, Self) -> Self
+pub fn Vec3::scale(Self, Double) -> Self
+pub fn Vec3::sub(Self, Self) -> Self
+pub fn Vec3::unit_x() -> Self
+pub fn Vec3::unit_y() -> Self
+pub fn Vec3::unit_z() -> Self
+pub fn Vec3::zero() -> Self
+pub impl Show for Vec3
+
+pub struct Vec4 {
+  x : Double
+  y : Double
+  z : Double
+  w : Double
+}
+pub fn Vec4::add(Self, Self) -> Self
+pub fn Vec4::approx_eq(Self, Self, Double) -> Bool
+pub fn Vec4::dot(Self, Self) -> Double
+pub fn Vec4::from_vec3(Vec3, Double) -> Self
+pub fn Vec4::length(Self) -> Double
+pub fn Vec4::new(Double, Double, Double, Double) -> Self
+pub fn Vec4::normalize(Self) -> Self
+pub fn Vec4::scale(Self, Double) -> Self
+pub fn Vec4::sub(Self, Self) -> Self
+pub fn Vec4::to_vec3(Self) -> Vec3
+pub fn Vec4::zero() -> Self
+pub impl Show for Vec4
+
+// Type aliases
+
+// Traits
+

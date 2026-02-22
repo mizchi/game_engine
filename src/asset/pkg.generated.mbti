@@ -2,9 +2,9 @@
 package "mizchi/kagura/asset"
 
 import {
+  "mizchi/image",
   "mizchi/kagura/gfx",
   "mizchi/kagura/image_palette",
-  "mizchi/image",
 }
 
 // Values
@@ -109,6 +109,10 @@ pub fn new_simple_image_repository() -> SimpleImageRepository
 pub fn new_simple_material_repository() -> SimpleMaterialRepository
 
 pub fn new_simple_shader_repository() -> SimpleShaderRepository
+
+pub fn new_source_image_binding(Int, Int, Int, Int, SourceImageDirtyRect?, @image_palette.ImagePalette2x2, Array[Int]) -> SourceImageBinding
+
+pub fn new_source_image_dirty_rect(Int, Int, Int, Int) -> SourceImageDirtyRect
 
 pub fn new_unmanaged_atlas_draw_source(Int) -> AtlasDrawSource
 

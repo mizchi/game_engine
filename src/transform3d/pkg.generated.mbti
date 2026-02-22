@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/transform3d"
+
+import {
+  "mizchi/kagura/math3d",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Transform3D {
+  position : @math3d.Vec3
+  rotation : @math3d.Quaternion
+  scale : @math3d.Vec3
+}
+pub fn Transform3D::forward(Self) -> @math3d.Vec3
+pub fn Transform3D::from_components(@math3d.Vec3, @math3d.Quaternion, @math3d.Vec3) -> Self
+pub fn Transform3D::from_position(@math3d.Vec3) -> Self
+pub fn Transform3D::from_position_rotation(@math3d.Vec3, @math3d.Quaternion) -> Self
+pub fn Transform3D::look_at(Self, @math3d.Vec3, @math3d.Vec3) -> Self
+pub fn Transform3D::new() -> Self
+pub fn Transform3D::right(Self) -> @math3d.Vec3
+pub fn Transform3D::rotate(Self, @math3d.Quaternion) -> Self
+pub fn Transform3D::scale_by(Self, @math3d.Vec3) -> Self
+pub fn Transform3D::to_mat4(Self) -> @math3d.Mat4
+pub fn Transform3D::translate(Self, @math3d.Vec3) -> Self
+pub fn Transform3D::up(Self) -> @math3d.Vec3
+pub fn Transform3D::with_position(Self, @math3d.Vec3) -> Self
+pub fn Transform3D::with_rotation(Self, @math3d.Quaternion) -> Self
+pub fn Transform3D::with_scale(Self, @math3d.Vec3) -> Self
+pub impl Show for Transform3D
+
+// Type aliases
+
+// Traits
+

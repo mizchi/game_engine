@@ -104,7 +104,7 @@ pub fn new_image_handle(Int, Int, Int) -> ImageHandle
 
 pub fn new_native_graphics_hooks((Int, Int) -> Bool, (Bool, RenderPassDesc) -> Unit, (Bool, Bool) -> Unit, (Bool, DrawTrianglesCommand) -> Unit, (Bool, Int, Int) -> Unit) -> NativeGraphicsHooks
 
-pub fn new_native_graphics_hooks_full((Int, Int) -> Bool, (Bool, RenderPassDesc) -> Unit, (Bool, Bool) -> Unit, (Bool, DrawTrianglesCommand) -> Unit, (Bool, Int, Int) -> Unit, (Bool, Int, Int, Int, Int) -> Array[Int]?) -> NativeGraphicsHooks
+pub fn new_native_graphics_hooks_full((Int, Int) -> Bool, (Bool, RenderPassDesc) -> Unit, (Bool, Bool) -> Unit, (Bool, DrawTrianglesCommand) -> Unit, (Bool, Int, Int) -> Unit, (Bool, Int, Int, Int, Int) -> Array[Int]?, (Bool, Int, Int, Int) -> Unit) -> NativeGraphicsHooks
 
 pub fn new_pipeline_handle(Int) -> PipelineHandle
 
@@ -371,6 +371,7 @@ pub struct NativeGraphicsHooks {
   on_draw : (Bool, DrawTrianglesCommand) -> Unit
   on_resize : (Bool, Int, Int) -> Unit
   on_read_pixels : (Bool, Int, Int, Int, Int) -> Array[Int]?
+  on_new_image : (Bool, Int, Int, Int) -> Unit
 }
 
 pub struct PackedUniforms {

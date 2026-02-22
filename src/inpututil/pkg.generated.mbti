@@ -40,6 +40,12 @@ pub fn gamepad_just_released_button_count(GamepadInputState) -> Int
 
 pub fn gamepad_pressed_button_count(GamepadInputState) -> Int
 
+pub fn is_any_action_just_pressed(InputHelper, @core.InputSnapshot) -> Bool
+
+pub fn is_confirm_just_pressed(InputHelper) -> Bool
+
+pub fn is_down_just_pressed(InputHelper) -> Bool
+
 pub fn is_gamepad_button_just_pressed(GamepadInputState, Int, Int) -> Bool
 
 pub fn is_gamepad_button_just_released(GamepadInputState, Int, Int) -> Bool
@@ -64,17 +70,59 @@ pub fn is_mouse_button_just_released(MouseButtonInputState, Int) -> Bool
 
 pub fn is_mouse_button_pressed(MouseButtonInputState, Int) -> Bool
 
+pub fn is_move_down(KeyInputState) -> Bool
+
+pub fn is_move_left(KeyInputState) -> Bool
+
+pub fn is_move_right(KeyInputState) -> Bool
+
+pub fn is_move_up(KeyInputState) -> Bool
+
 pub fn is_touch_just_pressed(TouchInputState, Int) -> Bool
 
 pub fn is_touch_just_released(TouchInputState, Int) -> Bool
 
 pub fn is_touch_pressed(TouchInputState, Int) -> Bool
 
+pub fn is_up_just_pressed(InputHelper) -> Bool
+
+pub let key_a : Int
+
+pub let key_d : Int
+
+pub let key_down_glfw : Int
+
+pub let key_down_web : Int
+
+pub let key_enter_glfw : Int
+
+pub let key_enter_web : Int
+
+pub let key_left_glfw : Int
+
+pub let key_left_web : Int
+
 pub fn key_press_duration(KeyInputState, Int) -> Int
+
+pub let key_right_glfw : Int
+
+pub let key_right_web : Int
+
+pub let key_s : Int
+
+pub let key_space : Int
+
+pub let key_up_glfw : Int
+
+pub let key_up_web : Int
+
+pub let key_w : Int
 
 pub fn mouse_button_press_duration(MouseButtonInputState, Int) -> Int
 
 pub fn new_gamepad_input_state() -> GamepadInputState
+
+pub fn new_input_helper() -> InputHelper
 
 pub fn new_key_input_state() -> KeyInputState
 
@@ -85,6 +133,8 @@ pub fn new_touch_input_state() -> TouchInputState
 pub fn touch_press_duration(TouchInputState, Int) -> Int
 
 pub fn update_gamepad_input_state(GamepadInputState, @core.InputSnapshot) -> Unit
+
+pub fn update_input_helper(InputHelper, @core.InputSnapshot) -> Unit
 
 pub fn update_key_input_state(KeyInputState, @core.InputSnapshot) -> Unit
 
@@ -115,6 +165,12 @@ pub struct GamepadInputState {
   mut just_pressed_buttons : Array[GamepadButtonKey]
   mut just_released_buttons : Array[GamepadButtonKey]
   mut button_durations : Array[GamepadButtonDurationEntry]
+}
+
+pub struct InputHelper {
+  key_state : KeyInputState
+  mouse_state : MouseButtonInputState
+  touch_state : TouchInputState
 }
 
 type KeyDurationEntry

@@ -22,21 +22,37 @@ pub fn color_green() -> @gfx.Color
 
 pub fn color_red() -> @gfx.Color
 
+pub fn color_to_uniform_dwords(@gfx.Color) -> Array[Int]
+
 pub fn color_transparent() -> @gfx.Color
 
 pub fn color_white() -> @gfx.Color
 
 pub fn color_yellow() -> @gfx.Color
 
+pub fn draw_dot_text(Array[@gfx.DrawTrianglesCommand], @gfx.ImageHandle, @gfx.ShaderHandle, Array[Int], Double, Double, Double, Double, @gfx.Color, Double) -> Unit
+
+pub fn draw_number(Array[@gfx.DrawTrianglesCommand], @gfx.ImageHandle, @gfx.ShaderHandle, Int, Double, Double, Double, Double, @gfx.Color, Double) -> Unit
+
+pub fn glyph_pattern(Int) -> Array[Int]
+
 pub fn line_vertices(Double, Double, Double, Double, Double) -> (Array[Double], Array[Int])
+
+pub fn ndc_rect_fill_vertices(Double, Double, Double, Double, Double, Double) -> (Array[Double], Array[Int])
 
 pub fn new_line_command(@gfx.ImageHandle, @gfx.ShaderHandle, Double, Double, Double, Double, Double, @gfx.Color, Int) -> @gfx.DrawTrianglesCommand
 
+pub fn new_ndc_rect_fill_command(@gfx.ImageHandle, @gfx.ShaderHandle, Double, Double, Double, Double, Double, Double, @gfx.Color, Int) -> @gfx.DrawTrianglesCommand
+
 pub fn new_rect_fill_command(@gfx.ImageHandle, @gfx.ShaderHandle, Double, Double, Double, Double, @gfx.Color, Int) -> @gfx.DrawTrianglesCommand
+
+pub fn new_simple_draw_command(@gfx.ImageHandle, @gfx.ShaderHandle, Array[Double], Array[Int], @gfx.Color) -> @gfx.DrawTrianglesCommand
 
 pub fn rect_fill_vertices(Double, Double, Double, Double) -> (Array[Double], Array[Int])
 
 pub fn rect_outline_vertices(Double, Double, Double, Double, Double) -> (Array[Double], Array[Int])
+
+pub fn[T : @gfx.GraphicsDriver] render_commands(T, Array[@gfx.DrawTrianglesCommand]) -> Unit raise
 
 // Errors
 

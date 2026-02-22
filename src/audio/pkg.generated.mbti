@@ -8,6 +8,8 @@ pub fn audio_close() -> Unit
 
 pub fn audio_output_latency() -> Double
 
+pub fn audio_render_and_write(MixerAudioContext, Int) -> Int
+
 pub fn audio_resume() -> Unit
 
 pub fn audio_suspend() -> Unit
@@ -36,6 +38,8 @@ pub fn decode_wav_clip(Bytes, Bool) -> AudioClip raise @mizchi/audio.AudioError
 
 pub fn default_audio_format() -> AudioFormat
 
+pub fn default_audio_output_stats() -> AudioOutputStats
+
 pub fn detect_audio_format(Bytes) -> String
 
 pub fn duration_to_samples(AudioFormat, Double) -> Int
@@ -45,6 +49,10 @@ pub fn mono_format(Int) -> AudioFormat
 pub fn new_audio_clip(AudioFormat, Bytes, Bool) -> AudioClip
 
 pub fn new_audio_output_hooks((AudioFormat) -> Bool, (FixedArray[Float], Int) -> Int, () -> Unit, () -> Unit, () -> Unit) -> AudioOutputHooks
+
+pub fn new_audio_output_hooks_full((AudioFormat) -> Bool, (FixedArray[Float], Int) -> Int, () -> Unit, () -> Unit, () -> Unit, () -> Double) -> AudioOutputHooks
+
+pub fn new_tracked_audio_output_hooks(AudioOutputHooks, Ref[AudioOutputStats]) -> AudioOutputHooks
 
 pub fn reset_audio_output_hooks() -> Unit
 
@@ -84,7 +92,7 @@ pub struct AudioOutputHooks {
   try_initialize : (AudioFormat) -> Bool
   write_frames : (FixedArray[Float], Int) -> Int
   suspend : () -> Unit
-  resume : () -> Unit
+  resume_playback : () -> Unit
   close : () -> Unit
   output_latency : () -> Double
 }

@@ -2,6 +2,10 @@
 package "mizchi/kagura/vector"
 
 // Values
+pub fn aabb_overlap(Double, Double, Double, Double, Double, Double, Double, Double) -> Bool
+
+pub fn aabb_overlap_center(Double, Double, Double, Double, Double, Double, Double, Double) -> Bool
+
 pub fn fill_path(Array[Vec2]) -> (Array[Double], Array[Int])
 
 pub fn stroke_path(Array[Vec2], Double) -> (Array[Double], Array[Int])

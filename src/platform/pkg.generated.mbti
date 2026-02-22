@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn async_request_status_from_int(Int) -> AsyncRequestStatus
+
+pub fn async_request_status_to_int(AsyncRequestStatus) -> Int
+
 pub fn create_desktop_glfw_platform() -> DesktopGlfwPlatform
 
 pub fn create_offscreen_surface_token(Int, Int) -> SurfaceToken
@@ -24,9 +28,9 @@ pub fn fullscreen_mode_from_int(Int) -> FullscreenMode
 
 pub fn fullscreen_mode_to_int(FullscreenMode) -> Int
 
-pub fn new_desktop_native_hooks((WindowOptions) -> Bool, (Bool) -> Unit, () -> Bool, (Int, Int) -> @core.OutsideSize, (Bool, Int) -> @core.InputSnapshot, (Bool, Bool) -> Bool, (Bool, Bool) -> Bool, (Bool, CursorMode) -> CursorMode, (Bool, CursorMode) -> CursorMode, (Bool, Double) -> Double, (Bool, Double) -> Double, (Bool, Bool) -> Bool, (Bool, Bool) -> Bool, (Bool) -> Unit, (Bool) -> Unit) -> DesktopNativeHooks
+pub fn new_desktop_native_hooks((WindowOptions) -> Bool, (Bool) -> Unit, () -> Bool, (Int, Int) -> @core.OutsideSize, (Bool, Int) -> @core.InputSnapshot, (Bool, Bool) -> Bool, (Bool, Bool) -> Bool, (Bool, CursorMode) -> CursorMode, (Bool, CursorMode) -> CursorMode, (Bool, Double) -> Double, (Bool, Double) -> Double, (Bool, Bool) -> Bool, (Bool, Bool) -> Bool, (Bool) -> Unit, (Bool) -> Unit, (Bool, Bool) -> Unit, (Bool) -> Bool) -> DesktopNativeHooks
 
-pub fn new_web_canvas_hooks((String, WindowOptions) -> Bool, (Bool) -> Unit, () -> Bool, (Int, Int) -> @core.OutsideSize, (String, WindowOptions) -> SurfaceToken, (Bool, Int) -> @core.InputSnapshot, (String, Bool, Bool) -> Bool, (String, Bool, Bool) -> Bool, (String, Bool, CursorMode) -> CursorMode, (String, Bool, CursorMode) -> CursorMode, (String, Bool, Double) -> Double, (String, Bool, Double) -> Double, (String, Bool, Bool) -> Bool, (String, Bool, Bool) -> Bool, (String, Bool) -> Unit, (String, Bool) -> Unit) -> WebCanvasHooks
+pub fn new_web_canvas_hooks((String, WindowOptions) -> Bool, (Bool) -> Unit, () -> Bool, (Int, Int) -> @core.OutsideSize, (String, WindowOptions) -> SurfaceToken, (Bool, Int) -> @core.InputSnapshot, (String, Bool, Bool) -> Bool, (String, Bool, Bool) -> Bool, (String, Bool, CursorMode) -> CursorMode, (String, Bool, CursorMode) -> CursorMode, (String, Bool, Double) -> Double, (String, Bool, Double) -> Double, (String, Bool, Bool) -> Bool, (String, Bool, Bool) -> Bool, (String, Bool) -> Unit, (String, Bool) -> Unit, (String, Bool, Bool) -> Unit, (String, Bool) -> Bool, (String, Bool, Int) -> Int, (String, Bool, Int) -> Int) -> WebCanvasHooks
 
 pub fn new_window_options(String, Int, Int, Bool, Bool) -> WindowOptions
 
@@ -41,6 +45,14 @@ pub fn set_web_canvas_hooks(WebCanvasHooks) -> Unit
 // Errors
 
 // Types and methods
+pub enum AsyncRequestStatus {
+  Idle
+  Pending
+  Confirmed
+  Rejected
+}
+pub impl Show for AsyncRequestStatus
+
 pub enum CursorMode {
   Visible
   Hidden
@@ -61,6 +73,9 @@ pub struct DesktopGlfwPlatform {
   mut vsync_enabled : Bool
   mut close_requested : Bool
   mut attention_requests : Int
+  mut mouse_touch_fallback : Bool
+  mut fullscreen_request_status : AsyncRequestStatus
+  mut cursor_mode_request_status : AsyncRequestStatus
 }
 pub impl PlatformDriver for DesktopGlfwPlatform
 pub impl SurfaceProvider for DesktopGlfwPlatform
@@ -81,6 +96,8 @@ pub struct DesktopNativeHooks {
   is_vsync_enabled : (Bool, Bool) -> Bool
   close_window : (Bool) -> Unit
   request_attention : (Bool) -> Unit
+  set_mouse_touch_fallback : (Bool, Bool) -> Unit
+  mouse_touch_fallback_enabled : (Bool) -> Bool
 }
 
 pub enum FullscreenMode {
@@ -132,6 +149,10 @@ pub struct WebCanvasHooks {
   is_vsync_enabled : (String, Bool, Bool) -> Bool
   close_window : (String, Bool) -> Unit
   request_attention : (String, Bool) -> Unit
+  set_mouse_touch_fallback : (String, Bool, Bool) -> Unit
+  mouse_touch_fallback_enabled : (String, Bool) -> Bool
+  fullscreen_request_status : (String, Bool, Int) -> Int
+  cursor_mode_request_status : (String, Bool, Int) -> Int
 }
 
 pub struct WebCanvasPlatform {
@@ -148,6 +169,9 @@ pub struct WebCanvasPlatform {
   mut vsync_enabled : Bool
   mut close_requested : Bool
   mut attention_requests : Int
+  mut mouse_touch_fallback : Bool
+  mut fullscreen_request_status : AsyncRequestStatus
+  mut cursor_mode_request_status : AsyncRequestStatus
 }
 pub impl PlatformDriver for WebCanvasPlatform
 pub impl SurfaceProvider for WebCanvasPlatform
@@ -181,6 +205,10 @@ pub trait PlatformDriver {
   is_vsync_enabled(Self) -> Bool
   close_window(Self) -> Unit
   request_attention(Self) -> Unit
+  set_mouse_touch_fallback(Self, Bool) -> Unit
+  mouse_touch_fallback_enabled(Self) -> Bool
+  fullscreen_request_status(Self) -> AsyncRequestStatus
+  cursor_mode_request_status(Self) -> AsyncRequestStatus
 }
 
 pub trait SurfaceProvider {

@@ -30,6 +30,8 @@ pub fn new_touch_point_ex(Int, Double, Double, TouchPhase) -> TouchPointEx
 
 pub fn new_touch_point_ex_full(Int, Double, Double, TouchPhase, Double, Double, Double) -> TouchPointEx
 
+pub fn new_touch_point_with_source(Int, Double, Double, TouchSource) -> TouchPoint
+
 pub fn[T : Game] run_game(T, RunOptions) -> Unit
 
 pub fn step_fixed_timestep(FixedStepState, Double, FixedStepConfig) -> StepResult
@@ -39,6 +41,10 @@ pub fn touch_phase_from_int(Int) -> TouchPhase
 pub fn touch_phase_to_int(TouchPhase) -> Int
 
 pub fn touch_point_from_ex(TouchPointEx) -> TouchPoint
+
+pub fn touch_source_from_int(Int) -> TouchSource
+
+pub fn touch_source_to_int(TouchSource) -> Int
 
 // Errors
 
@@ -132,6 +138,7 @@ pub struct TouchPoint {
   id : Int
   x : Double
   y : Double
+  source : TouchSource
 }
 pub impl Show for TouchPoint
 
@@ -145,6 +152,14 @@ pub struct TouchPointEx {
   delta_y : Double
 }
 pub impl Show for TouchPointEx
+
+pub enum TouchSource {
+  Direct
+  Indirect
+  Mouse
+  Unknown
+}
+pub impl Show for TouchSource
 
 // Type aliases
 

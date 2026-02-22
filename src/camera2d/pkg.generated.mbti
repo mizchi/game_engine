@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/camera2d"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Camera2D {
+  mut x : Double
+  mut y : Double
+  screen_w : Double
+  screen_h : Double
+  world_w : Double
+  world_h : Double
+}
+pub fn Camera2D::follow_target(Self, Double, Double) -> Unit
+pub fn Camera2D::new(Double, Double, Double, Double) -> Self
+pub fn Camera2D::world_to_screen_x(Self, Double) -> Double
+pub fn Camera2D::world_to_screen_y(Self, Double) -> Double
+
+// Type aliases
+
+// Traits
+

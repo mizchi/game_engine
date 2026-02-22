@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/light3d"
+
+import {
+  "mizchi/kagura/math3d",
+}
+
+// Values
+pub fn light_uniform_dwords(LightingEnvironment) -> Array[Int]
+
+pub fn normal_matrix_uniform_dwords(@math3d.Mat4) -> Array[Int]
+
+// Errors
+
+// Types and methods
+pub struct AmbientLight {
+  color : @math3d.Vec3
+  intensity : Double
+}
+pub fn AmbientLight::default() -> Self
+pub fn AmbientLight::new(@math3d.Vec3, Double) -> Self
+pub impl Show for AmbientLight
+
+pub struct DirectionalLight {
+  direction : @math3d.Vec3
+  color : @math3d.Vec3
+  intensity : Double
+}
+pub fn DirectionalLight::default() -> Self
+pub fn DirectionalLight::new(@math3d.Vec3, @math3d.Vec3, Double) -> Self
+pub impl Show for DirectionalLight
+
+pub struct LightingEnvironment {
+  directional : DirectionalLight
+  ambient : AmbientLight
+}
+pub fn LightingEnvironment::default() -> Self
+pub fn LightingEnvironment::new(DirectionalLight, AmbientLight) -> Self
+pub impl Show for LightingEnvironment
+
+// Type aliases
+
+// Traits
+

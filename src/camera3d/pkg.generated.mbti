@@ -1,0 +1,98 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/camera3d"
+
+import {
+  "mizchi/kagura/math3d",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Camera3D {
+  position : @math3d.Vec3
+  target : @math3d.Vec3
+  up : @math3d.Vec3
+  fov_y_rad : Double
+  aspect : Double
+  near : Double
+  far : Double
+  projection_mode : ProjectionMode
+}
+pub fn Camera3D::new_orthographic(@math3d.Vec3, @math3d.Vec3, @math3d.Vec3, Double, Double, Double, Double, Double, Double) -> Self
+pub fn Camera3D::new_perspective(@math3d.Vec3, @math3d.Vec3, @math3d.Vec3, Double, Double, Double, Double) -> Self
+pub fn Camera3D::projection_matrix(Self) -> @math3d.Mat4
+pub fn Camera3D::view_matrix(Self) -> @math3d.Mat4
+pub fn Camera3D::view_projection_matrix(Self) -> @math3d.Mat4
+
+pub struct FPSCamera {
+  position : @math3d.Vec3
+  yaw : Double
+  pitch : Double
+  fov_y_rad : Double
+  aspect : Double
+  near : Double
+  far : Double
+}
+pub fn FPSCamera::default() -> Self
+pub fn FPSCamera::forward(Self) -> @math3d.Vec3
+pub fn FPSCamera::look(Self, Double, Double) -> Self
+pub fn FPSCamera::move_forward(Self, Double) -> Self
+pub fn FPSCamera::move_right(Self, Double) -> Self
+pub fn FPSCamera::move_up(Self, Double) -> Self
+pub fn FPSCamera::new(@math3d.Vec3, Double, Double, Double, Double, Double, Double) -> Self
+pub fn FPSCamera::orientation(Self) -> @math3d.Quaternion
+pub fn FPSCamera::right(Self) -> @math3d.Vec3
+pub fn FPSCamera::to_camera3d(Self) -> Camera3D
+
+pub struct OrbitCamera {
+  target : @math3d.Vec3
+  distance : Double
+  yaw : Double
+  pitch : Double
+  fov_y_rad : Double
+  aspect : Double
+  near : Double
+  far : Double
+}
+pub fn OrbitCamera::default() -> Self
+pub fn OrbitCamera::new(@math3d.Vec3, Double, Double, Double, Double, Double, Double, Double) -> Self
+pub fn OrbitCamera::orbit(Self, Double, Double) -> Self
+pub fn OrbitCamera::orientation(Self) -> @math3d.Quaternion
+pub fn OrbitCamera::pan(Self, Double, Double) -> Self
+pub fn OrbitCamera::position(Self) -> @math3d.Vec3
+pub fn OrbitCamera::to_camera3d(Self) -> Camera3D
+pub fn OrbitCamera::with_distance(Self, Double) -> Self
+pub fn OrbitCamera::with_target(Self, @math3d.Vec3) -> Self
+pub fn OrbitCamera::zoom(Self, Double) -> Self
+
+pub enum ProjectionMode {
+  Perspective
+  Orthographic(Double, Double, Double, Double)
+}
+pub impl Show for ProjectionMode
+
+pub struct SmoothCamera {
+  current_position : @math3d.Vec3
+  current_orientation : @math3d.Quaternion
+  target_position : @math3d.Vec3
+  target_orientation : @math3d.Quaternion
+  speed : Double
+  fov_y_rad : Double
+  aspect : Double
+  near : Double
+  far : Double
+}
+pub fn SmoothCamera::is_settled(Self, Double) -> Bool
+pub fn SmoothCamera::new(@math3d.Vec3, @math3d.Quaternion, Double, Double, Double, Double, Double) -> Self
+pub fn SmoothCamera::set_target(Self, @math3d.Vec3, @math3d.Quaternion) -> Self
+pub fn SmoothCamera::set_target_look_at(Self, @math3d.Vec3, @math3d.Vec3, @math3d.Vec3) -> Self
+pub fn SmoothCamera::snap(Self) -> Self
+pub fn SmoothCamera::to_camera3d(Self) -> Camera3D
+pub fn SmoothCamera::update(Self, Double) -> Self
+
+// Type aliases
+
+// Traits
+

@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/draw3d"
+
+import {
+  "mizchi/kagura/gfx",
+  "mizchi/kagura/light3d",
+  "mizchi/kagura/math3d",
+  "mizchi/kagura/mesh3d",
+}
+
+// Values
+pub fn lit_uniform_dwords(@math3d.Mat4, @math3d.Mat4, @light3d.LightingEnvironment) -> Array[Int]
+
+pub fn mat4_to_uniform_dwords(@math3d.Mat4) -> Array[Int]
+
+pub fn mvp_uniform_dwords(@math3d.Mat4, @math3d.Mat4) -> Array[Int]
+
+pub fn new_lit_mesh_draw_command(@gfx.ImageHandle, @gfx.ShaderHandle, @gfx.DstRegion, Int, Int, Int, @gfx.BlendMode, @mesh3d.Mesh3D, @math3d.Mat4, @math3d.Mat4, @light3d.LightingEnvironment, Array[Int]) -> @gfx.DrawTrianglesCommand
+
+pub fn new_mesh_draw_command(@gfx.ImageHandle, @gfx.ShaderHandle, @gfx.DstRegion, Int, Int, Int, @gfx.BlendMode, @mesh3d.Mesh3D, @math3d.Mat4, @math3d.Mat4, Array[Int]) -> @gfx.DrawTrianglesCommand
+
+pub fn shader3d_lit_untextured_wgsl() -> String
+
+pub fn shader3d_lit_wgsl() -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

@@ -24,10 +24,6 @@ pub fn ui_events_from_input_edge(@inpututil.KeyInputState, @inpututil.MouseButto
 // Errors
 
 // Types and methods
-type ChildMeasure
-
-type FlexLine
-
 pub struct LayoutConstraint {
   min_width : Double
   min_height : Double

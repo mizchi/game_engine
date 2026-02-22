@@ -9,11 +9,52 @@ import {
 // Values
 pub fn default_text_style(String, Double) -> TextStyle
 
+pub fn detect_font_format(Bytes) -> FontFormat
+
+pub fn font_data_to_bytes(Array[Int]) -> Bytes
+
+pub fn load_font(String) -> @font.TTFont?
+
+pub fn load_font_engine_from_bytes(Bytes) -> SimpleFontEngine?
+
+pub fn load_text_renderer(String, Int, Int, Int) -> TextRenderer?
+
+pub fn make_glyph_cache_key(Int, Double) -> Int
+
+pub fn new_font_load_hooks((String) -> Array[Int]?) -> FontLoadHooks
+
+pub fn new_text_run(String, TextStyle) -> TextRun
+
+pub fn parse_font_bytes(Bytes) -> @font.TTFont?
+
 pub fn rasterize_glyph(@font.TTFont, Int, Double) -> GlyphBitmap?
+
+pub fn reset_font_load_hooks() -> Unit
+
+pub fn set_font_load_hooks(FontLoadHooks) -> Unit
 
 // Errors
 
 // Types and methods
+pub struct AtlasPageInfo {
+  page_id : Int
+  width : Int
+  height : Int
+  dirty : Bool
+}
+pub impl Show for AtlasPageInfo
+
+pub enum FontFormat {
+  TrueType
+  OpenType
+  Woff1
+  Woff2
+  TrueTypeCollection
+  Unknown
+}
+pub impl Eq for FontFormat
+pub impl Show for FontFormat
+
 pub struct FontKey {
   family : String
   weight : Int
@@ -21,11 +62,17 @@ pub struct FontKey {
 }
 pub impl Show for FontKey
 
+pub struct FontLoadHooks {
+  load_font_data : (String) -> Array[Int]?
+}
+
 pub struct GlyphAtlas {
   cache : GlyphCache
   width : Int
   height : Int
   pixels : Array[Int]
+  mut dirty : Bool
+  mut last_used_generation : Int
 }
 pub fn GlyphAtlas::get_cache(Self) -> GlyphCache
 pub fn GlyphAtlas::get_pixels(Self) -> Array[Int]
@@ -97,6 +144,28 @@ pub struct TextMetrics {
   baseline : Double
 }
 pub impl Show for TextMetrics
+
+pub struct TextRenderer {
+  mut pages : Array[GlyphAtlas]
+  font : @font.TTFont
+  pipeline_id : Int
+  atlas_size : Int
+  base_page_id : Int
+  max_pages : Int
+  mut generation : Int
+}
+pub fn TextRenderer::clear(Self) -> Unit
+pub fn TextRenderer::flush_dirty_pages(Self) -> Array[AtlasPageInfo]
+pub fn TextRenderer::get_atlas(Self) -> GlyphAtlas
+pub fn TextRenderer::get_page(Self, Int) -> GlyphAtlas
+pub fn TextRenderer::get_page_id(Self) -> Int
+pub fn TextRenderer::get_page_ids(Self) -> Array[Int]
+pub fn TextRenderer::glyph_count(Self) -> Int
+pub fn TextRenderer::measure(Self, String, Double) -> TextMetrics
+pub fn TextRenderer::new(@font.TTFont, Int, Int, Int) -> Self
+pub fn TextRenderer::new_with_options(@font.TTFont, Int, Int, Int, Int) -> Self
+pub fn TextRenderer::page_count(Self) -> Int
+pub fn TextRenderer::render_text(Self, String, Double, Double, Double, @gfx.ImageHandle, @gfx.ShaderHandle, @gfx.BlendMode, Array[Int]) -> Array[@gfx.DrawTrianglesCommand]
 
 pub struct TextRun {
   text : String

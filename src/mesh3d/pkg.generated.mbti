@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/kagura/mesh3d"
+
+// Values
+pub let vertex3d_stride : Int
+
+// Errors
+
+// Types and methods
+pub struct Mesh3D {
+  vertex_data : Array[Double]
+  indices : Array[Int]
+}
+pub fn Mesh3D::cube(Double) -> Self
+pub fn Mesh3D::plane(Double, Double) -> Self
+pub fn Mesh3D::sphere(Double, Int, Int) -> Self
+pub fn Mesh3D::triangle_count(Self) -> Int
+pub fn Mesh3D::vertex_count(Self) -> Int
+pub impl Show for Mesh3D
+
+// Type aliases
+
+// Traits
+
