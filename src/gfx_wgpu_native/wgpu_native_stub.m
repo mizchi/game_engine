@@ -89,6 +89,19 @@ int32_t moonbit_glfw_get_window_height(GLFWwindow* window) {
   return height;
 }
 
+// フレームバッファサイズを個別に取得（物理ピクセル、Retina対応）
+int32_t moonbit_glfw_get_framebuffer_width(GLFWwindow* window) {
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+  return width;
+}
+
+int32_t moonbit_glfw_get_framebuffer_height(GLFWwindow* window) {
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+  return height;
+}
+
 static int g_windowed_x = 100;
 static int g_windowed_y = 100;
 static int g_windowed_width = 800;
@@ -152,6 +165,13 @@ typedef struct {
   float u;
   float v;
 } moonbit_payload_vertex;
+
+// --- Batch drawing: static CPU + pre-allocated GPU buffers ---
+static moonbit_payload_vertex g_batch_vertices[MOONBIT_MAX_PLANNED_DRAW_COMMANDS * 3];
+static uint32_t g_batch_indices[MOONBIT_MAX_PLANNED_DRAW_COMMANDS * 3];
+static WGPUBuffer g_batched_vertex_buffer = NULL;
+static WGPUBuffer g_batched_index_buffer = NULL;
+static uint32_t g_batched_buffer_capacity = 0; // in triangles
 
 #define MOONBIT_MAX_PLANNED_PIPELINE_CACHE_ENTRIES 128
 typedef struct {
@@ -1307,6 +1327,17 @@ void moonbit_clear_planned_pipeline_cache(void) {
     moonbit_release_planned_pipeline_cache_entry(&g_planned_pipeline_cache[i]);
   }
   g_planned_pipeline_cache_stamp = 1;
+
+  // Release batch GPU buffers
+  if (g_batched_vertex_buffer != NULL) {
+    wgpuBufferRelease(g_batched_vertex_buffer);
+    g_batched_vertex_buffer = NULL;
+  }
+  if (g_batched_index_buffer != NULL) {
+    wgpuBufferRelease(g_batched_index_buffer);
+    g_batched_index_buffer = NULL;
+  }
+  g_batched_buffer_capacity = 0;
 }
 
 static uint64_t moonbit_next_planned_texture_cache_stamp(void) {
@@ -2835,6 +2866,19 @@ void moonbit_push_planned_draw_command(
   command->dst_image_id = dst_image_id;
 }
 
+static int moonbit_same_material(
+    const moonbit_planned_draw_command* a,
+    const moonbit_planned_draw_command* b
+) {
+  return a->texture_seed == b->texture_seed &&
+         a->uniform_r == b->uniform_r &&
+         a->uniform_g == b->uniform_g &&
+         a->uniform_b == b->uniform_b &&
+         a->uniform_a == b->uniform_a &&
+         a->dst_image_id == b->dst_image_id &&
+         a->has_triangle_payload == b->has_triangle_payload;
+}
+
 static void moonbit_fill_payload_vertices(
     const moonbit_planned_draw_command* command,
     moonbit_payload_vertex out_vertices[3]
@@ -2856,100 +2900,135 @@ static void moonbit_fill_payload_vertices(
   out_vertices[2].v = (float)command->cv;
 }
 
-static int moonbit_draw_payload_with_vertex_index_buffers(
+
+// Ensure GPU batch buffers can hold at least `tri_count` triangles.
+// Recreates only when capacity is insufficient.
+static int moonbit_ensure_batch_buffers(WGPUDevice device, uint32_t tri_count) {
+  if (device == NULL || tri_count == 0) return 0;
+  if (g_batched_vertex_buffer != NULL && g_batched_buffer_capacity >= tri_count) return 1;
+
+  // Release old buffers
+  if (g_batched_vertex_buffer != NULL) {
+    wgpuBufferRelease(g_batched_vertex_buffer);
+    g_batched_vertex_buffer = NULL;
+  }
+  if (g_batched_index_buffer != NULL) {
+    wgpuBufferRelease(g_batched_index_buffer);
+    g_batched_index_buffer = NULL;
+  }
+
+  uint64_t vb_size = (uint64_t)tri_count * 3 * sizeof(moonbit_payload_vertex);
+  uint64_t ib_size = (uint64_t)tri_count * 3 * sizeof(uint32_t);
+
+  WGPUBufferDescriptor vb_desc = {
+    .nextInChain = NULL,
+    .label = "Batched Vertex Buffer",
+    .usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst,
+    .size = vb_size,
+    .mappedAtCreation = 0
+  };
+  g_batched_vertex_buffer = wgpuDeviceCreateBuffer(device, &vb_desc);
+  if (g_batched_vertex_buffer == NULL) return 0;
+
+  WGPUBufferDescriptor ib_desc = {
+    .nextInChain = NULL,
+    .label = "Batched Index Buffer",
+    .usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst,
+    .size = ib_size,
+    .mappedAtCreation = 0
+  };
+  g_batched_index_buffer = wgpuDeviceCreateBuffer(device, &ib_desc);
+  if (g_batched_index_buffer == NULL) {
+    wgpuBufferRelease(g_batched_vertex_buffer);
+    g_batched_vertex_buffer = NULL;
+    return 0;
+  }
+
+  g_batched_buffer_capacity = tri_count;
+  return 1;
+}
+
+// Draw commands[start..start+count) as a single batched draw call.
+// All commands in the range must share the same material.
+// gpu_vert_offset: where in the shared GPU buffer to write (avoids overwrites between batches).
+// Returns the number of vertices written (caller must advance gpu_vert_offset), or 0 on failure.
+static uint32_t moonbit_draw_batched_payload(
     WGPUDevice device,
     WGPUQueue queue,
     WGPURenderPassEncoder pass,
     WGPURenderPipeline pipeline,
-    const moonbit_planned_draw_command* command,
-    int32_t draw_calls
+    const moonbit_planned_draw_command* commands,
+    int32_t start,
+    int32_t count,
+    uint32_t gpu_vert_offset
 ) {
-  if (device == NULL || queue == NULL || pass == NULL || pipeline == NULL || command == NULL) {
-    return 0;
-  }
-  if (draw_calls <= 0) {
-    return 1;
-  }
-
-  moonbit_payload_vertex vertices[3];
-  moonbit_fill_payload_vertices(command, vertices);
-  uint32_t indices[3] = {0, 1, 2};
-
-  WGPUBufferDescriptor vertex_buffer_desc = {
-    .nextInChain = NULL,
-    .label = "Payload Vertex Buffer",
-    .usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst,
-    .size = sizeof(vertices),
-    .mappedAtCreation = 0
-  };
-  WGPUBuffer vertex_buffer = wgpuDeviceCreateBuffer(device, &vertex_buffer_desc);
-  if (vertex_buffer == NULL) {
+  if (device == NULL || queue == NULL || pass == NULL || pipeline == NULL || count <= 0) {
     return 0;
   }
 
-  WGPUBufferDescriptor index_buffer_desc = {
-    .nextInChain = NULL,
-    .label = "Payload Index Buffer",
-    .usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst,
-    .size = sizeof(indices),
-    .mappedAtCreation = 0
-  };
-  WGPUBuffer index_buffer = wgpuDeviceCreateBuffer(device, &index_buffer_desc);
-  if (index_buffer == NULL) {
-    wgpuBufferRelease(vertex_buffer);
-    return 0;
+  // Compute total triangle count (each command may have draw_calls > 1)
+  uint32_t total_tris = 0;
+  for (int32_t i = 0; i < count; i++) {
+    int32_t dc = commands[start + i].draw_calls;
+    total_tris += (dc <= 0) ? 1 : (uint32_t)dc;
+  }
+  if (total_tris == 0) return 0;
+
+  uint32_t total_vertices = total_tris * 3;
+
+  // Fill CPU buffers (indices are 0-based within this batch)
+  uint32_t vert_offset = 0;
+  for (int32_t i = 0; i < count; i++) {
+    const moonbit_planned_draw_command* cmd = &commands[start + i];
+    int32_t dc = cmd->draw_calls <= 0 ? 1 : cmd->draw_calls;
+    moonbit_payload_vertex tri_verts[3];
+    moonbit_fill_payload_vertices(cmd, tri_verts);
+    for (int32_t d = 0; d < dc; d++) {
+      if (vert_offset >= total_vertices) break;
+      g_batch_vertices[vert_offset + 0] = tri_verts[0];
+      g_batch_vertices[vert_offset + 1] = tri_verts[1];
+      g_batch_vertices[vert_offset + 2] = tri_verts[2];
+      g_batch_indices[vert_offset + 0] = vert_offset + 0;
+      g_batch_indices[vert_offset + 1] = vert_offset + 1;
+      g_batch_indices[vert_offset + 2] = vert_offset + 2;
+      vert_offset += 3;
+    }
   }
 
-  wgpuQueueWriteBuffer(queue, vertex_buffer, 0, vertices, sizeof(vertices));
-  wgpuQueueWriteBuffer(queue, index_buffer, 0, indices, sizeof(indices));
+  uint64_t vb_bytes = (uint64_t)total_vertices * sizeof(moonbit_payload_vertex);
+  uint64_t ib_bytes = (uint64_t)total_vertices * sizeof(uint32_t);
+  uint64_t vb_gpu_offset = (uint64_t)gpu_vert_offset * sizeof(moonbit_payload_vertex);
+  uint64_t ib_gpu_offset = (uint64_t)gpu_vert_offset * sizeof(uint32_t);
 
+  // Write to GPU at the batch's own offset (no overwrites between batches)
+  wgpuQueueWriteBuffer(queue, g_batched_vertex_buffer, vb_gpu_offset, g_batch_vertices, vb_bytes);
+  wgpuQueueWriteBuffer(queue, g_batched_index_buffer, ib_gpu_offset, g_batch_indices, ib_bytes);
+
+  // Get texture/bind resources from first command (all share same material)
+  const moonbit_planned_draw_command* first = &commands[start];
   WGPUTextureView texture_view = NULL;
   WGPUSampler sampler = NULL;
   uint32_t texture_generation = 0U;
   if (!moonbit_get_or_create_seed_texture_resources(
-        device,
-        queue,
-        command->texture_seed,
-        &texture_view,
-        &sampler,
-        &texture_generation
-      )) {
-    wgpuBufferRelease(index_buffer);
-    wgpuBufferRelease(vertex_buffer);
+        device, queue, first->texture_seed,
+        &texture_view, &sampler, &texture_generation)) {
     return 0;
   }
 
   WGPUBindGroup bind_group = moonbit_get_or_create_planned_payload_bind_group(
-    device,
-    pipeline,
-    command->texture_seed,
-    texture_generation,
-    texture_view,
-    sampler
+    device, pipeline, first->texture_seed, texture_generation,
+    texture_view, sampler
   );
-  if (bind_group == NULL) {
-    wgpuBufferRelease(index_buffer);
-    wgpuBufferRelease(vertex_buffer);
-    return 0;
-  }
+  if (bind_group == NULL) return 0;
 
   wgpuRenderPassEncoderSetPipeline(pass, pipeline);
   wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
-  wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertex_buffer, 0, WGPU_WHOLE_SIZE);
+  wgpuRenderPassEncoderSetVertexBuffer(pass, 0, g_batched_vertex_buffer, vb_gpu_offset, vb_bytes);
   wgpuRenderPassEncoderSetIndexBuffer(
-    pass,
-    index_buffer,
-    WGPUIndexFormat_Uint32,
-    0,
-    WGPU_WHOLE_SIZE
+    pass, g_batched_index_buffer, WGPUIndexFormat_Uint32, ib_gpu_offset, ib_bytes
   );
-  for (int32_t i = 0; i < draw_calls; i++) {
-    wgpuRenderPassEncoderDrawIndexed(pass, 3, 1, 0, 0, 0);
-  }
-
-  wgpuBufferRelease(index_buffer);
-  wgpuBufferRelease(vertex_buffer);
-  return 1;
+  wgpuRenderPassEncoderDrawIndexed(pass, total_vertices, 1, 0, 0, 0);
+  return total_vertices;
 }
 
 static void moonbit_render_frame_impl(
@@ -3069,14 +3148,11 @@ static void moonbit_render_frame_impl(
           &payload_command
         );
       if (cached_payload_pipeline != NULL) {
-        used_payload_buffer_draw = moonbit_draw_payload_with_vertex_index_buffers(
-          device,
-          queue,
-          pass,
-          cached_payload_pipeline,
-          &payload_command,
-          draw_calls
-        );
+        payload_command.dst_image_id = 0;
+        moonbit_ensure_batch_buffers(device, (uint32_t)draw_calls);
+        used_payload_buffer_draw = moonbit_draw_batched_payload(
+          device, queue, pass, cached_payload_pipeline,
+          &payload_command, 0, 1, 0) > 0 ? 1 : 0;
       }
     }
 
@@ -3304,56 +3380,107 @@ void moonbit_render_frame_with_staged_plan(
   };
   WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
 
-  // First pass: render to offscreen targets
-  for (int32_t command_index = 0; command_index < g_planned_draw_command_count; command_index++) {
-    moonbit_planned_draw_command command = g_planned_draw_commands[command_index];
-    if (command.dst_image_id <= 0) continue; // Screen commands handled in second pass
+  // Pre-count total vertices for both passes to ensure shared GPU buffer capacity
+  uint32_t total_all_verts = 0;
+  for (int32_t ci = 0; ci < g_planned_draw_command_count; ci++) {
+    if (g_planned_draw_commands[ci].has_triangle_payload == 0) continue;
+    int32_t dc = g_planned_draw_commands[ci].draw_calls;
+    total_all_verts += ((dc <= 0) ? 1 : (uint32_t)dc) * 3;
+  }
+  if (total_all_verts > 0) {
+    moonbit_ensure_batch_buffers(device, (total_all_verts + 2) / 3);
+  }
+  uint32_t gpu_vert_offset = 0;
 
-    moonbit_offscreen_target* target = moonbit_find_offscreen_target(command.dst_image_id);
-    if (target == NULL || !target->used) continue;
-
-    moonbit_ensure_offscreen_gpu_texture(device, target);
-    if (target->texture == NULL || target->view == NULL) continue;
-
-    // Create a separate render pass for this offscreen target
-    WGPURenderPassColorAttachment offscreenAttachment = {
-      .view = target->view,
-      .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
-      .resolveTarget = NULL,
-      .loadOp = WGPULoadOp_Load, // Preserve existing content
-      .storeOp = WGPUStoreOp_Store,
-      .clearValue = {0.0f, 0.0f, 0.0f, 0.0f}
-    };
-    WGPURenderPassDescriptor offscreenPassDesc = {
-      .nextInChain = NULL,
-      .label = "Offscreen Render Pass",
-      .colorAttachmentCount = 1,
-      .colorAttachments = &offscreenAttachment,
-      .depthStencilAttachment = NULL,
-      .occlusionQuerySet = NULL,
-      .timestampWrites = NULL
-    };
-    WGPURenderPassEncoder offscreenPass = wgpuCommandEncoderBeginRenderPass(encoder, &offscreenPassDesc);
-
-    int32_t draw_calls = command.draw_calls <= 0 ? 1 : command.draw_calls;
-    int used_payload_buffer_draw = 0;
-    if (command.has_triangle_payload != 0) {
-      WGPURenderPipeline cached_payload_pipeline =
-        moonbit_get_or_create_planned_payload_pipeline(device, g_configured_surface_format, &command);
-      if (cached_payload_pipeline != NULL) {
-        used_payload_buffer_draw = moonbit_draw_payload_with_vertex_index_buffers(
-          device, queue, offscreenPass, cached_payload_pipeline, &command, draw_calls);
+  // First pass: render to offscreen targets (batched by target, then by material)
+  {
+    int32_t command_index = 0;
+    while (command_index < g_planned_draw_command_count) {
+      if (g_planned_draw_commands[command_index].dst_image_id <= 0) {
+        command_index++;
+        continue;
       }
-    }
-    if (!used_payload_buffer_draw) {
-      wgpuRenderPassEncoderSetPipeline(offscreenPass, pipeline);
-      for (int32_t i = 0; i < draw_calls; i++) {
-        wgpuRenderPassEncoderDraw(offscreenPass, 3, 1, 0, 0);
-      }
-    }
 
-    wgpuRenderPassEncoderEnd(offscreenPass);
-    wgpuRenderPassEncoderRelease(offscreenPass);
+      // Group consecutive commands targeting the same offscreen target
+      int32_t group_start = command_index;
+      int32_t target_id = g_planned_draw_commands[command_index].dst_image_id;
+      int32_t group_end = command_index + 1;
+      while (group_end < g_planned_draw_command_count &&
+             g_planned_draw_commands[group_end].dst_image_id == target_id) {
+        group_end++;
+      }
+
+      moonbit_offscreen_target* target = moonbit_find_offscreen_target(target_id);
+      if (target == NULL || !target->used) {
+        command_index = group_end;
+        continue;
+      }
+      moonbit_ensure_offscreen_gpu_texture(device, target);
+      if (target->texture == NULL || target->view == NULL) {
+        command_index = group_end;
+        continue;
+      }
+
+      // One render pass per target group
+      WGPURenderPassColorAttachment offscreenAttachment = {
+        .view = target->view,
+        .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+        .resolveTarget = NULL,
+        .loadOp = WGPULoadOp_Load,
+        .storeOp = WGPUStoreOp_Store,
+        .clearValue = {0.0f, 0.0f, 0.0f, 0.0f}
+      };
+      WGPURenderPassDescriptor offscreenPassDesc = {
+        .nextInChain = NULL,
+        .label = "Offscreen Render Pass",
+        .colorAttachmentCount = 1,
+        .colorAttachments = &offscreenAttachment,
+        .depthStencilAttachment = NULL,
+        .occlusionQuerySet = NULL,
+        .timestampWrites = NULL
+      };
+      WGPURenderPassEncoder offscreenPass = wgpuCommandEncoderBeginRenderPass(encoder, &offscreenPassDesc);
+
+      // Within target group, batch by material
+      int32_t inner = group_start;
+      while (inner < group_end) {
+        moonbit_planned_draw_command* first_cmd = &g_planned_draw_commands[inner];
+
+        if (first_cmd->has_triangle_payload == 0) {
+          int32_t dc = first_cmd->draw_calls <= 0 ? 1 : first_cmd->draw_calls;
+          wgpuRenderPassEncoderSetPipeline(offscreenPass, pipeline);
+          for (int32_t i = 0; i < dc; i++) {
+            wgpuRenderPassEncoderDraw(offscreenPass, 3, 1, 0, 0);
+          }
+          inner++;
+          continue;
+        }
+
+        int32_t batch_start = inner;
+        int32_t batch_end = inner + 1;
+        while (batch_end < group_end &&
+               moonbit_same_material(first_cmd, &g_planned_draw_commands[batch_end])) {
+          batch_end++;
+        }
+        int32_t batch_count = batch_end - batch_start;
+
+        WGPURenderPipeline cached_payload_pipeline =
+          moonbit_get_or_create_planned_payload_pipeline(
+            device, g_configured_surface_format, first_cmd);
+        if (cached_payload_pipeline != NULL) {
+          uint32_t verts_used = moonbit_draw_batched_payload(
+            device, queue, offscreenPass, cached_payload_pipeline,
+            g_planned_draw_commands, batch_start, batch_count, gpu_vert_offset);
+          gpu_vert_offset += verts_used;
+        }
+
+        inner = batch_end;
+      }
+
+      wgpuRenderPassEncoderEnd(offscreenPass);
+      wgpuRenderPassEncoderRelease(offscreenPass);
+      command_index = group_end;
+    }
   }
 
   // Second pass: render screen commands (dst_image_id == 0) to swap chain
@@ -3378,26 +3505,49 @@ void moonbit_render_frame_with_staged_plan(
 
   WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
-  for (int32_t command_index = 0; command_index < g_planned_draw_command_count; command_index++) {
-    moonbit_planned_draw_command command = g_planned_draw_commands[command_index];
-    if (command.dst_image_id > 0) continue; // Already rendered to offscreen
+  // Batched screen pass: group consecutive same-material commands
+  {
+    int32_t command_index = 0;
+    while (command_index < g_planned_draw_command_count) {
+      if (g_planned_draw_commands[command_index].dst_image_id > 0) {
+        command_index++;
+        continue;
+      }
 
-    int32_t draw_calls = command.draw_calls <= 0 ? 1 : command.draw_calls;
-    int used_payload_buffer_draw = 0;
-    if (command.has_triangle_payload != 0) {
+      moonbit_planned_draw_command* first_cmd = &g_planned_draw_commands[command_index];
+
+      if (first_cmd->has_triangle_payload == 0) {
+        int32_t draw_calls = first_cmd->draw_calls <= 0 ? 1 : first_cmd->draw_calls;
+        wgpuRenderPassEncoderSetPipeline(pass, pipeline);
+        for (int32_t i = 0; i < draw_calls; i++) {
+          wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);
+        }
+        command_index++;
+        continue;
+      }
+
+      // Find batch: consecutive screen commands with same material
+      int32_t batch_start = command_index;
+      int32_t batch_end = command_index + 1;
+      while (batch_end < g_planned_draw_command_count) {
+        moonbit_planned_draw_command* next = &g_planned_draw_commands[batch_end];
+        if (next->dst_image_id > 0) break;
+        if (!moonbit_same_material(first_cmd, next)) break;
+        batch_end++;
+      }
+      int32_t batch_count = batch_end - batch_start;
+
       WGPURenderPipeline cached_payload_pipeline =
         moonbit_get_or_create_planned_payload_pipeline(
-          device, g_configured_surface_format, &command);
+          device, g_configured_surface_format, first_cmd);
       if (cached_payload_pipeline != NULL) {
-        used_payload_buffer_draw = moonbit_draw_payload_with_vertex_index_buffers(
-          device, queue, pass, cached_payload_pipeline, &command, draw_calls);
+        uint32_t verts_used = moonbit_draw_batched_payload(
+          device, queue, pass, cached_payload_pipeline,
+          g_planned_draw_commands, batch_start, batch_count, gpu_vert_offset);
+        gpu_vert_offset += verts_used;
       }
-    }
-    if (!used_payload_buffer_draw) {
-      wgpuRenderPassEncoderSetPipeline(pass, pipeline);
-      for (int32_t i = 0; i < draw_calls; i++) {
-        wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);
-      }
+
+      command_index = batch_end;
     }
   }
 

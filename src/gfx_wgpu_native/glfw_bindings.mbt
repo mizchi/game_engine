@@ -68,6 +68,13 @@ extern "C" fn glfwGetWindowWidth(window : GLFWwindow) -> Int = "moonbit_glfw_get
 extern "C" fn glfwGetWindowHeight(window : GLFWwindow) -> Int = "moonbit_glfw_get_window_height"
 
 ///|
+// フレームバッファサイズ取得（物理ピクセル、Retina対応）
+extern "C" fn glfwGetFramebufferWidth(window : GLFWwindow) -> Int = "moonbit_glfw_get_framebuffer_width"
+
+///|
+extern "C" fn glfwGetFramebufferHeight(window : GLFWwindow) -> Int = "moonbit_glfw_get_framebuffer_height"
+
+///|
 extern "C" fn moonbit_glfw_set_fullscreen(
   window : GLFWwindow,
   enabled : Int,
@@ -243,6 +250,11 @@ pub fn get_window_width(window : GLFWwindow) -> Int {
 ///|
 pub fn get_window_height(window : GLFWwindow) -> Int {
   glfwGetWindowHeight(window)
+}
+
+///|
+pub fn get_framebuffer_size(window : GLFWwindow) -> WindowSize {
+  { width: glfwGetFramebufferWidth(window), height: glfwGetFramebufferHeight(window) }
 }
 
 ///|
