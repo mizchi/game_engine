@@ -95,13 +95,13 @@ test "runtime stores triangle payload per command entry" {
 
 ///|
 test "runtime render size is clamped to positive values" {
-  let size = clamp_runtime_render_size(0, -9)
-  assert_eq(size.width, 1)
-  assert_eq(size.height, 1)
+  let (w, h) = clamp_runtime_render_size(0, -9)
+  assert_eq(w, 1)
+  assert_eq(h, 1)
 
-  let size2 = clamp_runtime_render_size(640, 480)
-  assert_eq(size2.width, 640)
-  assert_eq(size2.height, 480)
+  let (w2, h2) = clamp_runtime_render_size(640, 480)
+  assert_eq(w2, 640)
+  assert_eq(h2, 480)
 }
 
 ///|

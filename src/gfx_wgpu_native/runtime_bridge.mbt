@@ -195,19 +195,10 @@ let runtime_vsync_enabled : Ref[Bool] = Ref::new(true)
 let runtime_device_scale_override : Ref[Double] = Ref::new(0.0)
 
 ///|
-pub fn clamp_runtime_render_size(width : Int, height : Int) -> @glfw.WindowSize {
-  {
-    width: if width <= 0 {
-      1
-    } else {
-      width
-    },
-    height: if height <= 0 {
-      1
-    } else {
-      height
-    },
-  }
+pub fn clamp_runtime_render_size(width : Int, height : Int) -> (Int, Int) {
+  let w = if width <= 0 { 1 } else { width }
+  let h = if height <= 0 { 1 } else { height }
+  (w, h)
 }
 
 ///|
@@ -215,15 +206,14 @@ fn ensure_runtime_surface_size(
   ctx : TriangleContext,
   requested_width : Int,
   requested_height : Int,
-) -> @glfw.WindowSize {
-  let size = clamp_runtime_render_size(requested_width, requested_height)
-  if configured_surface_width.val != size.width ||
-    configured_surface_height.val != size.height {
-    reconfigure_triangle_surface(ctx, size.width, size.height)
-    configured_surface_width.val = size.width
-    configured_surface_height.val = size.height
+) -> (Int, Int) {
+  let (w, h) = clamp_runtime_render_size(requested_width, requested_height)
+  if configured_surface_width.val != w || configured_surface_height.val != h {
+    reconfigure_triangle_surface(ctx, w, h)
+    configured_surface_width.val = w
+    configured_surface_height.val = h
   }
-  size
+  (w, h)
 }
 
 ///|
@@ -245,9 +235,9 @@ pub fn ensure_runtime_context(
   } else {
     match try_init_triangle_context(width, height, title) {
       Some(ctx) => {
-        let size = clamp_runtime_render_size(width, height)
-        configured_surface_width.val = size.width
-        configured_surface_height.val = size.height
+        let (w, h) = clamp_runtime_render_size(width, height)
+        configured_surface_width.val = w
+        configured_surface_height.val = h
         @glfw.set_swap_interval(runtime_vsync_enabled.val)
         runtime_context.val = Some(ctx)
         true
@@ -277,15 +267,18 @@ pub fn runtime_should_close() -> Bool {
 pub fn runtime_window_size(
   fallback_width : Int,
   fallback_height : Int,
-) -> @glfw.WindowSize {
+) -> (Int, Int) {
   match runtime_context.val {
-    Some(ctx) => @glfw.get_window_size(ctx.window)
-    None => { width: fallback_width, height: fallback_height }
+    Some(ctx) => {
+      let size = @glfw.get_window_size(ctx.window)
+      (size.width, size.height)
+    }
+    None => (fallback_width, fallback_height)
   }
 }
 
 ///|
-pub fn runtime_resize_surface(width : Int, height : Int) -> @glfw.WindowSize {
+pub fn runtime_resize_surface(width : Int, height : Int) -> (Int, Int) {
   match runtime_context.val {
     Some(ctx) => ensure_runtime_surface_size(ctx, width, height)
     None => clamp_runtime_render_size(width, height)

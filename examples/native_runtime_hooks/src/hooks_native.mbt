@@ -119,8 +119,8 @@ fn bridge_desktop_should_close() -> Bool {
 
 ///|
 fn bridge_desktop_outside_size(width : Int, height : Int) -> @core.OutsideSize {
-  let size = @wgpu_native.runtime_window_size(width, height)
-  @core.new_outside_size(size.width.to_double(), size.height.to_double())
+  let (w, h) = @wgpu_native.runtime_window_size(width, height)
+  @core.new_outside_size(w.to_double(), h.to_double())
 }
 
 ///|

@@ -40,6 +40,10 @@ jobs:
 
   native-macos:
     runs-on: macos-latest
+    env:
+      # moonbit doesn't propagate cc-flags from dependency packages,
+      # so GLFW headers must be discoverable via system include paths
+      CPATH: /opt/homebrew/include:/usr/local/include
     steps:
       - uses: actions/checkout@v4
       - uses: hustcer/setup-moonbit@v1
