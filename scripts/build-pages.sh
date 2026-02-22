@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SITE="$ROOT/_site"
-EXAMPLES=(flappy_bird survivor action_rpg arena3d runtime_smoke)
+EXAMPLES=(scene_demo flappy_bird survivor action_rpg arena3d runtime_smoke)
 CACHE_BUST="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || date +%s)"
 
 # Clean
@@ -111,6 +111,7 @@ cat > "$SITE/index.html" <<'LANDING'
     <h1>Kagura Examples</h1>
     <p>2D-first game engine for MoonBit. These demos require a WebGPU-capable browser (Chrome 113+, Edge 113+).</p>
     <ul>
+      <li><a href="./scene_demo/">Scene Demo</a> — Minimal declarative API example</li>
       <li><a href="./flappy_bird/">Flappy Bird</a></li>
       <li><a href="./survivor/">Survivor</a></li>
       <li><a href="./action_rpg/">Action RPG</a></li>
