@@ -7,7 +7,7 @@
 
 ///|
 pub struct TriangleContext {
-  window : GLFWwindow
+  window : @glfw.GLFWwindow
   instance : WGPUInstance
   surface : WGPUSurface
   adapter : WGPUAdapter
@@ -36,10 +36,10 @@ pub fn try_init_triangle_context(
   height : Int,
   title : String,
 ) -> TriangleContext? {
-  if !glfw_init() {
+  if !@glfw.glfw_init() {
     None
   } else {
-    let window = create_window(width, height, title)
+    let window = @glfw.create_window(width, height, title)
     let instance = create_instance()
     let surface = create_surface_from_glfw(instance, window)
     let adapter = request_adapter(instance, surface)
@@ -256,13 +256,13 @@ pub fn reconfigure_triangle_surface(
 
 ///|
 pub fn should_continue(ctx : TriangleContext) -> Bool {
-  !window_should_close(ctx.window)
+  !@glfw.window_should_close(ctx.window)
 }
 
 ///|
 pub fn poll(ctx : TriangleContext) -> Unit {
   let _ = ctx
-  poll_events()
+  @glfw.poll_events()
 }
 
 ///|
@@ -280,8 +280,8 @@ pub fn shutdown_triangle_context(ctx : TriangleContext) -> Unit {
   adapter_release(ctx.adapter)
   surface_release(ctx.surface)
   instance_release(ctx.instance)
-  destroy_window(ctx.window)
-  terminate()
+  @glfw.destroy_window(ctx.window)
+  @glfw.terminate()
 }
 
 ///|

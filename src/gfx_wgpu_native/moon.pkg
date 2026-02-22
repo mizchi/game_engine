@@ -1,3 +1,7 @@
+import {
+  "mizchi/glfw" @glfw,
+}
+
 options(
   link: {
     "native": {
@@ -10,7 +14,7 @@ options(
   "supported-targets": [ "native" ],
   targets: {
     "backend.mbt": [ "native" ],
-    "glfw_bindings.mbt": [ "native" ],
+    "native_io_bindings.mbt": [ "native" ],
     "runtime_bridge.mbt": [ "native" ],
     "runtime_bridge_wbtest.mbt": [ "native" ],
     "wgpu_bindings.mbt": [ "native" ],

@@ -68,7 +68,7 @@ extern "C" fn wgpuInstanceAddRef(instance : WGPUInstance) -> Unit = "wgpuInstanc
 // Surface API（GLFW統合用）
 extern "C" fn moonbit_create_surface_from_glfw(
   instance : WGPUInstance,
-  window : GLFWwindow,
+  window : @glfw.GLFWwindow,
 ) -> WGPUSurface = "moonbit_create_surface_from_glfw"
 
 ///|
@@ -98,7 +98,7 @@ pub fn instance_add_ref(instance : WGPUInstance) -> Unit {
 // GLFWwindowからSurfaceを作成
 pub fn create_surface_from_glfw(
   instance : WGPUInstance,
-  window : GLFWwindow,
+  window : @glfw.GLFWwindow,
 ) -> WGPUSurface {
   moonbit_create_surface_from_glfw(instance, window)
 }

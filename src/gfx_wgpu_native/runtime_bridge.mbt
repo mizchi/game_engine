@@ -195,7 +195,7 @@ let runtime_vsync_enabled : Ref[Bool] = Ref::new(true)
 let runtime_device_scale_override : Ref[Double] = Ref::new(0.0)
 
 ///|
-pub fn clamp_runtime_render_size(width : Int, height : Int) -> WindowSize {
+pub fn clamp_runtime_render_size(width : Int, height : Int) -> @glfw.WindowSize {
   {
     width: if width <= 0 {
       1
@@ -215,7 +215,7 @@ fn ensure_runtime_surface_size(
   ctx : TriangleContext,
   requested_width : Int,
   requested_height : Int,
-) -> WindowSize {
+) -> @glfw.WindowSize {
   let size = clamp_runtime_render_size(requested_width, requested_height)
   if configured_surface_width.val != size.width ||
     configured_surface_height.val != size.height {
@@ -248,7 +248,7 @@ pub fn ensure_runtime_context(
         let size = clamp_runtime_render_size(width, height)
         configured_surface_width.val = size.width
         configured_surface_height.val = size.height
-        set_swap_interval(runtime_vsync_enabled.val)
+        @glfw.set_swap_interval(runtime_vsync_enabled.val)
         runtime_context.val = Some(ctx)
         true
       }
@@ -277,15 +277,15 @@ pub fn runtime_should_close() -> Bool {
 pub fn runtime_window_size(
   fallback_width : Int,
   fallback_height : Int,
-) -> WindowSize {
+) -> @glfw.WindowSize {
   match runtime_context.val {
-    Some(ctx) => get_window_size(ctx.window)
+    Some(ctx) => @glfw.get_window_size(ctx.window)
     None => { width: fallback_width, height: fallback_height }
   }
 }
 
 ///|
-pub fn runtime_resize_surface(width : Int, height : Int) -> WindowSize {
+pub fn runtime_resize_surface(width : Int, height : Int) -> @glfw.WindowSize {
   match runtime_context.val {
     Some(ctx) => ensure_runtime_surface_size(ctx, width, height)
     None => clamp_runtime_render_size(width, height)
@@ -295,7 +295,7 @@ pub fn runtime_resize_surface(width : Int, height : Int) -> WindowSize {
 ///|
 pub fn runtime_set_fullscreen(enabled : Bool) -> Bool {
   match runtime_context.val {
-    Some(ctx) => set_fullscreen(ctx.window, enabled)
+    Some(ctx) => @glfw.set_fullscreen(ctx.window, enabled)
     None => enabled
   }
 }
@@ -303,7 +303,7 @@ pub fn runtime_set_fullscreen(enabled : Bool) -> Bool {
 ///|
 pub fn runtime_is_fullscreen() -> Bool {
   match runtime_context.val {
-    Some(ctx) => is_fullscreen(ctx.window)
+    Some(ctx) => @glfw.is_fullscreen(ctx.window)
     None => false
   }
 }
@@ -312,7 +312,7 @@ pub fn runtime_is_fullscreen() -> Bool {
 pub fn runtime_set_cursor_mode(mode : Int) -> Int {
   let safe_mode = if mode < 0 || mode > 2 { 0 } else { mode }
   match runtime_context.val {
-    Some(ctx) => set_cursor_mode(ctx.window, safe_mode)
+    Some(ctx) => @glfw.set_cursor_mode(ctx.window, safe_mode)
     None => safe_mode
   }
 }
@@ -320,7 +320,7 @@ pub fn runtime_set_cursor_mode(mode : Int) -> Int {
 ///|
 pub fn runtime_cursor_mode() -> Int {
   match runtime_context.val {
-    Some(ctx) => get_cursor_mode(ctx.window)
+    Some(ctx) => @glfw.get_cursor_mode(ctx.window)
     None => 0
   }
 }
@@ -328,7 +328,7 @@ pub fn runtime_cursor_mode() -> Int {
 ///|
 pub fn runtime_cursor_x() -> Double {
   match runtime_context.val {
-    Some(ctx) => get_cursor_x(ctx.window)
+    Some(ctx) => @glfw.get_cursor_x(ctx.window)
     None => 0.0
   }
 }
@@ -336,7 +336,7 @@ pub fn runtime_cursor_x() -> Double {
 ///|
 pub fn runtime_cursor_y() -> Double {
   match runtime_context.val {
-    Some(ctx) => get_cursor_y(ctx.window)
+    Some(ctx) => @glfw.get_cursor_y(ctx.window)
     None => 0.0
   }
 }
@@ -344,7 +344,7 @@ pub fn runtime_cursor_y() -> Double {
 ///|
 pub fn runtime_take_wheel_x() -> Double {
   match runtime_context.val {
-    Some(ctx) => take_scroll_x(ctx.window)
+    Some(ctx) => @glfw.take_scroll_x(ctx.window)
     None => 0.0
   }
 }
@@ -352,7 +352,7 @@ pub fn runtime_take_wheel_x() -> Double {
 ///|
 pub fn runtime_take_wheel_y() -> Double {
   match runtime_context.val {
-    Some(ctx) => take_scroll_y(ctx.window)
+    Some(ctx) => @glfw.take_scroll_y(ctx.window)
     None => 0.0
   }
 }
@@ -360,7 +360,7 @@ pub fn runtime_take_wheel_y() -> Double {
 ///|
 pub fn runtime_pressed_key_count() -> Int {
   match runtime_context.val {
-    Some(ctx) => pressed_key_count(ctx.window)
+    Some(ctx) => @glfw.pressed_key_count(ctx.window)
     None => 0
   }
 }
@@ -371,7 +371,7 @@ pub fn runtime_pressed_key_at(index : Int) -> Int {
     -1
   } else {
     match runtime_context.val {
-      Some(ctx) => pressed_key_at(ctx.window, index)
+      Some(ctx) => @glfw.pressed_key_at(ctx.window, index)
       None => -1
     }
   }
@@ -380,7 +380,7 @@ pub fn runtime_pressed_key_at(index : Int) -> Int {
 ///|
 pub fn runtime_pressed_mouse_button_count() -> Int {
   match runtime_context.val {
-    Some(ctx) => pressed_mouse_button_count(ctx.window)
+    Some(ctx) => @glfw.pressed_mouse_button_count(ctx.window)
     None => 0
   }
 }
@@ -391,7 +391,7 @@ pub fn runtime_pressed_mouse_button_at(index : Int) -> Int {
     -1
   } else {
     match runtime_context.val {
-      Some(ctx) => pressed_mouse_button_at(ctx.window, index)
+      Some(ctx) => @glfw.pressed_mouse_button_at(ctx.window, index)
       None => -1
     }
   }
@@ -400,7 +400,7 @@ pub fn runtime_pressed_mouse_button_at(index : Int) -> Int {
 ///|
 pub fn runtime_touch_count() -> Int {
   match runtime_context.val {
-    Some(ctx) => touch_count(ctx.window)
+    Some(ctx) => @glfw.touch_count(ctx.window)
     None => 0
   }
 }
@@ -411,7 +411,7 @@ pub fn runtime_touch_id_at(index : Int) -> Int {
     -1
   } else {
     match runtime_context.val {
-      Some(ctx) => touch_id_at(ctx.window, index)
+      Some(ctx) => @glfw.touch_id_at(ctx.window, index)
       None => -1
     }
   }
@@ -423,7 +423,7 @@ pub fn runtime_touch_x_at(index : Int) -> Double {
     0.0
   } else {
     match runtime_context.val {
-      Some(ctx) => touch_x_at(ctx.window, index)
+      Some(ctx) => @glfw.touch_x_at(ctx.window, index)
       None => 0.0
     }
   }
@@ -435,7 +435,7 @@ pub fn runtime_touch_y_at(index : Int) -> Double {
     0.0
   } else {
     match runtime_context.val {
-      Some(ctx) => touch_y_at(ctx.window, index)
+      Some(ctx) => @glfw.touch_y_at(ctx.window, index)
       None => 0.0
     }
   }
@@ -447,7 +447,7 @@ pub fn runtime_touch_type_at(index : Int) -> Int {
     3 // Unknown
   } else {
     match runtime_context.val {
-      Some(ctx) => touch_type_at(ctx.window, index)
+      Some(ctx) => @glfw.touch_type_at(ctx.window, index)
       None => 3 // Unknown
     }
   }
@@ -456,7 +456,7 @@ pub fn runtime_touch_type_at(index : Int) -> Int {
 ///|
 pub fn runtime_gamepad_count() -> Int {
   match runtime_context.val {
-    Some(_) => gamepad_count()
+    Some(_) => @glfw.gamepad_count()
     None => 0
   }
 }
@@ -467,7 +467,7 @@ pub fn runtime_gamepad_id_at(index : Int) -> Int {
     -1
   } else {
     match runtime_context.val {
-      Some(_) => gamepad_id_at(index)
+      Some(_) => @glfw.gamepad_id_at(index)
       None => -1
     }
   }
@@ -480,10 +480,10 @@ pub fn runtime_gamepad_axis_count(index : Int) -> Int {
   } else {
     match runtime_context.val {
       Some(_) =>
-        if gamepad_id_at(index) < 0 {
+        if @glfw.gamepad_id_at(index) < 0 {
           0
         } else {
-          gamepad_axis_count(index)
+          @glfw.gamepad_axis_count(index)
         }
       None => 0
     }
@@ -497,10 +497,10 @@ pub fn runtime_gamepad_axis_at(gamepad_index : Int, axis_index : Int) -> Double 
   } else {
     match runtime_context.val {
       Some(_) =>
-        if gamepad_id_at(gamepad_index) < 0 {
+        if @glfw.gamepad_id_at(gamepad_index) < 0 {
           0.0
         } else {
-          gamepad_axis_at(gamepad_index, axis_index)
+          @glfw.gamepad_axis_at(gamepad_index, axis_index)
         }
       None => 0.0
     }
@@ -514,10 +514,10 @@ pub fn runtime_gamepad_pressed_button_count(index : Int) -> Int {
   } else {
     match runtime_context.val {
       Some(_) =>
-        if gamepad_id_at(index) < 0 {
+        if @glfw.gamepad_id_at(index) < 0 {
           0
         } else {
-          gamepad_pressed_button_count(index)
+          @glfw.gamepad_pressed_button_count(index)
         }
       None => 0
     }
@@ -534,10 +534,10 @@ pub fn runtime_gamepad_pressed_button_at(
   } else {
     match runtime_context.val {
       Some(_) =>
-        if gamepad_id_at(gamepad_index) < 0 {
+        if @glfw.gamepad_id_at(gamepad_index) < 0 {
           -1
         } else {
-          gamepad_pressed_button_at(gamepad_index, button_index)
+          @glfw.gamepad_pressed_button_at(gamepad_index, button_index)
         }
       None => -1
     }
@@ -556,7 +556,7 @@ pub fn runtime_device_scale_factor(fallback : Double) -> Double {
     runtime_device_scale_override.val
   } else {
     match runtime_context.val {
-      Some(ctx) => get_window_content_scale(ctx.window)
+      Some(ctx) => @glfw.get_window_content_scale(ctx.window)
       None => if fallback <= 0.0 { 1.0 } else { fallback }
     }
   }
@@ -566,7 +566,7 @@ pub fn runtime_device_scale_factor(fallback : Double) -> Double {
 pub fn runtime_set_vsync_enabled(enabled : Bool) -> Bool {
   runtime_vsync_enabled.val = enabled
   match runtime_context.val {
-    Some(_) => set_swap_interval(enabled)
+    Some(_) => @glfw.set_swap_interval(enabled)
     None => ()
   }
   runtime_vsync_enabled.val
@@ -580,7 +580,7 @@ pub fn runtime_is_vsync_enabled() -> Bool {
 ///|
 pub fn runtime_request_close() -> Unit {
   match runtime_context.val {
-    Some(ctx) => set_window_should_close(ctx.window, true)
+    Some(ctx) => @glfw.set_window_should_close(ctx.window, true)
     None => ()
   }
 }
@@ -588,7 +588,7 @@ pub fn runtime_request_close() -> Unit {
 ///|
 pub fn runtime_request_attention() -> Unit {
   match runtime_context.val {
-    Some(ctx) => request_window_attention(ctx.window)
+    Some(ctx) => @glfw.request_window_attention(ctx.window)
     None => ()
   }
 }
@@ -1192,7 +1192,7 @@ pub fn runtime_last_uniform_dword_count() -> Int {
 pub fn runtime_render_frame() -> Bool {
   match runtime_context.val {
     Some(ctx) => {
-      let size = get_window_size(ctx.window)
+      let size = @glfw.get_window_size(ctx.window)
       let _ = ensure_runtime_surface_size(ctx, size.width, size.height)
       render_triangle_frame(ctx)
       true
@@ -1205,7 +1205,7 @@ pub fn runtime_render_frame() -> Bool {
 pub fn runtime_present_planned_frame() -> Bool {
   match runtime_context.val {
     Some(ctx) => {
-      let size = get_window_size(ctx.window)
+      let size = @glfw.get_window_size(ctx.window)
       let _ = ensure_runtime_surface_size(ctx, size.width, size.height)
       reset_triangle_draw_plan_queue()
       for command in planned_draw_commands.val {
