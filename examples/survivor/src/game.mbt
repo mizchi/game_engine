@@ -139,6 +139,7 @@ let max_enemies : Int = 100
 let gem_collect_dist : Double = 24.0
 
 // Upgrade type constants
+
 ///|
 let upgrade_proj_rate : Int = 0
 
@@ -175,14 +176,7 @@ fn SurvivorState::new() -> SurvivorState {
   let camera = @camera2d.Camera2D::new(320.0, 240.0, 960.0, 720.0)
   camera.follow_target(480.0, 360.0)
   {
-    player: {
-      x: 480.0,
-      y: 360.0,
-      hp: 10,
-      max_hp: 10,
-      speed: 2.0,
-      size: 12.0,
-    },
+    player: { x: 480.0, y: 360.0, hp: 10, max_hp: 10, speed: 2.0, size: 12.0 },
     camera,
     enemies: [],
     projectiles: [],
@@ -286,10 +280,7 @@ fn distance_sq(x1 : Double, y1 : Double, x2 : Double, y2 : Double) -> Double {
 }
 
 ///|
-fn normalize_dir(
-  dx : Double,
-  dy : Double,
-) -> (Double, Double) {
+fn normalize_dir(dx : Double, dy : Double) -> (Double, Double) {
   let len_sq = dx * dx + dy * dy
   if len_sq < 0.0001 {
     return (0.0, 0.0)
@@ -297,7 +288,6 @@ fn normalize_dir(
   let len = len_sq.sqrt()
   (dx / len, dy / len)
 }
-
 
 // ============================================================
 // Update
@@ -403,7 +393,11 @@ fn SurvivorState::update_spawn(self : SurvivorState) -> Unit {
     0 // basic only
   } else if self.difficulty_level < 6 {
     let r = self.next_random() % 2
-    if r == 0 { 0 } else { 1 } // basic + fast
+    if r == 0 {
+      0
+    } else {
+      1
+    } // basic + fast
   } else {
     let r = self.next_random() % 3
     r // basic + fast + tank
@@ -444,9 +438,16 @@ fn SurvivorState::update_spawn(self : SurvivorState) -> Unit {
     2 => (enemy_tank_hp, enemy_tank_speed, enemy_tank_size)
     _ => (enemy_basic_hp, enemy_basic_speed, enemy_basic_size)
   }
-  self.enemies.push(
-    { x: sx, y: sy, hp, speed, size, kind, alive: true, hit_timer: 0 },
-  )
+  self.enemies.push({
+    x: sx,
+    y: sy,
+    hp,
+    speed,
+    size,
+    kind,
+    alive: true,
+    hit_timer: 0,
+  })
 }
 
 ///|
@@ -495,18 +496,16 @@ fn SurvivorState::update_projectile_weapon(self : SurvivorState) -> Unit {
   let target = self.enemies[nearest_idx]
   let (nx, ny) = normalize_dir(target.x - px, target.y - py)
   let pw = self.projectile_weapon
-  self.projectiles.push(
-    {
-      x: px,
-      y: py,
-      vx: nx * pw.speed,
-      vy: ny * pw.speed,
-      alive: true,
-      lifetime: pw.lifetime,
-      damage: pw.damage,
-      size: pw.size,
-    },
-  )
+  self.projectiles.push({
+    x: px,
+    y: py,
+    vx: nx * pw.speed,
+    vy: ny * pw.speed,
+    alive: true,
+    lifetime: pw.lifetime,
+    damage: pw.damage,
+    size: pw.size,
+  })
 }
 
 ///|
@@ -522,7 +521,16 @@ fn SurvivorState::update_orbit_weapons(self : SurvivorState) -> Unit {
       if not(e.alive) {
         continue
       }
-      if @vector.aabb_overlap_center(ox, oy, orb.size / 2.0, orb.size / 2.0, e.x, e.y, e.size / 2.0, e.size / 2.0) {
+      if @vector.aabb_overlap_center(
+          ox,
+          oy,
+          orb.size / 2.0,
+          orb.size / 2.0,
+          e.x,
+          e.y,
+          e.size / 2.0,
+          e.size / 2.0,
+        ) {
         e.hp = e.hp - orb.damage
         e.hit_timer = 4
         if e.hp <= 0 {
@@ -533,9 +541,7 @@ fn SurvivorState::update_orbit_weapons(self : SurvivorState) -> Unit {
             2 => 3
             _ => 1
           }
-          self.gems.push(
-            { x: e.x, y: e.y, alive: true, value: gem_value },
-          )
+          self.gems.push({ x: e.x, y: e.y, alive: true, value: gem_value })
         }
       }
     }
@@ -571,9 +577,7 @@ fn SurvivorState::update_area_weapon(self : SurvivorState) -> Unit {
           2 => 3
           _ => 1
         }
-        self.gems.push(
-          { x: e.x, y: e.y, alive: true, value: gem_value },
-        )
+        self.gems.push({ x: e.x, y: e.y, alive: true, value: gem_value })
       }
     }
   }
@@ -597,7 +601,16 @@ fn SurvivorState::update_projectiles(self : SurvivorState) -> Unit {
       if not(e.alive) {
         continue
       }
-      if @vector.aabb_overlap_center(proj.x, proj.y, proj.size / 2.0, proj.size / 2.0, e.x, e.y, e.size / 2.0, e.size / 2.0) {
+      if @vector.aabb_overlap_center(
+          proj.x,
+          proj.y,
+          proj.size / 2.0,
+          proj.size / 2.0,
+          e.x,
+          e.y,
+          e.size / 2.0,
+          e.size / 2.0,
+        ) {
         proj.alive = false
         e.hp = e.hp - proj.damage
         e.hit_timer = 4
@@ -609,9 +622,7 @@ fn SurvivorState::update_projectiles(self : SurvivorState) -> Unit {
             2 => 3
             _ => 1
           }
-          self.gems.push(
-            { x: e.x, y: e.y, alive: true, value: gem_value },
-          )
+          self.gems.push({ x: e.x, y: e.y, alive: true, value: gem_value })
         }
         break
       }
@@ -637,7 +648,16 @@ fn SurvivorState::update_enemy_player_collision(self : SurvivorState) -> Unit {
     if not(e.alive) {
       continue
     }
-    if @vector.aabb_overlap_center(p.x, p.y, p.size / 2.0, p.size / 2.0, e.x, e.y, e.size / 2.0, e.size / 2.0) {
+    if @vector.aabb_overlap_center(
+        p.x,
+        p.y,
+        p.size / 2.0,
+        p.size / 2.0,
+        e.x,
+        e.y,
+        e.size / 2.0,
+        e.size / 2.0,
+      ) {
       // Damage player once per contact frame
       p.hp = p.hp - 1
       // Push enemy back slightly
@@ -734,24 +754,26 @@ fn SurvivorState::update_levelup(self : SurvivorState) -> Unit {
 ///|
 fn SurvivorState::apply_upgrade(self : SurvivorState, upgrade : Int) -> Unit {
   match upgrade {
-    0 => {
+    0 =>
       // PROJ_RATE: decrease interval
       self.projectile_weapon.interval = @cmp.maximum(
         10,
         self.projectile_weapon.interval - 5,
       )
-    }
-    1 => {
+    1 =>
       // PROJ_DMG
       self.projectile_weapon.damage = self.projectile_weapon.damage + 1
-    }
     2 => {
       // ORBIT_ADD
       let n = self.orbit_weapons.length()
       let angle = n.to_double() * 2.0 * 3.14159265 / (n + 1).to_double()
-      self.orbit_weapons.push(
-        { angle, speed: 0.05, radius: 40.0, size: 8.0, damage: 2 },
-      )
+      self.orbit_weapons.push({
+        angle,
+        speed: 0.05,
+        radius: 40.0,
+        size: 8.0,
+        damage: 2,
+      })
     }
     3 => {
       // ORBIT_SPD
@@ -762,30 +784,27 @@ fn SurvivorState::apply_upgrade(self : SurvivorState, upgrade : Int) -> Unit {
       // Add a faster orbiter
       let n = self.orbit_weapons.length()
       let angle = n.to_double() * 1.5
-      self.orbit_weapons.push(
-        { angle, speed: 0.08, radius: 35.0, size: 6.0, damage: 1 },
-      )
+      self.orbit_weapons.push({
+        angle,
+        speed: 0.08,
+        radius: 35.0,
+        size: 6.0,
+        damage: 1,
+      })
     }
-    4 => {
+    4 =>
       // AREA_RAD
       self.area_weapon.radius = self.area_weapon.radius + 15.0
-    }
-    5 => {
+    5 =>
       // AREA_DMG
       self.area_weapon.damage = self.area_weapon.damage + 1
-    }
-    6 => {
+    6 =>
       // HP_HEAL
-      self.player.hp = @cmp.minimum(
-        self.player.max_hp,
-        self.player.hp + 3,
-      )
-    }
-    _ => {
+      self.player.hp = @cmp.minimum(self.player.max_hp, self.player.hp + 3)
+    _ =>
       // SPEED_UP
       self.player.x = self.player.x // speed is immutable, handled via player struct
-      // We'll increase effective speed by modifying position more
-    }
+    // We'll increase effective speed by modifying position more
   }
 }
 
@@ -799,7 +818,6 @@ fn SurvivorState::update_gameover(self : SurvivorState) -> Unit {
     self.reset()
   }
 }
-
 
 // ============================================================
 // Upgrade name helpers
@@ -961,7 +979,16 @@ fn SurvivorState::draw_play(
     if gsx > -8.0 && gsx < sw + 8.0 && gsy > -8.0 && gsy < sh + 8.0 {
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
-          dst, shader, gsx - 3.0, gsy - 3.0, 6.0, 6.0, sw, sh, gem_color, 0,
+          dst,
+          shader,
+          gsx - 3.0,
+          gsy - 3.0,
+          6.0,
+          6.0,
+          sw,
+          sh,
+          gem_color,
+          0,
         ),
       )
     }
@@ -1008,7 +1035,16 @@ fn SurvivorState::draw_play(
     let r = self.area_weapon.radius
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
-        dst, shader, psx - r, psy - r, r * 2.0, r * 2.0, sw, sh, area_color, 0,
+        dst,
+        shader,
+        psx - r,
+        psy - r,
+        r * 2.0,
+        r * 2.0,
+        sw,
+        sh,
+        area_color,
+        0,
       ),
     )
   }
@@ -1024,7 +1060,16 @@ fn SurvivorState::draw_play(
       let half_p = proj.size / 2.0
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
-          dst, shader, prsx - half_p, prsy - half_p, proj.size, proj.size, sw, sh, proj_color, 0,
+          dst,
+          shader,
+          prsx - half_p,
+          prsy - half_p,
+          proj.size,
+          proj.size,
+          sw,
+          sh,
+          proj_color,
+          0,
         ),
       )
     }
@@ -1039,7 +1084,16 @@ fn SurvivorState::draw_play(
     let half_o = orb.size / 2.0
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
-        dst, shader, osx - half_o, osy - half_o, orb.size, orb.size, sw, sh, orb_color, 0,
+        dst,
+        shader,
+        osx - half_o,
+        osy - half_o,
+        orb.size,
+        orb.size,
+        sw,
+        sh,
+        orb_color,
+        0,
       ),
     )
   }
@@ -1079,7 +1133,8 @@ fn SurvivorState::draw_play(
   if hp_fill_w > 0.0 {
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
-        dst, shader, hp_bar_x, hp_bar_y, hp_fill_w, hp_bar_h, sw, sh, hp_fg_color, 0,
+        dst, shader, hp_bar_x, hp_bar_y, hp_fill_w, hp_bar_h, sw, sh, hp_fg_color,
+        0,
       ),
     )
   }
@@ -1101,7 +1156,8 @@ fn SurvivorState::draw_play(
   if xp_fill_w > 0.0 {
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
-        dst, shader, hp_bar_x, xp_bar_y, xp_fill_w, hp_bar_h, sw, sh, xp_fg_color, 0,
+        dst, shader, hp_bar_x, xp_bar_y, xp_fill_w, hp_bar_h, sw, sh, xp_fg_color,
+        0,
       ),
     )
   }
@@ -1194,20 +1250,47 @@ fn SurvivorState::draw_levelup_overlay(
       let sel_color = @debugutil.color_from_hex_alpha(0xFFFF00, 0.3)
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
-          dst, shader, 40.0, choice_y - 12.0, sw - 80.0, 30.0, sw, sh, sel_color, 0,
+          dst,
+          shader,
+          40.0,
+          choice_y - 12.0,
+          sw - 80.0,
+          30.0,
+          sw,
+          sh,
+          sel_color,
+          0,
         ),
       )
       // Arrow ">"
       let arrow_color = @debugutil.color_from_hex(0xFFFF00)
       @debugutil.draw_dot_text(
-        cmds, dst, shader, [62], 55.0, choice_y, sw, sh, arrow_color, 1.0,
+        cmds,
+        dst,
+        shader,
+        [62],
+        55.0,
+        choice_y,
+        sw,
+        sh,
+        arrow_color,
+        1.0,
       )
     }
     // Upgrade name
     let name_color = @debugutil.color_white()
     let chars = upgrade_name_chars(self.upgrade_choices[i])
     @debugutil.draw_dot_text(
-      cmds, dst, shader, chars, sw / 2.0, choice_y, sw, sh, name_color, 1.0,
+      cmds,
+      dst,
+      shader,
+      chars,
+      sw / 2.0,
+      choice_y,
+      sw,
+      sh,
+      name_color,
+      1.0,
     )
   }
 }
@@ -1289,4 +1372,3 @@ fn SurvivorState::draw_gameover(
     )
   }
 }
-

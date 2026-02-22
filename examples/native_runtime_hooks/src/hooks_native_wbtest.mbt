@@ -48,10 +48,16 @@ test "resolve_touch_points_with_mouse_fallback works when enabled explicitly" {
 ///|
 test "touch point source preserved in resolve - indirect filtered" {
   let direct_touch = @core.new_touch_point_with_source(
-    1, 10.0, 20.0, @core.touch_source_from_int(0),
+    1,
+    10.0,
+    20.0,
+    @core.touch_source_from_int(0),
   )
   let indirect_touch = @core.new_touch_point_with_source(
-    2, 30.0, 40.0, @core.touch_source_from_int(1),
+    2,
+    30.0,
+    40.0,
+    @core.touch_source_from_int(1),
   )
   let resolved = resolve_touch_points_with_mouse_fallback(
     [direct_touch, indirect_touch],
@@ -69,7 +75,10 @@ test "touch point source preserved in resolve - indirect filtered" {
 ///|
 test "resolve ignores indirect-only touches and uses mouse fallback" {
   let indirect_touch = @core.new_touch_point_with_source(
-    2, 30.0, 40.0, @core.touch_source_from_int(1),
+    2,
+    30.0,
+    40.0,
+    @core.touch_source_from_int(1),
   )
   let resolved = resolve_touch_points_with_mouse_fallback(
     [indirect_touch],

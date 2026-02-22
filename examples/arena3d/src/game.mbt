@@ -3,31 +3,60 @@
 // ============================================================
 
 // Game modes
+
+///|
 let mode_title : Int = 0
+
+///|
 let mode_playing : Int = 1
+
+///|
 let mode_gameover : Int = 2
 
 // Arena dimensions
+
+///|
 let arena_half : Double = 9.0
+
+///|
 let wall_height : Double = 1.0
+
+///|
 let wall_thickness : Double = 0.5
 
 // Gameplay
+
+///|
 let player_speed : Double = 0.08
+
+///|
 let enemy_speed : Double = 0.03
+
+///|
 let item_collect_dist : Double = 0.8
+
+///|
 let enemy_hit_dist : Double = 1.0
+
+///|
 let item_count : Int = 5
+
+///|
 let enemy_count : Int = 3
 
 // Rendering
+
+///|
 let screen_w : Int = 640
+
+///|
 let screen_h : Int = 480
 
 // ============================================================
 // Colored Lit Shader WGSL (for future WebGPU backend)
 // ============================================================
 
+///|
 fn shader3d_colored_lit_wgsl() -> String {
   "struct Uniforms {\n" +
   "  mvp: mat4x4<f32>,\n" +
@@ -77,6 +106,8 @@ fn shader3d_colored_lit_wgsl() -> String {
 // ============================================================
 
 // Batched mesh projection result
+
+///|
 struct MeshBatch {
   vertices : Array[Double] // flat vertex buffer, stride 4 (x,y,u,v)
   indices : Array[Int] // index buffer
@@ -85,10 +116,12 @@ struct MeshBatch {
   mut tri_count : Int // number of visible triangles
 }
 
+///|
 fn MeshBatch::new(color_dwords : Array[Int]) -> MeshBatch {
   { vertices: [], indices: [], color_dwords, avg_z: 0.0, tri_count: 0 }
 }
 
+///|
 fn clamp01(v : Double) -> Double {
   if v < 0.0 {
     0.0
@@ -99,6 +132,7 @@ fn clamp01(v : Double) -> Double {
   }
 }
 
+///|
 fn to_byte(v : Double) -> Int {
   let clamped = clamp01(v)
   let result = (clamped * 255.0 + 0.5).to_int()
@@ -111,6 +145,7 @@ fn to_byte(v : Double) -> Int {
   }
 }
 
+///|
 /// Compute per-mesh lighting color (ambient + hemisphere-average diffuse).
 fn compute_mesh_color(
   lighting : @light3d.LightingEnvironment,
@@ -121,11 +156,14 @@ fn compute_mesh_color(
   let amb_b = lighting.ambient.color.z * lighting.ambient.intensity
   // Average diffuse: hemisphere average NdotL ≈ 0.5
   let avg_ndotl = 0.5
-  let diff_r = lighting.directional.color.x * lighting.directional.intensity *
+  let diff_r = lighting.directional.color.x *
+    lighting.directional.intensity *
     avg_ndotl
-  let diff_g = lighting.directional.color.y * lighting.directional.intensity *
+  let diff_g = lighting.directional.color.y *
+    lighting.directional.intensity *
     avg_ndotl
-  let diff_b = lighting.directional.color.z * lighting.directional.intensity *
+  let diff_b = lighting.directional.color.z *
+    lighting.directional.intensity *
     avg_ndotl
   [
     to_byte(color.x * (diff_r + amb_r)),
@@ -135,6 +173,7 @@ fn compute_mesh_color(
   ]
 }
 
+///|
 /// Project all visible triangles of a mesh into a single batch.
 fn project_mesh_batched(
   mesh : @mesh3d.Mesh3D,
@@ -213,6 +252,7 @@ fn project_mesh_batched(
   }
 }
 
+///|
 fn mat4_transform(
   m : @math3d.Mat4,
   x : Double,
@@ -227,6 +267,7 @@ fn mat4_transform(
   (rx, ry, rz, rw)
 }
 
+///|
 fn build_batch_draw_command(
   batch : MeshBatch,
   dst : @gfx.ImageHandle,
@@ -253,21 +294,25 @@ fn build_batch_draw_command(
 // Entity types
 // ============================================================
 
+///|
 struct PlayerState {
   mut position : @math3d.Vec3
 }
 
+///|
 struct ItemState {
   mut position : @math3d.Vec3
   mut active : Bool
 }
 
+///|
 struct EnemyState {
   mut position : @math3d.Vec3
   waypoints : Array[@math3d.Vec3]
   mut waypoint_idx : Int
 }
 
+///|
 struct Meshes {
   player : @mesh3d.Mesh3D
   item : @mesh3d.Mesh3D
@@ -280,6 +325,7 @@ struct Meshes {
 // GameState
 // ============================================================
 
+///|
 struct GameState {
   mut mode : Int
   mut score : Int
@@ -293,6 +339,7 @@ struct GameState {
   meshes : Meshes
 }
 
+///|
 fn GameState::new() -> GameState {
   let items : Array[ItemState] = []
   for i in 0..<item_count {
@@ -356,6 +403,7 @@ fn GameState::new() -> GameState {
   }
 }
 
+///|
 fn make_item(index : Int) -> ItemState {
   let positions : Array[@math3d.Vec3] = [
     @math3d.Vec3::new(5.0, 0.3, 5.0),
@@ -368,6 +416,7 @@ fn make_item(index : Int) -> ItemState {
   { position: pos, active: true }
 }
 
+///|
 fn respawn_item(item : ItemState, frame : Int) -> Unit {
   let angle = (frame % 360).to_double() * @math.PI / 180.0
   let r = 3.0 + (frame % 5).to_double()
@@ -384,6 +433,7 @@ fn respawn_item(item : ItemState, frame : Int) -> Unit {
   item.active = true
 }
 
+///|
 fn clamp_arena(v : Double) -> Double {
   let limit = arena_half - 1.0
   if v < -limit {
@@ -395,6 +445,7 @@ fn clamp_arena(v : Double) -> Double {
   }
 }
 
+///|
 fn distance_xz(a : @math3d.Vec3, b : @math3d.Vec3) -> Double {
   let dx = a.x - b.x
   let dz = a.z - b.z
@@ -405,6 +456,7 @@ fn distance_xz(a : @math3d.Vec3, b : @math3d.Vec3) -> Double {
 // Update
 // ============================================================
 
+///|
 fn GameState::update(self : GameState, input : @core.InputSnapshot) -> Unit {
   self.frame_count = self.frame_count + 1
   @inpututil.update_input_helper(self.input, input)
@@ -416,6 +468,7 @@ fn GameState::update(self : GameState, input : @core.InputSnapshot) -> Unit {
   }
 }
 
+///|
 fn GameState::update_title(self : GameState) -> Unit {
   if @inpututil.is_confirm_just_pressed(self.input) {
     self.reset()
@@ -423,6 +476,7 @@ fn GameState::update_title(self : GameState) -> Unit {
   }
 }
 
+///|
 fn GameState::update_gameover(self : GameState) -> Unit {
   if @inpututil.is_confirm_just_pressed(self.input) {
     self.reset()
@@ -430,6 +484,7 @@ fn GameState::update_gameover(self : GameState) -> Unit {
   }
 }
 
+///|
 fn GameState::reset(self : GameState) -> Unit {
   self.score = 0
   self.frame_count = 0
@@ -447,6 +502,7 @@ fn GameState::reset(self : GameState) -> Unit {
   }
 }
 
+///|
 fn GameState::update_playing(self : GameState) -> Unit {
   let mut dx = 0.0
   let mut dz = 0.0
@@ -504,12 +560,23 @@ fn GameState::update_playing(self : GameState) -> Unit {
 // ============================================================
 
 // Colors (RGBA, 0-1 range)
+
+///|
 let color_player : @math3d.Vec4 = @math3d.Vec4::new(0.2, 0.8, 0.3, 1.0)
+
+///|
 let color_item : @math3d.Vec4 = @math3d.Vec4::new(1.0, 0.9, 0.2, 1.0)
+
+///|
 let color_enemy : @math3d.Vec4 = @math3d.Vec4::new(0.9, 0.2, 0.2, 1.0)
+
+///|
 let color_ground : @math3d.Vec4 = @math3d.Vec4::new(0.4, 0.5, 0.4, 1.0)
+
+///|
 let color_wall : @math3d.Vec4 = @math3d.Vec4::new(0.3, 0.3, 0.35, 1.0)
 
+///|
 fn GameState::build_draw_commands(
   self : GameState,
   dst : @gfx.ImageHandle,
@@ -540,7 +607,9 @@ fn GameState::build_draw_commands(
       let batch = MeshBatch::new(item_cdw)
       let mvp = vp.multiply(
         @math3d.Mat4::translation(
-          item.position.x, item.position.y, item.position.z,
+          item.position.x,
+          item.position.y,
+          item.position.z,
         ),
       )
       project_mesh_batched(self.meshes.item, mvp, batch)
@@ -554,9 +623,7 @@ fn GameState::build_draw_commands(
     let e = self.enemies[i]
     let batch = MeshBatch::new(enemy_cdw)
     let mvp = vp.multiply(
-      @math3d.Mat4::translation(
-        e.position.x, e.position.y, e.position.z,
-      ),
+      @math3d.Mat4::translation(e.position.x, e.position.y, e.position.z),
     )
     project_mesh_batched(self.meshes.enemy, mvp, batch)
     if batch.tri_count > 0 {
@@ -594,6 +661,7 @@ fn GameState::build_draw_commands(
   cmds
 }
 
+///|
 fn build_wall_batches(
   wall_mesh : @mesh3d.Mesh3D,
   vp : @math3d.Mat4,
@@ -604,27 +672,56 @@ fn build_wall_batches(
   let wh = wall_height / 2.0
   let wt = wall_thickness
   add_wall_batch(
-    wall_mesh, vp, wall_cdw, batches,
-    0.0, wh, -(h + wt / 2.0),
-    h * 2.0 + wt * 2.0, wall_height, wt,
+    wall_mesh,
+    vp,
+    wall_cdw,
+    batches,
+    0.0,
+    wh,
+    -(h + wt / 2.0),
+    h * 2.0 + wt * 2.0,
+    wall_height,
+    wt,
   )
   add_wall_batch(
-    wall_mesh, vp, wall_cdw, batches,
-    0.0, wh, h + wt / 2.0,
-    h * 2.0 + wt * 2.0, wall_height, wt,
+    wall_mesh,
+    vp,
+    wall_cdw,
+    batches,
+    0.0,
+    wh,
+    h + wt / 2.0,
+    h * 2.0 + wt * 2.0,
+    wall_height,
+    wt,
   )
   add_wall_batch(
-    wall_mesh, vp, wall_cdw, batches,
-    -(h + wt / 2.0), wh, 0.0,
-    wt, wall_height, h * 2.0,
+    wall_mesh,
+    vp,
+    wall_cdw,
+    batches,
+    -(h + wt / 2.0),
+    wh,
+    0.0,
+    wt,
+    wall_height,
+    h * 2.0,
   )
   add_wall_batch(
-    wall_mesh, vp, wall_cdw, batches,
-    h + wt / 2.0, wh, 0.0,
-    wt, wall_height, h * 2.0,
+    wall_mesh,
+    vp,
+    wall_cdw,
+    batches,
+    h + wt / 2.0,
+    wh,
+    0.0,
+    wt,
+    wall_height,
+    h * 2.0,
   )
 }
 
+///|
 fn add_wall_batch(
   wall_mesh : @mesh3d.Mesh3D,
   vp : @math3d.Mat4,

@@ -78,13 +78,12 @@ fn FlappyState::update(self : FlappyState, input : @core.InputSnapshot) -> Unit 
   self.frame_count = self.frame_count + 1
   let action = @inpututil.is_any_action_just_pressed(self.input, input)
   match self.game_mode {
-    0 => {
+    0 =>
       // Title screen
       if action {
         self.game_mode = 1
         self.velocity = self.jump_velocity
       }
-    }
     1 => {
       // Playing
       self.velocity = self.velocity + self.gravity
@@ -98,7 +97,8 @@ fn FlappyState::update(self : FlappyState, input : @core.InputSnapshot) -> Unit 
         self.pipe_timer = 0
         let min_gap_y = 40.0
         let max_gap_y = self.screen_h - self.ground_h - self.pipe_gap - 40.0
-        let gap_y = min_gap_y + pseudo_random(self.frame_count) * (max_gap_y - min_gap_y)
+        let gap_y = min_gap_y +
+          pseudo_random(self.frame_count) * (max_gap_y - min_gap_y)
         self.pipes.push({ x: self.screen_w, gap_y })
       }
       // Move pipes and check scoring
@@ -143,12 +143,11 @@ fn FlappyState::update(self : FlappyState, input : @core.InputSnapshot) -> Unit 
         }
       }
     }
-    _ => {
+    _ =>
       // Game over
       if action {
         self.reset()
       }
-    }
   }
 }
 
@@ -167,11 +166,26 @@ fn FlappyState::build_draw_commands(
   let bird_color = @debugutil.color_from_hex(0xFFD700)
   let white = @debugutil.color_white()
   // Sky background
-  cmds.push(@debugutil.new_ndc_rect_fill_command(dst, shader, 0.0, 0.0, sw, sh, sw, sh, sky_color, 0))
+  cmds.push(
+    @debugutil.new_ndc_rect_fill_command(
+      dst, shader, 0.0, 0.0, sw, sh, sw, sh, sky_color, 0,
+    ),
+  )
   // Ground
   let ground_y = sh - self.ground_h
   cmds.push(
-    @debugutil.new_ndc_rect_fill_command(dst, shader, 0.0, ground_y, sw, self.ground_h, sw, sh, ground_color, 0),
+    @debugutil.new_ndc_rect_fill_command(
+      dst,
+      shader,
+      0.0,
+      ground_y,
+      sw,
+      self.ground_h,
+      sw,
+      sh,
+      ground_color,
+      0,
+    ),
   )
   // Pipes
   for pipe in self.pipes {
@@ -179,7 +193,16 @@ fn FlappyState::build_draw_commands(
     if pipe.gap_y > 0.0 {
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
-          dst, shader, pipe.x, 0.0, self.pipe_width, pipe.gap_y, sw, sh, pipe_color, 0,
+          dst,
+          shader,
+          pipe.x,
+          0.0,
+          self.pipe_width,
+          pipe.gap_y,
+          sw,
+          sh,
+          pipe_color,
+          0,
         ),
       )
     }
@@ -189,7 +212,16 @@ fn FlappyState::build_draw_commands(
     if lower_h > 0.0 {
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
-          dst, shader, pipe.x, lower_y, self.pipe_width, lower_h, sw, sh, pipe_color, 0,
+          dst,
+          shader,
+          pipe.x,
+          lower_y,
+          self.pipe_width,
+          lower_h,
+          sw,
+          sh,
+          pipe_color,
+          0,
         ),
       )
     }
@@ -197,11 +229,31 @@ fn FlappyState::build_draw_commands(
   // Bird
   cmds.push(
     @debugutil.new_ndc_rect_fill_command(
-      dst, shader, self.bird_x, self.bird_y, self.bird_size, self.bird_size, sw, sh, bird_color, 0,
+      dst,
+      shader,
+      self.bird_x,
+      self.bird_y,
+      self.bird_size,
+      self.bird_size,
+      sw,
+      sh,
+      bird_color,
+      0,
     ),
   )
   // Score display
-  @debugutil.draw_number(cmds, dst, shader, self.score, sw / 2.0 - 10.0, 20.0, sw, sh, white, 1.0)
+  @debugutil.draw_number(
+    cmds,
+    dst,
+    shader,
+    self.score,
+    sw / 2.0 - 10.0,
+    20.0,
+    sw,
+    sh,
+    white,
+    1.0,
+  )
   // Title / Game Over overlay
   if self.game_mode == 0 {
     // "TAP" text, blinking
@@ -209,7 +261,16 @@ fn FlappyState::build_draw_commands(
       let text_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.8)
       // T=84, A=65, P=80
       @debugutil.draw_dot_text(
-        cmds, dst, shader, [84, 65, 80], sw / 2.0, sh / 2.0 + 30.0, sw, sh, text_color, 2.0,
+        cmds,
+        dst,
+        shader,
+        [84, 65, 80],
+        sw / 2.0,
+        sh / 2.0 + 30.0,
+        sw,
+        sh,
+        text_color,
+        2.0,
       )
     }
   } else if self.game_mode == 2 {
@@ -217,16 +278,33 @@ fn FlappyState::build_draw_commands(
     let overlay_color = @debugutil.color_from_hex_alpha(0x000000, 0.5)
     cmds.push(
       @debugutil.new_ndc_rect_fill_command(
-        dst, shader, sw / 2.0 - 50.0, sh / 2.0 - 20.0, 100.0, 40.0, sw, sh, overlay_color, 0,
+        dst,
+        shader,
+        sw / 2.0 - 50.0,
+        sh / 2.0 - 20.0,
+        100.0,
+        40.0,
+        sw,
+        sh,
+        overlay_color,
+        0,
       ),
     )
     // "END" text
     let text_color = @debugutil.color_from_hex_alpha(0xFFFFFF, 0.9)
     // E=69, N=78, D=68
     @debugutil.draw_dot_text(
-      cmds, dst, shader, [69, 78, 68], sw / 2.0, sh / 2.0, sw, sh, text_color, 2.0,
+      cmds,
+      dst,
+      shader,
+      [69, 78, 68],
+      sw / 2.0,
+      sh / 2.0,
+      sw,
+      sh,
+      text_color,
+      2.0,
     )
   }
   cmds
 }
-

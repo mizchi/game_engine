@@ -649,8 +649,7 @@ pub fn install(title : String) -> Unit {
       bridge_desktop_is_fullscreen, bridge_desktop_set_cursor_mode, bridge_desktop_cursor_mode,
       bridge_desktop_set_device_scale_factor, bridge_desktop_device_scale_factor,
       bridge_desktop_set_vsync_enabled, bridge_desktop_is_vsync_enabled, bridge_desktop_close_window,
-      bridge_desktop_request_attention,
-      bridge_desktop_set_mouse_touch_fallback,
+      bridge_desktop_request_attention, bridge_desktop_set_mouse_touch_fallback,
       bridge_desktop_mouse_touch_fallback_enabled,
     ),
   )
@@ -663,12 +662,8 @@ pub fn install(title : String) -> Unit {
   @text.set_font_load_hooks(@text.new_font_load_hooks(bridge_load_font_data))
   @audio.set_audio_output_hooks(
     @audio.new_audio_output_hooks_full(
-      bridge_audio_try_initialize,
-      bridge_audio_write_frames,
-      bridge_audio_suspend,
-      bridge_audio_resume,
-      bridge_audio_close,
-      bridge_audio_output_latency,
+      bridge_audio_try_initialize, bridge_audio_write_frames, bridge_audio_suspend,
+      bridge_audio_resume, bridge_audio_close, bridge_audio_output_latency,
     ),
   )
 }
@@ -688,10 +683,7 @@ fn bridge_audio_try_initialize(format : @audio.AudioFormat) -> Bool {
 }
 
 ///|
-fn bridge_audio_write_frames(
-  output : FixedArray[Float],
-  frames : Int,
-) -> Int {
+fn bridge_audio_write_frames(output : FixedArray[Float], frames : Int) -> Int {
   @wgpu_native.runtime_audio_write_frames(output, frames)
 }
 

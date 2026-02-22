@@ -358,8 +358,14 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(
     None => panic()
   }
   let text_commands = text_renderer.render_text(
-    "I", 24.0, 0.0, 0.0, dst, shader,
-    @gfx.blend_mode_from_int(1), [255, 255, 255, 255],
+    "I",
+    24.0,
+    0.0,
+    0.0,
+    dst,
+    shader,
+    @gfx.blend_mode_from_int(1),
+    [255, 255, 255, 255],
   )
   // Upload atlas texture to GPU
   let text_binding = @asset.new_source_image_binding(
@@ -405,10 +411,7 @@ fn[T : @gfx.GraphicsDriver] verify_rect_fill_rendering(
   let cmd = @debugutil.new_ndc_rect_fill_command(
     dst, shader, 0.0, 0.0, screen_w, screen_h, screen_w, screen_h, color, 0,
   )
-  let pass = @gfx.new_render_pass_desc(
-    @gfx.new_color(0.0, 0.0, 0.0, 1.0),
-    true,
-  )
+  let pass = @gfx.new_render_pass_desc(@gfx.new_color(0.0, 0.0, 0.0, 1.0), true)
   graphics.begin(pass)
   graphics.draw_triangles(cmd)
   graphics.end(true)
@@ -543,7 +546,9 @@ fn verify_hook_font_load() -> Bool {
       let text_metrics = tr.measure("Hello", 24.0)
       let char_metrics = tr.measure("H", 24.0)
       let size12_metrics = tr.measure("H", 12.0)
-      if text_metrics.width <= 0.0 || char_metrics.width <= 0.0 || size12_metrics.width <= 0.0 {
+      if text_metrics.width <= 0.0 ||
+        char_metrics.width <= 0.0 ||
+        size12_metrics.width <= 0.0 {
         println("runtime_smoke_native: hook_font_load_full measure invalid")
         return false
       }
@@ -735,7 +740,9 @@ fn verify_audio_smoke() -> Bool {
   let initialized = @audio.audio_try_initialize(format)
   if !initialized {
     // CI headless may not have audio device — skip gracefully
-    println("runtime_smoke_native: audio_try_initialize=false (no device, skipped)")
+    println(
+      "runtime_smoke_native: audio_try_initialize=false (no device, skipped)",
+    )
     return true
   }
   // Write a short silence buffer

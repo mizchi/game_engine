@@ -1,33 +1,74 @@
 // Action RPG Showcase - Full-feature demo using 20 engine packages
 
 // === Constants ===
+
+///|
 let map_columns : Int = 20
+
+///|
 let map_rows : Int = 15
+
+///|
 let tile_size : Double = 16.0
+
+///|
 let world_w : Double = 320.0
+
+///|
 let world_h : Double = 240.0
+
+///|
 let screen_w : Double = 320.0
+
+///|
 let screen_h : Double = 240.0
+
+///|
 let player_speed : Double = 1.5
+
+///|
 let enemy_speed : Double = 0.5
+
+///|
 let attack_range : Double = 24.0
+
+///|
 let attack_cooldown : Int = 20
+
+///|
 let damage_flash_duration : Int = 10
+
+///|
 let chase_range : Double = 80.0
 
 // Game mode constants
+
+///|
 let mode_title : Int = 0
+
+///|
 let mode_playing : Int = 1
+
+///|
 let mode_paused : Int = 2
+
+///|
 let mode_gameover : Int = 3
 
 // Tile type constants
+
+///|
 let tile_floor : Int = 0
+
+///|
 let tile_wall : Int = 1
+
+///|
 let tile_water : Int = 2
 
 // === Data Structures ===
 
+///|
 struct Entity {
   mut x : Double
   mut y : Double
@@ -40,6 +81,7 @@ struct Entity {
   mut damage_timer : Int
 }
 
+///|
 struct ItemDrop {
   x : Double
   y : Double
@@ -49,6 +91,7 @@ struct ItemDrop {
 
 // === Main Game State ===
 
+///|
 struct ShowcaseState {
   mut mode : Int
   mut frame_count : Int
@@ -84,6 +127,7 @@ struct ShowcaseState {
 
 // === Tilemap Generation ===
 
+///|
 fn generate_tilemap() -> Array[Int] {
   let tiles : Array[Int] = []
   for row = 0; row < map_rows; row = row + 1 {
@@ -104,6 +148,7 @@ fn generate_tilemap() -> Array[Int] {
   tiles
 }
 
+///|
 fn is_wall_at(tilemap : Array[Int], col : Int, row : Int) -> Bool {
   if col < 0 || col >= map_columns || row < 0 || row >= map_rows {
     return true
@@ -117,53 +162,54 @@ fn is_wall_at(tilemap : Array[Int], col : Int, row : Int) -> Bool {
 
 // === Atlas Setup ===
 
+///|
 fn setup_atlas(
   repo : @asset.SimpleAtlasImageRepository,
 ) -> @tilemap2d.TileAtlasTable {
   // Floor: cobblestone pattern (gray variations)
   let floor_pixels : Array[Int] = [
     // Row 0
-    0x55, 0x55, 0x55, 0xFF, 0x66, 0x66, 0x66, 0xFF,
-    0x5A, 0x5A, 0x5A, 0xFF, 0x55, 0x55, 0x55, 0xFF,
+    0x55, 0x55, 0x55, 0xFF, 0x66, 0x66, 0x66, 0xFF, 0x5A, 0x5A, 0x5A, 0xFF, 0x55,
+    0x55, 0x55, 0xFF,
     // Row 1
-    0x66, 0x66, 0x66, 0xFF, 0x50, 0x50, 0x50, 0xFF,
-    0x66, 0x66, 0x66, 0xFF, 0x5A, 0x5A, 0x5A, 0xFF,
+     0x66, 0x66, 0x66, 0xFF, 0x50, 0x50, 0x50, 0xFF, 0x66, 0x66, 0x66, 0xFF, 0x5A,
+    0x5A, 0x5A, 0xFF,
     // Row 2
-    0x5A, 0x5A, 0x5A, 0xFF, 0x66, 0x66, 0x66, 0xFF,
-    0x55, 0x55, 0x55, 0xFF, 0x66, 0x66, 0x66, 0xFF,
+     0x5A, 0x5A, 0x5A, 0xFF, 0x66, 0x66, 0x66, 0xFF, 0x55, 0x55, 0x55, 0xFF, 0x66,
+    0x66, 0x66, 0xFF,
     // Row 3
-    0x55, 0x55, 0x55, 0xFF, 0x5A, 0x5A, 0x5A, 0xFF,
-    0x66, 0x66, 0x66, 0xFF, 0x50, 0x50, 0x50, 0xFF,
+     0x55, 0x55, 0x55, 0xFF, 0x5A, 0x5A, 0x5A, 0xFF, 0x66, 0x66, 0x66, 0xFF, 0x50,
+    0x50, 0x50, 0xFF,
   ]
   // Wall: brick pattern (brown tones with dark mortar)
   let wall_pixels : Array[Int] = [
     // Row 0
-    0x6B, 0x42, 0x26, 0xFF, 0x6B, 0x42, 0x26, 0xFF,
-    0x33, 0x22, 0x11, 0xFF, 0x55, 0x33, 0x11, 0xFF,
+    0x6B, 0x42, 0x26, 0xFF, 0x6B, 0x42, 0x26, 0xFF, 0x33, 0x22, 0x11, 0xFF, 0x55,
+    0x33, 0x11, 0xFF,
     // Row 1
-    0x6B, 0x42, 0x26, 0xFF, 0x6B, 0x42, 0x26, 0xFF,
-    0x33, 0x22, 0x11, 0xFF, 0x55, 0x33, 0x11, 0xFF,
+     0x6B, 0x42, 0x26, 0xFF, 0x6B, 0x42, 0x26, 0xFF, 0x33, 0x22, 0x11, 0xFF, 0x55,
+    0x33, 0x11, 0xFF,
     // Row 2
-    0x33, 0x22, 0x11, 0xFF, 0x55, 0x33, 0x11, 0xFF,
-    0x6B, 0x42, 0x26, 0xFF, 0x6B, 0x42, 0x26, 0xFF,
+     0x33, 0x22, 0x11, 0xFF, 0x55, 0x33, 0x11, 0xFF, 0x6B, 0x42, 0x26, 0xFF, 0x6B,
+    0x42, 0x26, 0xFF,
     // Row 3
-    0x33, 0x22, 0x11, 0xFF, 0x55, 0x33, 0x11, 0xFF,
-    0x6B, 0x42, 0x26, 0xFF, 0x6B, 0x42, 0x26, 0xFF,
+     0x33, 0x22, 0x11, 0xFF, 0x55, 0x33, 0x11, 0xFF, 0x6B, 0x42, 0x26, 0xFF, 0x6B,
+    0x42, 0x26, 0xFF,
   ]
   // Water: wave ripple pattern (blue variations)
   let water_pixels : Array[Int] = [
     // Row 0
-    0x22, 0x44, 0xAA, 0xFF, 0x33, 0x55, 0xCC, 0xFF,
-    0x22, 0x44, 0xAA, 0xFF, 0x33, 0x55, 0xCC, 0xFF,
+    0x22, 0x44, 0xAA, 0xFF, 0x33, 0x55, 0xCC, 0xFF, 0x22, 0x44, 0xAA, 0xFF, 0x33,
+    0x55, 0xCC, 0xFF,
     // Row 1
-    0x33, 0x55, 0xCC, 0xFF, 0x22, 0x44, 0xAA, 0xFF,
-    0x44, 0x66, 0xDD, 0xFF, 0x22, 0x44, 0xAA, 0xFF,
+     0x33, 0x55, 0xCC, 0xFF, 0x22, 0x44, 0xAA, 0xFF, 0x44, 0x66, 0xDD, 0xFF, 0x22,
+    0x44, 0xAA, 0xFF,
     // Row 2
-    0x22, 0x44, 0xAA, 0xFF, 0x44, 0x66, 0xDD, 0xFF,
-    0x22, 0x44, 0xAA, 0xFF, 0x33, 0x55, 0xCC, 0xFF,
+     0x22, 0x44, 0xAA, 0xFF, 0x44, 0x66, 0xDD, 0xFF, 0x22, 0x44, 0xAA, 0xFF, 0x33,
+    0x55, 0xCC, 0xFF,
     // Row 3
-    0x33, 0x55, 0xCC, 0xFF, 0x22, 0x44, 0xAA, 0xFF,
-    0x33, 0x55, 0xCC, 0xFF, 0x44, 0x66, 0xDD, 0xFF,
+     0x33, 0x55, 0xCC, 0xFF, 0x22, 0x44, 0xAA, 0xFF, 0x33, 0x55, 0xCC, 0xFF, 0x44,
+    0x66, 0xDD, 0xFF,
   ]
   let floor_key = @asset.new_asset_key("tile_floor")
   let wall_key = @asset.new_asset_key("tile_wall")
@@ -183,6 +229,7 @@ fn setup_atlas(
 
 // === Audio Setup ===
 
+///|
 fn create_silent_clip() -> @audio.AudioClip {
   let format = @audio.mono_format(22050)
   let byte_count = @audio.samples_to_bytes(format, 100)
@@ -193,6 +240,7 @@ fn create_silent_clip() -> @audio.AudioClip {
 
 // === Constructor ===
 
+///|
 fn ShowcaseState::new() -> ShowcaseState {
   let tilemap = generate_tilemap()
   let atlas_repo = @asset.new_simple_atlas_image_repository(128, 128, 1)
@@ -316,7 +364,11 @@ fn ShowcaseState::new() -> ShowcaseState {
 
 // === Update Logic ===
 
-fn ShowcaseState::update(self : ShowcaseState, input : @core.InputSnapshot) -> Unit {
+///|
+fn ShowcaseState::update(
+  self : ShowcaseState,
+  input : @core.InputSnapshot,
+) -> Unit {
   self.frame_count = self.frame_count + 1
   @inpututil.update_input_helper(self.input, input)
   match self.mode {
@@ -328,12 +380,14 @@ fn ShowcaseState::update(self : ShowcaseState, input : @core.InputSnapshot) -> U
   }
 }
 
+///|
 fn ShowcaseState::update_title(self : ShowcaseState) -> Unit {
   if @inpututil.is_confirm_just_pressed(self.input) {
     self.mode = mode_playing
   }
 }
 
+///|
 fn ShowcaseState::update_gameover(self : ShowcaseState) -> Unit {
   if @inpututil.is_confirm_just_pressed(self.input) {
     // Reset game
@@ -353,6 +407,7 @@ fn ShowcaseState::update_gameover(self : ShowcaseState) -> Unit {
   }
 }
 
+///|
 fn ShowcaseState::update_paused(self : ShowcaseState) -> Unit {
   if @inpututil.is_up_just_pressed(self.input) {
     let _ = self.focus_mgr.focus_prev()
@@ -365,6 +420,7 @@ fn ShowcaseState::update_paused(self : ShowcaseState) -> Unit {
   }
 }
 
+///|
 fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
   // Check for pause (Escape key = 27)
   if @inpututil.is_key_just_pressed(self.input.key_state, 27) {
@@ -405,8 +461,14 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
   }
   // Clamp to world bounds
   let half = self.player.size / 2.0
-  self.player.x = @cmp.maximum(half, @cmp.minimum(world_w - half, self.player.x))
-  self.player.y = @cmp.maximum(half, @cmp.minimum(world_h - half, self.player.y))
+  self.player.x = @cmp.maximum(
+    half,
+    @cmp.minimum(world_w - half, self.player.x),
+  )
+  self.player.y = @cmp.maximum(
+    half,
+    @cmp.minimum(world_h - half, self.player.y),
+  )
   // Camera follow
   self.camera.follow_target(self.player.x, self.player.y)
   // Attack
@@ -475,15 +537,15 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
       enemy.vy = 0.0
       // Check collision with player
       if @vector.aabb_overlap_center(
-        self.player.x,
-        self.player.y,
-        self.player.size / 2.0,
-        self.player.size / 2.0,
-        enemy.x,
-        enemy.y,
-        enemy.size / 2.0,
-        enemy.size / 2.0,
-      ) {
+          self.player.x,
+          self.player.y,
+          self.player.size / 2.0,
+          self.player.size / 2.0,
+          enemy.x,
+          enemy.y,
+          enemy.size / 2.0,
+          enemy.size / 2.0,
+        ) {
         if self.frame_count % 30 == 0 {
           self.player.hp = self.player.hp - 1
           self.player.damage_timer = damage_flash_duration
@@ -503,23 +565,20 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
   for item in self.items {
     if not(item.collected) {
       if @vector.aabb_overlap_center(
-        self.player.x,
-        self.player.y,
-        self.player.size / 2.0,
-        self.player.size / 2.0,
-        item.x,
-        item.y,
-        6.0,
-        6.0,
-      ) {
+          self.player.x,
+          self.player.y,
+          self.player.size / 2.0,
+          self.player.size / 2.0,
+          item.x,
+          item.y,
+          6.0,
+          6.0,
+        ) {
         item.collected = true
         if item.kind == 0 {
           self.score = self.score + 50
         } else {
-          self.player.hp = @cmp.minimum(
-            self.player.max_hp,
-            self.player.hp + 3,
-          )
+          self.player.hp = @cmp.minimum(self.player.max_hp, self.player.hp + 3)
         }
         // Play pickup SFX
         match self.sfx_pickup {
@@ -539,6 +598,7 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
   }
 }
 
+///|
 fn ShowcaseState::check_wall_collision(
   self : ShowcaseState,
   x : Double,
@@ -562,6 +622,7 @@ fn ShowcaseState::check_wall_collision(
 
 // === Draw Commands ===
 
+///|
 fn ShowcaseState::build_draw_commands(
   self : ShowcaseState,
   dst : @gfx.ImageHandle,
@@ -604,17 +665,8 @@ fn ShowcaseState::build_draw_commands(
       let view_right = self.camera.x + screen_w
       let view_bottom = self.camera.y + screen_h
       let visible_chunk = @tilemap2d.estimate_visible_tile_chunk(
-        map_columns,
-        map_rows,
-        0.0,
-        0.0,
-        tile_size,
-        tile_size,
-        view_left,
-        view_top,
-        view_right,
-        view_bottom,
-        1,
+        map_columns, map_rows, 0.0, 0.0, tile_size, tile_size, view_left, view_top,
+        view_right, view_bottom, 1,
       )
       let _ = @tilemap2d.append_tile_indexed_chunk_batched_draw_commands(
         cmds,
@@ -649,8 +701,8 @@ fn ShowcaseState::build_draw_commands(
         if screen_x >= 0.0 && screen_x < screen_w {
           cmds.push(
             @debugutil.new_ndc_rect_fill_command(
-              dst, shader, screen_x, 0.0, 1.0, screen_h, screen_w, screen_h,
-              grid_color, pipeline_id,
+              dst, shader, screen_x, 0.0, 1.0, screen_h, screen_w, screen_h, grid_color,
+              pipeline_id,
             ),
           )
         }
@@ -664,8 +716,8 @@ fn ShowcaseState::build_draw_commands(
         if screen_y >= 0.0 && screen_y < screen_h {
           cmds.push(
             @debugutil.new_ndc_rect_fill_command(
-              dst, shader, 0.0, screen_y, screen_w, 1.0, screen_w, screen_h,
-              grid_color, pipeline_id,
+              dst, shader, 0.0, screen_y, screen_w, 1.0, screen_w, screen_h, grid_color,
+              pipeline_id,
             ),
           )
         }
@@ -677,7 +729,9 @@ fn ShowcaseState::build_draw_commands(
         if not(item.collected) && item_visible {
           let sx = item.x - view_left
           let sy = item.y - view_top
-          if sx >= -10.0 && sx <= screen_w + 10.0 && sy >= -10.0 &&
+          if sx >= -10.0 &&
+            sx <= screen_w + 10.0 &&
+            sy >= -10.0 &&
             sy <= screen_h + 10.0 {
             let item_color = if item.kind == 0 {
               @debugutil.color_from_hex(0x00FFFF) // Cyan gem
@@ -706,7 +760,9 @@ fn ShowcaseState::build_draw_commands(
         if enemy.alive {
           let sx = enemy.x - view_left
           let sy = enemy.y - view_top
-          if sx >= -20.0 && sx <= screen_w + 20.0 && sy >= -20.0 &&
+          if sx >= -20.0 &&
+            sx <= screen_w + 20.0 &&
+            sy >= -20.0 &&
             sy <= screen_h + 20.0 {
             // White flash on damage, dark red otherwise
             let enemy_color = if enemy.damage_timer > 0 {
@@ -736,8 +792,15 @@ fn ShowcaseState::build_draw_commands(
             // Background
             cmds.push(
               @debugutil.new_ndc_rect_fill_command(
-                dst, shader, sx - ehs, hp_bar_y, hp_bar_w, hp_bar_h,
-                screen_w, screen_h, @debugutil.color_from_hex(0x440000),
+                dst,
+                shader,
+                sx - ehs,
+                hp_bar_y,
+                hp_bar_w,
+                hp_bar_h,
+                screen_w,
+                screen_h,
+                @debugutil.color_from_hex(0x440000),
                 pipeline_id,
               ),
             )
@@ -745,9 +808,16 @@ fn ShowcaseState::build_draw_commands(
             let ehp_ratio = enemy.hp.to_double() / enemy.max_hp.to_double()
             cmds.push(
               @debugutil.new_ndc_rect_fill_command(
-                dst, shader, sx - ehs, hp_bar_y, hp_bar_w * ehp_ratio,
-                hp_bar_h, screen_w, screen_h,
-                @debugutil.color_from_hex(0xCC0000), pipeline_id,
+                dst,
+                shader,
+                sx - ehs,
+                hp_bar_y,
+                hp_bar_w * ehp_ratio,
+                hp_bar_h,
+                screen_w,
+                screen_h,
+                @debugutil.color_from_hex(0xCC0000),
+                pipeline_id,
               ),
             )
           }
@@ -784,16 +854,30 @@ fn ShowcaseState::build_draw_commands(
         // Horizontal bar
         cmds.push(
           @debugutil.new_ndc_rect_fill_command(
-            dst, shader, px - cross_len / 2.0, py - cross_thick / 2.0,
-            cross_len, cross_thick, screen_w, screen_h, cross_color,
+            dst,
+            shader,
+            px - cross_len / 2.0,
+            py - cross_thick / 2.0,
+            cross_len,
+            cross_thick,
+            screen_w,
+            screen_h,
+            cross_color,
             pipeline_id,
           ),
         )
         // Vertical bar
         cmds.push(
           @debugutil.new_ndc_rect_fill_command(
-            dst, shader, px - cross_thick / 2.0, py - cross_len / 2.0,
-            cross_thick, cross_len, screen_w, screen_h, cross_color,
+            dst,
+            shader,
+            px - cross_thick / 2.0,
+            py - cross_len / 2.0,
+            cross_thick,
+            cross_len,
+            screen_w,
+            screen_h,
+            cross_color,
             pipeline_id,
           ),
         )
@@ -808,15 +892,7 @@ fn ShowcaseState::build_draw_commands(
         }
         cmds.push(
           @debugutil.new_ndc_rect_fill_command(
-            dst,
-            shader,
-            0.0,
-            0.0,
-            screen_w,
-            screen_h,
-            screen_w,
-            screen_h,
-            flash_color,
+            dst, shader, 0.0, 0.0, screen_w, screen_h, screen_w, screen_h, flash_color,
             pipeline_id,
           ),
         )
@@ -856,8 +932,16 @@ fn ShowcaseState::build_draw_commands(
       // HUD: separator line
       cmds.push(
         @debugutil.new_ndc_rect_fill_command(
-          dst, shader, 4.0, 14.0, 62.0, 1.0, screen_w, screen_h,
-          @debugutil.color_from_hex_alpha(0xFFFFFF, 0.2), pipeline_id,
+          dst,
+          shader,
+          4.0,
+          14.0,
+          62.0,
+          1.0,
+          screen_w,
+          screen_h,
+          @debugutil.color_from_hex_alpha(0xFFFFFF, 0.2),
+          pipeline_id,
         ),
       )
       // HUD: Score
@@ -907,8 +991,8 @@ fn ShowcaseState::build_draw_commands(
         // Menu items
         let menu_labels : Array[Array[Int]] = [
           [82, 69, 83, 85, 77, 69], // RESUME
-          [82, 69, 83, 69, 84],     // RESET
-          [81, 85, 73, 84],         // QUIT
+          [82, 69, 83, 69, 84], // RESET
+          [81, 85, 73, 84], // QUIT
         ]
         let focused_id = self.focus_mgr.current_focus()
         for i, label in menu_labels {
@@ -938,6 +1022,7 @@ fn ShowcaseState::build_draw_commands(
   cmds
 }
 
+///|
 fn ShowcaseState::draw_title(
   self : ShowcaseState,
   cmds : Array[@gfx.DrawTrianglesCommand],
@@ -990,6 +1075,7 @@ fn ShowcaseState::draw_title(
   }
 }
 
+///|
 fn ShowcaseState::draw_gameover(
   self : ShowcaseState,
   cmds : Array[@gfx.DrawTrianglesCommand],

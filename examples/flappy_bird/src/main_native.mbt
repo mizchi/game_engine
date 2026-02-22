@@ -13,8 +13,12 @@ fn main {
   let window_options = @platform.new_window_options(
     "Flappy Bird", 320, 240, false, true,
   )
-  platform.initialize(window_options) catch { _ => () }
-  graphics.initialize() catch { _ => () }
+  platform.initialize(window_options) catch {
+    _ => ()
+  }
+  graphics.initialize() catch {
+    _ => ()
+  }
   let dst = graphics.new_image(320, 240) catch {
     _ => @gfx.new_image_handle(1, 320, 240)
   }
@@ -27,7 +31,9 @@ fn main {
     let input = platform.capture_input(state.frame_count)
     state.update(input)
     let cmds = state.build_draw_commands(dst, shader)
-    @debugutil.render_commands(graphics, cmds) catch { _ => () }
+    @debugutil.render_commands(graphics, cmds) catch {
+      _ => ()
+    }
   }
   @native_hooks.shutdown()
   @native_hooks.uninstall()

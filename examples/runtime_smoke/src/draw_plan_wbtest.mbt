@@ -30,8 +30,12 @@ test "build_runtime_smoke_tile_draw_plan returns tile sprite and text commands" 
   // 1 glyph = 6 indices
   assert_eq(text_command.indices.length(), 6)
   // UV coords should be in [0,1] range
-  assert_true(text_command.vertex_data[2] >= 0.0 && text_command.vertex_data[2] <= 1.0)
-  assert_true(text_command.vertex_data[3] >= 0.0 && text_command.vertex_data[3] <= 1.0)
+  assert_true(
+    text_command.vertex_data[2] >= 0.0 && text_command.vertex_data[2] <= 1.0,
+  )
+  assert_true(
+    text_command.vertex_data[3] >= 0.0 && text_command.vertex_data[3] <= 1.0,
+  )
   // uniform_dwords should contain color data
   assert_eq(text_command.uniform_dwords.length(), 4)
   assert_eq(text_command.uniform_dwords[0], 255)
@@ -173,7 +177,14 @@ test "TextRenderer render_text produces valid draw commands" {
       let shader = @gfx.new_shader_handle(2, "text_shader")
       let blend = @gfx.blend_mode_from_int(1)
       let commands = renderer.render_text(
-        "III", 24.0, 10.0, 50.0, dst, shader, blend, [255, 255, 255, 255],
+        "III",
+        24.0,
+        10.0,
+        50.0,
+        dst,
+        shader,
+        blend,
+        [255, 255, 255, 255],
       )
       assert_eq(commands.length(), 1)
       let cmd = commands[0]
@@ -217,7 +228,16 @@ test "TextRenderer render_text empty string returns no commands" {
       let dst = @gfx.new_image_handle(1, 640, 480)
       let shader = @gfx.new_shader_handle(1, "shader")
       let blend = @gfx.blend_mode_from_int(1)
-      let commands = renderer.render_text("", 24.0, 0.0, 0.0, dst, shader, blend, [])
+      let commands = renderer.render_text(
+        "",
+        24.0,
+        0.0,
+        0.0,
+        dst,
+        shader,
+        blend,
+        [],
+      )
       assert_eq(commands.length(), 0)
       assert_eq(renderer.glyph_count(), 0)
     }
@@ -253,9 +273,7 @@ test "TextRenderer render_text then clear resets glyph count" {
       let shader = @gfx.new_shader_handle(1, "shader")
       let blend = @gfx.blend_mode_from_int(1)
       // Render text to populate atlas
-      let _ = renderer.render_text(
-        "I", 24.0, 0.0, 0.0, dst, shader, blend, [],
-      )
+      let _ = renderer.render_text("I", 24.0, 0.0, 0.0, dst, shader, blend, [])
       assert_true(renderer.glyph_count() > 0)
       // Clear should reset
       renderer.clear()
@@ -286,9 +304,7 @@ test "TextRenderer atlas has non-zero pixels after render" {
       let dst = @gfx.new_image_handle(1, 640, 480)
       let shader = @gfx.new_shader_handle(1, "shader")
       let blend = @gfx.blend_mode_from_int(1)
-      let _ = renderer.render_text(
-        "I", 24.0, 0.0, 0.0, dst, shader, blend, [],
-      )
+      let _ = renderer.render_text("I", 24.0, 0.0, 0.0, dst, shader, blend, [])
       // Atlas should have non-zero pixels from rasterized glyph
       let pixels = renderer.get_atlas().get_pixels()
       let mut has_nonzero = false
@@ -315,21 +331,15 @@ test "TextRenderer multiple render_text calls share glyph cache" {
       let shader = @gfx.new_shader_handle(1, "shader")
       let blend = @gfx.blend_mode_from_int(1)
       // First render
-      let _ = renderer.render_text(
-        "I", 24.0, 0.0, 0.0, dst, shader, blend, [],
-      )
+      let _ = renderer.render_text("I", 24.0, 0.0, 0.0, dst, shader, blend, [])
       let count_after_first = renderer.glyph_count()
       assert_true(count_after_first > 0)
       // Second render with same text should not increase glyph count
-      let _ = renderer.render_text(
-        "I", 24.0, 50.0, 0.0, dst, shader, blend, [],
-      )
+      let _ = renderer.render_text("I", 24.0, 50.0, 0.0, dst, shader, blend, [])
       assert_eq(renderer.glyph_count(), count_after_first)
       // Render with different text should increase glyph count
       // (the "I" glyph is cached, rendering "II" should not add new entries)
-      let _ = renderer.render_text(
-        "II", 24.0, 100.0, 0.0, dst, shader, blend, [],
-      )
+      let _ = renderer.render_text("II", 24.0, 100.0, 0.0, dst, shader, blend, [])
       assert_eq(renderer.glyph_count(), count_after_first)
     }
     None => panic()

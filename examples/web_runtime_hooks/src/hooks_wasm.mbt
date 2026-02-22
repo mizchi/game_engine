@@ -704,7 +704,10 @@ fn bridge_load_font_data(name : String) -> Array[Int]? {
 // ---------------------------------------------------------------------------
 
 ///|
-extern "wasm" fn host_audio_try_initialize(sample_rate : Int, channels : Int) -> Int = "kagura_web" "audio_try_initialize"
+extern "wasm" fn host_audio_try_initialize(
+  sample_rate : Int,
+  channels : Int,
+) -> Int = "kagura_web" "audio_try_initialize"
 
 ///|
 extern "wasm" fn host_audio_write_frame(channel : Int, value : Double) -> Unit = "kagura_web" "audio_write_frame"
@@ -735,7 +738,11 @@ fn bridge_audio_write_frames(output : FixedArray[Float], frames : Int) -> Int {
   for i in 0..<frames {
     for ch in 0..<channels {
       let idx = i * channels + ch
-      let value = if idx < output.length() { output[idx].to_double() } else { 0.0 }
+      let value = if idx < output.length() {
+        output[idx].to_double()
+      } else {
+        0.0
+      }
       host_audio_write_frame(ch, value)
     }
   }
@@ -772,13 +779,26 @@ pub fn install(canvas_selector : String) -> Unit {
   clear_gpu_texture_dirty()
   @platform.set_web_canvas_hooks(
     @platform.new_web_canvas_hooks(
-      bridge_web_try_initialize, bridge_web_poll, bridge_web_should_close, bridge_web_outside_size,
-      bridge_web_current_surface, bridge_web_capture_input, bridge_web_set_fullscreen,
-      bridge_web_is_fullscreen, bridge_web_set_cursor_mode, bridge_web_cursor_mode,
-      bridge_web_set_device_scale_factor, bridge_web_device_scale_factor, bridge_web_set_vsync_enabled,
-      bridge_web_is_vsync_enabled, bridge_web_close_window, bridge_web_request_attention,
-      fn(_s, _a, _e) { () }, fn(_s, _a) { false },
-      fn(_s, _a, c) { c }, fn(_s, _a, c) { c },
+      bridge_web_try_initialize,
+      bridge_web_poll,
+      bridge_web_should_close,
+      bridge_web_outside_size,
+      bridge_web_current_surface,
+      bridge_web_capture_input,
+      bridge_web_set_fullscreen,
+      bridge_web_is_fullscreen,
+      bridge_web_set_cursor_mode,
+      bridge_web_cursor_mode,
+      bridge_web_set_device_scale_factor,
+      bridge_web_device_scale_factor,
+      bridge_web_set_vsync_enabled,
+      bridge_web_is_vsync_enabled,
+      bridge_web_close_window,
+      bridge_web_request_attention,
+      fn(_s, _a, _e) { () },
+      fn(_s, _a) { false },
+      fn(_s, _a, c) { c },
+      fn(_s, _a, c) { c },
     ),
   )
   @gfx.set_web_graphics_hooks(

@@ -140,7 +140,9 @@ pub fn build_runtime_smoke_tile_draw_plan(
   let font = @text.parse_font_bytes(font_data)
   let text_renderer = match font {
     Some(ttfont) =>
-      @text.TextRenderer::new(ttfont, text_atlas_size, runtime_smoke_text_page_id, 7)
+      @text.TextRenderer::new(
+        ttfont, text_atlas_size, runtime_smoke_text_page_id, 7,
+      )
     None => panic()
   }
   let text_commands = text_renderer.render_text(

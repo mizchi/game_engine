@@ -5,34 +5,34 @@
 ///|
 test "GameState new initializes correctly" {
   let state = GameState::new()
-  assert_eq!(state.mode, mode_playing)
-  assert_eq!(state.frame_count, 0)
-  assert_eq!(state.score, 0)
+  assert_eq(state.mode, mode_playing)
+  assert_eq(state.frame_count, 0)
+  assert_eq(state.score, 0)
 }
 
 ///|
 test "initial player position" {
   let state = GameState::new()
-  assert_true!((state.player.position.x - 0.0).abs() < 0.001)
-  assert_true!((state.player.position.y - 0.5).abs() < 0.001)
-  assert_true!((state.player.position.z - 0.0).abs() < 0.001)
+  assert_true((state.player.position.x - 0.0).abs() < 0.001)
+  assert_true((state.player.position.y - 0.5).abs() < 0.001)
+  assert_true((state.player.position.z - 0.0).abs() < 0.001)
 }
 
 ///|
 test "items initialized active" {
   let state = GameState::new()
-  assert_eq!(state.items.length(), item_count)
+  assert_eq(state.items.length(), item_count)
   for item in state.items {
-    assert_true!(item.active)
+    assert_true(item.active)
   }
 }
 
 ///|
 test "enemies initialized" {
   let state = GameState::new()
-  assert_eq!(state.enemies.length(), enemy_count)
+  assert_eq(state.enemies.length(), enemy_count)
   for e in state.enemies {
-    assert_true!(e.waypoints.length() >= 2)
+    assert_true(e.waypoints.length() >= 2)
   }
 }
 
@@ -48,7 +48,7 @@ test "title to playing on space press" {
   let input1 = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [32])
   state.update(input1)
   // Space needs to be "just pressed" — prev frame had no key, this frame has key
-  assert_eq!(state.mode, mode_playing)
+  assert_eq(state.mode, mode_playing)
 }
 
 ///|
@@ -61,7 +61,7 @@ test "gameover to title on space press" {
   // Now press space
   let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [32])
   state.update(input)
-  assert_eq!(state.mode, mode_title)
+  assert_eq(state.mode, mode_title)
 }
 
 // ============================================================
@@ -76,7 +76,7 @@ test "player moves forward with W key" {
   // W key = 87
   let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [87])
   state.update(input)
-  assert_true!(state.player.position.z < initial_z)
+  assert_true(state.player.position.z < initial_z)
 }
 
 ///|
@@ -87,7 +87,7 @@ test "player moves backward with S key" {
   // S key = 83
   let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [83])
   state.update(input)
-  assert_true!(state.player.position.z > initial_z)
+  assert_true(state.player.position.z > initial_z)
 }
 
 ///|
@@ -98,7 +98,7 @@ test "player moves left with A key" {
   // A key = 65
   let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [65])
   state.update(input)
-  assert_true!(state.player.position.x < initial_x)
+  assert_true(state.player.position.x < initial_x)
 }
 
 ///|
@@ -109,7 +109,7 @@ test "player moves right with D key" {
   // D key = 68
   let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [68])
   state.update(input)
-  assert_true!(state.player.position.x > initial_x)
+  assert_true(state.player.position.x > initial_x)
 }
 
 ///|
@@ -121,7 +121,7 @@ test "player clamped to arena bounds" {
   let input = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [68])
   state.update(input)
   let limit = arena_half - 1.0
-  assert_true!(state.player.position.x <= limit + 0.001)
+  assert_true(state.player.position.x <= limit + 0.001)
 }
 
 // ============================================================
@@ -134,12 +134,10 @@ test "item collection increases score" {
   state.mode = mode_playing
   // Move player to first item position
   let item_pos = state.items[0].position
-  state.player.position = @math3d.Vec3::new(
-    item_pos.x, 0.5, item_pos.z,
-  )
+  state.player.position = @math3d.Vec3::new(item_pos.x, 0.5, item_pos.z)
   let empty = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [])
   state.update(empty)
-  assert_eq!(state.score, 10)
+  assert_eq(state.score, 10)
 }
 
 ///|
@@ -147,13 +145,11 @@ test "collected item respawns" {
   let state = GameState::new()
   state.mode = mode_playing
   let item_pos = state.items[0].position
-  state.player.position = @math3d.Vec3::new(
-    item_pos.x, 0.5, item_pos.z,
-  )
+  state.player.position = @math3d.Vec3::new(item_pos.x, 0.5, item_pos.z)
   let empty = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [])
   state.update(empty)
   // Item should be respawned (still active with new position)
-  assert_true!(state.items[0].active)
+  assert_true(state.items[0].active)
 }
 
 // ============================================================
@@ -165,12 +161,10 @@ test "enemy collision triggers gameover" {
   let state = GameState::new()
   state.mode = mode_playing
   let enemy_pos = state.enemies[0].position
-  state.player.position = @math3d.Vec3::new(
-    enemy_pos.x, 0.5, enemy_pos.z,
-  )
+  state.player.position = @math3d.Vec3::new(enemy_pos.x, 0.5, enemy_pos.z)
   let empty = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [])
   state.update(empty)
-  assert_eq!(state.mode, mode_gameover)
+  assert_eq(state.mode, mode_gameover)
 }
 
 // ============================================================
@@ -193,7 +187,7 @@ test "enemy moves toward next waypoint" {
     state.update(empty)
   }
   let dist_after = distance_xz(e.position, next_wp)
-  assert_true!(dist_after < dist_before)
+  assert_true(dist_after < dist_before)
 }
 
 // ============================================================
@@ -208,8 +202,8 @@ test "camera follows player" {
   state.player.position = @math3d.Vec3::new(5.0, 0.5, 3.0)
   let empty = @core.new_input_snapshot(0.0, 0.0, 0.0, 0.0, [])
   state.update(empty)
-  assert_true!((state.camera.target.x - 5.0).abs() < 0.001)
-  assert_true!((state.camera.target.z - 3.0).abs() < 0.001)
+  assert_true((state.camera.target.x - 5.0).abs() < 0.001)
+  assert_true((state.camera.target.z - 3.0).abs() < 0.001)
 }
 
 // ============================================================
@@ -223,11 +217,11 @@ test "reset restores initial state" {
   state.score = 100
   state.player.position = @math3d.Vec3::new(5.0, 0.5, 5.0)
   state.reset()
-  assert_eq!(state.score, 0)
-  assert_true!((state.player.position.x - 0.0).abs() < 0.001)
-  assert_true!((state.player.position.z - 0.0).abs() < 0.001)
+  assert_eq(state.score, 0)
+  assert_true((state.player.position.x - 0.0).abs() < 0.001)
+  assert_true((state.player.position.z - 0.0).abs() < 0.001)
   for item in state.items {
-    assert_true!(item.active)
+    assert_true(item.active)
   }
 }
 
@@ -242,7 +236,7 @@ test "build_draw_commands returns commands" {
   let shader = @gfx.new_shader_handle(1, "test")
   let cmds = state.build_draw_commands(dst, shader)
   // Should have: ground(1) + walls(4) + items(5) + enemies(3) + player(1) = 14
-  assert_true!(cmds.length() >= 10)
+  assert_true(cmds.length() >= 10)
 }
 
 ///|
@@ -252,7 +246,7 @@ test "build_draw_commands in playing mode" {
   let dst = @gfx.new_image_handle(1, screen_w, screen_h)
   let shader = @gfx.new_shader_handle(1, "test")
   let cmds = state.build_draw_commands(dst, shader)
-  assert_true!(cmds.length() >= 10)
+  assert_true(cmds.length() >= 10)
 }
 
 ///|
@@ -265,7 +259,7 @@ test "draw commands decrease when items collected" {
   // Deactivate an item
   state.items[0].active = false
   let cmds_after = state.build_draw_commands(dst, shader)
-  assert_true!(cmds_after.length() < cmds_before.length())
+  assert_true(cmds_after.length() < cmds_before.length())
 }
 
 // ============================================================
@@ -284,8 +278,8 @@ test "benchmark: draw command count" {
   }
   println("Draw commands: \{cmds.length()}, Total triangles: \{total_tris}")
   // Should have batched: ~14 commands instead of ~150
-  assert_true!(cmds.length() <= 20)
-  assert_true!(cmds.length() >= 5)
+  assert_true(cmds.length() <= 20)
+  assert_true(cmds.length() >= 5)
 }
 
 ///|
@@ -296,7 +290,7 @@ test "benchmark: build_draw_commands 10000 iterations" {
   for _ in 0..<10000 {
     let _ = state.build_draw_commands(dst, shader)
   }
-  assert_true!(true)
+  assert_true(true)
 }
 
 ///|
@@ -316,7 +310,7 @@ test "benchmark: project_mesh_batched only 10000 iterations" {
     let batch = MeshBatch::new(player_cdw)
     project_mesh_batched(state.meshes.player, player_mvp, batch)
   }
-  assert_true!(true)
+  assert_true(true)
 }
 
 // ============================================================
@@ -328,22 +322,22 @@ test "distance_xz computes correctly" {
   let a = @math3d.Vec3::new(0.0, 0.0, 0.0)
   let b = @math3d.Vec3::new(3.0, 100.0, 4.0)
   let d = distance_xz(a, b)
-  assert_true!((d - 5.0).abs() < 0.001)
+  assert_true((d - 5.0).abs() < 0.001)
 }
 
 ///|
 test "clamp_arena limits values" {
   let limit = arena_half - 1.0
-  assert_true!(clamp_arena(100.0) <= limit)
-  assert_true!(clamp_arena(-100.0) >= -limit)
-  assert_true!((clamp_arena(0.0) - 0.0).abs() < 0.001)
+  assert_true(clamp_arena(100.0) <= limit)
+  assert_true(clamp_arena(-100.0) >= -limit)
+  assert_true((clamp_arena(0.0) - 0.0).abs() < 0.001)
 }
 
 ///|
 test "colored lit shader source is valid" {
   let src = shader3d_colored_lit_wgsl()
-  assert_true!(src.length() > 100)
-  assert_true!(src.contains("material_color"))
-  assert_true!(src.contains("vs_main"))
-  assert_true!(src.contains("fs_main"))
+  assert_true(src.length() > 100)
+  assert_true(src.contains("material_color"))
+  assert_true(src.contains("vs_main"))
+  assert_true(src.contains("fs_main"))
 }

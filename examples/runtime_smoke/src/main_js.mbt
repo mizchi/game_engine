@@ -305,9 +305,7 @@ fn main {
     let written = @audio.audio_write_frames(buf, frames)
     let latency = @audio.audio_output_latency()
     @audio.audio_close()
-    println(
-      "audio_smoke: ok init=true written=\{written} latency=\{latency}",
-    )
+    println("audio_smoke: ok init=true written=\{written} latency=\{latency}")
   } else {
     println("audio_smoke: ok init=false")
   }

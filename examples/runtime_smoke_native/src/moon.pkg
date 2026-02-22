@@ -25,6 +25,7 @@ options(
     },
   },
   targets: {
+    "embedded_test_font.mbt": [ "native" ],
     "main_native.mbt": [ "native" ],
     "main_stub.mbt": [ "js", "wasm", "wasm-gc", "llvm" ],
   },

@@ -21,7 +21,9 @@ fn main {
     let input = platform.capture_input(state.frame_count)
     state.update(input)
     let cmds = state.build_draw_commands(dst, shader)
-    @debugutil.render_commands(graphics, cmds) catch { _ => () }
+    @debugutil.render_commands(graphics, cmds) catch {
+      _ => ()
+    }
     @web_hooks.request_animation_frame(frame)
   }
 

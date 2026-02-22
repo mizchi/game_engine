@@ -9,7 +9,7 @@ import {
   "mizchi/kagura/text" @text,
 }
 
-warnings = "-29"
+warnings = "-1-29"
 
 options(
   targets: {
