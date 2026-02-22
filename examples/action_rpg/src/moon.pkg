@@ -19,8 +19,8 @@ import {
   "mizchi/game_engine/tilemap2d" @tilemap2d,
   "mizchi/game_engine/ui" @ui,
   "mizchi/game_engine/vector" @vector,
-  "mizchi/game_engine/examples/web_runtime_hooks" @web_hooks,
-  "mizchi/game_engine/examples/native_runtime_hooks" @native_hooks,
+  "mizchi/web_runtime_hooks" @web_hooks,
+  "mizchi/native_runtime_hooks" @native_hooks,
 }
 
 warnings = "-29"
@@ -29,7 +29,7 @@ options(
   "is-main": true,
   link: {
     "native": {
-      "cc-link-flags": "-Ldeps/wgpu-macos/lib -L/usr/local/lib -L/Users/mz/brew/lib -lwgpu_native -lglfw -Wl,-rpath,deps/wgpu-macos/lib -Wl,-rpath,/usr/local/lib -Wl,-rpath,/Users/mz/brew/lib -framework Metal -framework QuartzCore -framework IOKit -framework CoreFoundation -framework Cocoa -framework Foundation",
+      "cc-link-flags": "-L../../deps/wgpu-macos/lib -L/usr/local/lib -L/Users/mz/brew/lib -lwgpu_native -lglfw -Wl,-rpath,../../deps/wgpu-macos/lib -Wl,-rpath,/usr/local/lib -Wl,-rpath,/Users/mz/brew/lib -framework Metal -framework QuartzCore -framework IOKit -framework CoreFoundation -framework Cocoa -framework Foundation",
     },
   },
   targets: {

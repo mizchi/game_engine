@@ -3,7 +3,7 @@ import {
   "mizchi/game_engine/asset" @asset,
   "mizchi/game_engine/audio" @audio,
   "mizchi/game_engine/core" @core,
-  "mizchi/game_engine/examples/web_runtime_hooks" @web_hooks,
+  "mizchi/web_runtime_hooks" @web_hooks,
   "mizchi/game_engine/gfx" @gfx,
   "mizchi/game_engine/image_palette" @image_palette,
   "mizchi/game_engine/payload2d" @payload2d,

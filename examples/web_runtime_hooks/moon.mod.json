@@ -1,0 +1,9 @@
+{
+  "name": "mizchi/web_runtime_hooks",
+  "version": "0.1.0",
+  "source": "src",
+  "warn-list": "-6-29-53-68",
+  "deps": {
+    "mizchi/game_engine": { "path": "../.." }
+  }
+}
