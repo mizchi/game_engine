@@ -658,38 +658,37 @@ fn ShowcaseState::build_draw_commands(
           pipeline_id,
         ),
       )
-      // Tilemap
-      // camera.x/y is the top-left corner of the viewport
+      // Tilemap - render each tile as a solid-color rectangle
       let view_left = self.camera.x
       let view_top = self.camera.y
-      let view_right = self.camera.x + screen_w
-      let view_bottom = self.camera.y + screen_h
-      let visible_chunk = @tilemap2d.estimate_visible_tile_chunk(
-        map_columns, map_rows, 0.0, 0.0, tile_size, tile_size, view_left, view_top,
-        view_right, view_bottom, 1,
-      )
-      let _ = @tilemap2d.append_tile_indexed_chunk_batched_draw_commands(
-        cmds,
-        self.tile_table,
-        self.atlas_repo,
-        dst,
-        shader,
-        pipeline_id,
-        uniform_hash,
-        blend,
-        dst_region,
-        self.tilemap,
-        map_columns,
-        visible_chunk.tile_x,
-        visible_chunk.tile_y,
-        visible_chunk.tile_width,
-        visible_chunk.tile_height,
-        -view_left,
-        -view_top,
-        tile_size,
-        tile_size,
-        white_uniform,
-      )
+      let view_right = view_left + screen_w
+      let view_bottom = view_top + screen_h
+      let floor_color = @debugutil.color_from_hex(0x555555)
+      let wall_color = @debugutil.color_from_hex(0x6B4226)
+      let water_color = @debugutil.color_from_hex(0x2244AA)
+      for row = 0; row < map_rows; row = row + 1 {
+        for col = 0; col < map_columns; col = col + 1 {
+          let sx = col.to_double() * tile_size - view_left
+          let sy = row.to_double() * tile_size - view_top
+          if sx > -tile_size &&
+            sx < screen_w + tile_size &&
+            sy > -tile_size &&
+            sy < screen_h + tile_size {
+            let idx = row * map_columns + col
+            let tile_color = match self.tilemap[idx] {
+              t if t == tile_wall => wall_color
+              t if t == tile_water => water_color
+              _ => floor_color
+            }
+            cmds.push(
+              @debugutil.new_ndc_rect_fill_command(
+                dst, shader, sx, sy, tile_size, tile_size, screen_w, screen_h,
+                tile_color, pipeline_id,
+              ),
+            )
+          }
+        }
+      }
       // Grid lines on floor tiles
       let grid_color = @debugutil.color_from_hex_alpha(0x444444, 0.3)
       let grid_spacing = tile_size

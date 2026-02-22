@@ -32,6 +32,9 @@ e2e-smoke:
 info:
     moon info
 
+pages:
+    bash scripts/build-pages.sh
+
 clean:
     moon clean
     for dir in examples/*/; do (cd "$dir" && moon clean); done
