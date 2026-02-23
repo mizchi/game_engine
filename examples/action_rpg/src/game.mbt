@@ -79,6 +79,7 @@ struct Entity {
   size : Double
   mut alive : Bool
   mut damage_timer : Int
+  mut attack_anim : Int
 }
 
 ///|
@@ -119,10 +120,14 @@ struct ShowcaseState {
   tile_table : @tilemap2d.TileAtlasTable
   // Visual
   mut screen_flash : Int
+  mut facing_angle : Double // radians, 0=right
   // SVG path
   level_border_path : @vector.Path
   // Text renderer
   text_renderer : @text.TextRenderer?
+  // SVG icon demo
+  svg_icon_image_id : Int
+  mut svg_icon_loaded : Bool
 }
 
 // === Tilemap Generation ===
@@ -263,7 +268,7 @@ fn ShowcaseState::new() -> ShowcaseState {
   )
   // Text
   let text_renderer = @text.load_text_renderer(
-    ".mooncakes/mizchi/font/fixtures/NotoSansMono-Regular.ttf",
+    "assets/Tiny5-Regular.ttf",
     256,
     950,
     0,
@@ -295,6 +300,7 @@ fn ShowcaseState::new() -> ShowcaseState {
     size: 10.0,
     alive: true,
     damage_timer: 0,
+    attack_anim: 0,
   }
   // Enemies
   let enemies : Array[Entity] = [
@@ -308,6 +314,7 @@ fn ShowcaseState::new() -> ShowcaseState {
       size: 10.0,
       alive: true,
       damage_timer: 0,
+      attack_anim: 0,
     },
     {
       x: 200.0,
@@ -319,6 +326,7 @@ fn ShowcaseState::new() -> ShowcaseState {
       size: 10.0,
       alive: true,
       damage_timer: 0,
+      attack_anim: 0,
     },
     {
       x: 100.0,
@@ -330,6 +338,7 @@ fn ShowcaseState::new() -> ShowcaseState {
       size: 10.0,
       alive: true,
       damage_timer: 0,
+      attack_anim: 0,
     },
   ]
   // Items
@@ -362,8 +371,11 @@ fn ShowcaseState::new() -> ShowcaseState {
     atlas_repo,
     tile_table,
     screen_flash: 0,
+    facing_angle: 1.5708, // down
     level_border_path,
     text_renderer,
+    svg_icon_image_id: 9000,
+    svg_icon_loaded: false,
   }
 }
 
@@ -405,6 +417,7 @@ fn ShowcaseState::update_gameover(self : ShowcaseState) -> Unit {
     for enemy in self.enemies {
       enemy.alive = true
       enemy.hp = enemy.max_hp
+      enemy.attack_anim = 0
     }
     for item in self.items {
       item.collected = false
@@ -454,6 +467,10 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
     dx = v.x
     dy = v.y
   }
+  // Update facing direction
+  if dx != 0.0 || dy != 0.0 {
+    self.facing_angle = @math.atan2(dy, dx)
+  }
   let next_x = self.player.x + dx * player_speed
   let next_y = self.player.y + dy * player_speed
   // Wall collision for X
@@ -482,7 +499,7 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
   }
   if @inpututil.is_confirm_just_pressed(self.input) && self.attack_timer <= 0 {
     self.attack_timer = attack_cooldown
-    self.screen_flash = 3
+    self.screen_flash = 2
     // Play attack SFX
     match self.sfx_attack {
       Some(id) => self.audio_ctx.play(id) catch { _ => () }
@@ -554,6 +571,7 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
         if self.frame_count % 30 == 0 {
           self.player.hp = self.player.hp - 1
           self.player.damage_timer = damage_flash_duration
+          enemy.attack_anim = 6
           if self.player.hp <= 0 {
             self.player.alive = false
             self.mode = mode_gameover
@@ -564,6 +582,49 @@ fn ShowcaseState::update_playing(self : ShowcaseState) -> Unit {
     // Decrement damage timers
     if enemy.damage_timer > 0 {
       enemy.damage_timer = enemy.damage_timer - 1
+    }
+    if enemy.attack_anim > 0 {
+      enemy.attack_anim = enemy.attack_anim - 1
+    }
+  }
+  // Entity separation: player vs enemies
+  for enemy in self.enemies {
+    if enemy.alive {
+      let sep_dx = self.player.x - enemy.x
+      let sep_dy = self.player.y - enemy.y
+      let sep_dist = (sep_dx * sep_dx + sep_dy * sep_dy).sqrt()
+      let min_dist = (self.player.size + enemy.size) / 2.0
+      if sep_dist < min_dist && sep_dist > 0.001 {
+        let push = (min_dist - sep_dist) / 2.0
+        let nx = sep_dx / sep_dist
+        let ny = sep_dy / sep_dist
+        self.player.x = self.player.x + nx * push
+        self.player.y = self.player.y + ny * push
+        enemy.x = enemy.x - nx * push
+        enemy.y = enemy.y - ny * push
+      }
+    }
+  }
+  // Entity separation: enemy vs enemy
+  for i = 0; i < self.enemies.length(); i = i + 1 {
+    for j = i + 1; j < self.enemies.length(); j = j + 1 {
+      let a = self.enemies[i]
+      let b = self.enemies[j]
+      if a.alive && b.alive {
+        let sep_dx = a.x - b.x
+        let sep_dy = a.y - b.y
+        let sep_dist = (sep_dx * sep_dx + sep_dy * sep_dy).sqrt()
+        let min_dist = (a.size + b.size) / 2.0
+        if sep_dist < min_dist && sep_dist > 0.001 {
+          let push = (min_dist - sep_dist) / 2.0
+          let nx = sep_dx / sep_dist
+          let ny = sep_dy / sep_dist
+          a.x = a.x + nx * push
+          a.y = a.y + ny * push
+          b.x = b.x - nx * push
+          b.y = b.y - ny * push
+        }
+      }
     }
   }
   // Item collection
@@ -670,7 +731,7 @@ fn ShowcaseState::view_playing(self : ShowcaseState) -> @scene.SceneNode {
   let player_fill = if self.player.damage_timer > 0 { 0xFFFFFF } else { 0x00FFCC }
   let hp_ratio = self.player.hp.to_double() / self.player.max_hp.to_double()
   let hp_width = 60.0 * hp_ratio
-  let item_visible = self.frame_count / 8 % 2 == 0
+  let item_alpha = 0.6 + 0.4 * @math.sin(self.frame_count.to_double() * 0.08)
   @scene.fragment(
     [
       // Background
@@ -740,11 +801,11 @@ fn ShowcaseState::view_playing(self : ShowcaseState) -> @scene.SceneNode {
         }
         nodes
       }),
-      // Items (blinking)
+      // Items (smooth pulse)
       @scene.for_each(fn() {
         let nodes : Array[@scene.SceneNode] = []
         for item in self.items {
-          if not(item.collected) && item_visible {
+          if not(item.collected) {
             let sx = item.x - view_left
             let sy = item.y - view_top
             if sx >= -10.0 &&
@@ -753,7 +814,14 @@ fn ShowcaseState::view_playing(self : ShowcaseState) -> @scene.SceneNode {
               sy <= screen_h + 10.0 {
               let fill = if item.kind == 0 { 0x00FFFF } else { 0x00FF66 }
               nodes.push(
-                @scene.rect(x=sx - 4.0, y=sy - 4.0, w=8.0, h=8.0, fill=fill),
+                @scene.rect(
+                  x=sx - 4.0,
+                  y=sy - 4.0,
+                  w=8.0,
+                  h=8.0,
+                  fill=fill,
+                  alpha=item_alpha,
+                ),
               )
             }
           }
@@ -804,6 +872,27 @@ fn ShowcaseState::view_playing(self : ShowcaseState) -> @scene.SceneNode {
                   fill=0xCC0000,
                 ),
               )
+              // Attack animation line
+              if enemy.attack_anim > 0 {
+                let atk_dx = px - sx
+                let atk_dy = py - sy
+                let atk_dist = (atk_dx * atk_dx + atk_dy * atk_dy).sqrt()
+                if atk_dist > 0.001 {
+                  let atk_nx = atk_dx / atk_dist
+                  let atk_ny = atk_dy / atk_dist
+                  let line_len = @cmp.minimum(20.0, atk_dist)
+                  nodes.push(
+                    @scene.line(
+                      x0=sx,
+                      y0=sy,
+                      x1=sx + atk_nx * line_len,
+                      y1=sy + atk_ny * line_len,
+                      width=2.0,
+                      color=0xFF0000,
+                    ),
+                  )
+                }
+              }
             }
           }
         }
@@ -817,40 +906,71 @@ fn ShowcaseState::view_playing(self : ShowcaseState) -> @scene.SceneNode {
         h=self.player.size,
         fill=player_fill,
       ),
-      // Attack indicator (cross pattern)
-      @scene.show(fn() { self.attack_timer > attack_cooldown - 3 }, fn() {
-        let cross_thick = 4.0
-        let cross_len = attack_range
-        @scene.fragment(
-          [
+      // Attack indicator (sweeping sword)
+      @scene.show(fn() { self.attack_timer > attack_cooldown - 8 }, fn() {
+        let swing_frames = 8.0
+        let elapsed = (attack_cooldown - self.attack_timer).to_double()
+        let progress = elapsed / swing_frames
+        // Sweep +-60deg around facing direction
+        let angle = self.facing_angle + (-1.0472 + progress * 2.0944)
+        let cos_a = @math.cos(angle)
+        let sin_a = @math.sin(angle)
+        let fade = 1.0 - progress
+        @scene.for_each(fn() {
+          let nodes : Array[@scene.SceneNode] = []
+          // Blade: 8 segments radiating from player
+          for i = 0; i < 8; i = i + 1 {
+            let dist = 6.0 + i.to_double() * 2.5
+            let sx = px + cos_a * dist
+            let sy = py + sin_a * dist
+            let size = if i < 2 { 3.0 } else if i < 6 { 2.0 } else { 1.0 }
+            let color = if i < 2 { 0x888888 } else { 0xCCDDFF }
+            nodes.push(
+              @scene.rect(
+                x=sx - size / 2.0,
+                y=sy - size / 2.0,
+                w=size,
+                h=size,
+                fill=color,
+                alpha=fade * 0.8,
+              ),
+            )
+          }
+          // Guard (crossbar at base)
+          let gx = px + cos_a * 7.0
+          let gy = py + sin_a * 7.0
+          nodes.push(
             @scene.rect(
-              x=px - cross_len / 2.0,
-              y=py - cross_thick / 2.0,
-              w=cross_len,
-              h=cross_thick,
-              fill=0xFFFFFF,
-              alpha=0.4,
+              x=gx - sin_a * 3.0 - 1.0,
+              y=gy + cos_a * 3.0 - 1.0,
+              w=2.0,
+              h=2.0,
+              fill=0xFFCC00,
+              alpha=fade * 0.8,
             ),
+          )
+          nodes.push(
             @scene.rect(
-              x=px - cross_thick / 2.0,
-              y=py - cross_len / 2.0,
-              w=cross_thick,
-              h=cross_len,
-              fill=0xFFFFFF,
-              alpha=0.4,
+              x=gx + sin_a * 3.0 - 1.0,
+              y=gy - cos_a * 3.0 - 1.0,
+              w=2.0,
+              h=2.0,
+              fill=0xFFCC00,
+              alpha=fade * 0.8,
             ),
-          ],
-        )
+          )
+          nodes
+        })
       }),
-      // Screen flash
+      // Screen flash (subtle)
       @scene.show(fn() { self.screen_flash > 0 }, fn() {
-        let flash_alpha = self.screen_flash.to_double() / 5.0
+        let flash_alpha = self.screen_flash.to_double() / 5.0 * 0.15
         if self.player.damage_timer > 0 {
           @scene.rect(
             w=screen_w,
             h=screen_h,
             fill=0xFF0000,
-            alpha=flash_alpha * 0.15 / 0.6,
+            alpha=flash_alpha,
           )
         } else {
           @scene.rect(
@@ -961,50 +1081,160 @@ fn ShowcaseState::render_text_hud(
     Some(r) => r
     None => return
   }
-  // Only render HUD text during gameplay
-  if self.mode != mode_playing {
-    return
-  }
-  let score_text = "SCORE:" + self.score.to_string()
-  let text_cmds = renderer.render_text(
-    score_text,
-    16.0,
-    screen_w - 120.0,
-    24.0,
-    dst,
-    shader,
-    @gfx.blend_mode_from_int(1),
-    [255, 204, 0, 255],
-  )
-  // Upload dirty atlas pages
-  let dirty_pages = renderer.flush_dirty_pages()
-  if dirty_pages.length() > 0 {
-    let bindings : Array[@asset.SourceImageBinding] = []
-    for page_info in dirty_pages {
-      let page_idx = page_info.page_id - renderer.get_page_id()
-      let page = renderer.get_page(page_idx)
-      let binding = @asset.new_source_image_binding(
-        page_info.page_id,
-        page_info.width,
-        page_info.height,
-        1,
-        Some(
-          @asset.new_source_image_dirty_rect(
-            0,
-            0,
-            page_info.width,
-            page_info.height,
-          ),
-        ),
-        @image_palette.checker_palette_from_seed(page_info.page_id),
-        page.get_pixels(),
+  let blend = @gfx.blend_mode_from_int(1)
+  let white : Array[Int] = [255, 255, 255, 255]
+  let yellow : Array[Int] = [255, 204, 0, 255]
+  let red : Array[Int] = [255, 0, 0, 255]
+  let all_text_cmds : Array[@gfx.DrawTrianglesCommand] = []
+  match self.mode {
+    m if m == mode_title => {
+      // Title screen: "DUNGEON" + blinking "PRESS SPACE"
+      let title_cmds = renderer.render_text(
+        "DUNGEON", 32.0, screen_w / 2.0 - 80.0, screen_h / 2.0 - 30.0,
+        dst, shader, blend, white,
       )
-      bindings.push(binding)
+      for cmd in title_cmds {
+        all_text_cmds.push(cmd)
+      }
+      if self.frame_count / 30 % 2 == 0 {
+        let press_cmds = renderer.render_text(
+          "PRESS SPACE", 16.0, screen_w / 2.0 - 60.0, screen_h / 2.0 + 20.0,
+          dst, shader, blend, yellow,
+        )
+        for cmd in press_cmds {
+          all_text_cmds.push(cmd)
+        }
+      }
     }
-    let _ = @web_hooks.sync_source_images(bindings)
-    let _ = @native_hooks.sync_source_images(bindings)
+    m if m == mode_playing || m == mode_paused => {
+      // Playing: score + HP
+      let score_text = "SCORE:" + self.score.to_string()
+      let score_cmds = renderer.render_text(
+        score_text, 16.0, screen_w - 120.0, 24.0,
+        dst, shader, blend, yellow,
+      )
+      for cmd in score_cmds {
+        all_text_cmds.push(cmd)
+      }
+      let hp_text = "HP:" +
+        self.player.hp.to_string() +
+        "/" +
+        self.player.max_hp.to_string()
+      let hp_cmds = renderer.render_text(
+        hp_text, 16.0, 4.0, 24.0,
+        dst, shader, blend, white,
+      )
+      for cmd in hp_cmds {
+        all_text_cmds.push(cmd)
+      }
+    }
+    m if m == mode_gameover => {
+      // Game over: "GAME OVER" + score
+      let go_cmds = renderer.render_text(
+        "GAME OVER", 32.0, screen_w / 2.0 - 80.0, screen_h / 2.0 - 20.0,
+        dst, shader, blend, red,
+      )
+      for cmd in go_cmds {
+        all_text_cmds.push(cmd)
+      }
+      let score_text = "SCORE:" + self.score.to_string()
+      let sc_cmds = renderer.render_text(
+        score_text, 16.0, screen_w / 2.0 - 40.0, screen_h / 2.0 + 20.0,
+        dst, shader, blend, yellow,
+      )
+      for cmd in sc_cmds {
+        all_text_cmds.push(cmd)
+      }
+    }
+    _ => ()
   }
-  for cmd in text_cmds {
-    cmds.push(cmd)
+  // Upload dirty atlas pages
+  if all_text_cmds.length() > 0 {
+    let dirty_pages = renderer.flush_dirty_pages()
+    if dirty_pages.length() > 0 {
+      let bindings : Array[@asset.SourceImageBinding] = []
+      for page_info in dirty_pages {
+        let page_idx = page_info.page_id - renderer.get_page_id()
+        let page = renderer.get_page(page_idx)
+        let binding = @asset.new_source_image_binding(
+          page_info.page_id,
+          page_info.width,
+          page_info.height,
+          1,
+          Some(
+            @asset.new_source_image_dirty_rect(
+              0,
+              0,
+              page_info.width,
+              page_info.height,
+            ),
+          ),
+          @image_palette.checker_palette_from_seed(page_info.page_id),
+          page.get_pixels(),
+        )
+        bindings.push(binding)
+      }
+      let _ = @web_hooks.sync_source_images(bindings)
+      let _ = @native_hooks.sync_source_images(bindings)
+    }
+    for cmd in all_text_cmds {
+      cmds.push(cmd)
+    }
+  }
+  // SVG icon demo: render once, then draw each frame
+  if not(self.svg_icon_loaded) {
+    self.svg_icon_loaded = true
+    let svg_str = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='7' y='1' width='2' height='10' fill='#CCDDFF'/><rect x='5' y='9' width='6' height='2' fill='#FFCC00'/><rect x='7' y='11' width='2' height='4' fill='#886644'/></svg>"
+    match @svg.render_svg_to_rgba(svg_str, 16, 16) {
+      Some((_w, _h, pixels)) => {
+        let binding = @asset.new_source_image_binding(
+          self.svg_icon_image_id,
+          16,
+          16,
+          1,
+          Some(@asset.new_source_image_dirty_rect(0, 0, 16, 16)),
+          @image_palette.checker_palette_from_seed(self.svg_icon_image_id),
+          pixels,
+        )
+        let _ = @web_hooks.sync_source_images([binding])
+        let _ = @native_hooks.sync_source_images([binding])
+      }
+      None => ()
+    }
+  }
+  // Draw SVG sword icon in HUD (playing/paused mode)
+  if self.svg_icon_loaded &&
+    (self.mode == mode_playing || self.mode == mode_paused) {
+    let icon_x = 70.0
+    let icon_y = 4.0
+    let icon_size = 16.0
+    let svg_vertex_data : Array[Double] = [
+      icon_x, icon_y, 0.0, 0.0, icon_x + icon_size, icon_y, 1.0, 0.0,
+      icon_x + icon_size, icon_y + icon_size, 1.0, 1.0, icon_x,
+      icon_y + icon_size, 0.0, 1.0,
+    ]
+    let svg_indices : Array[Int] = [0, 1, 2, 2, 3, 0]
+    let svg_dst_region = @gfx.new_dst_region(
+      icon_x.to_int(),
+      icon_y.to_int(),
+      icon_size.to_int(),
+      icon_size.to_int(),
+      6,
+    )
+    cmds.push(
+      @gfx.new_draw_triangles_command(
+        dst,
+        shader,
+        [svg_dst_region],
+        0,
+        0,
+        0,
+        blend,
+        svg_vertex_data,
+        svg_indices,
+        [self.svg_icon_image_id],
+        [255, 255, 255, 255],
+      ),
+    )
   }
 }
