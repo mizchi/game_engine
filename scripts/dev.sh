@@ -31,12 +31,31 @@ mkdir -p "$SERVE_DIR/lib"
 cp "$ROOT/e2e/fixtures/lib/kagura-init.js" "$SERVE_DIR/lib/kagura-init.js"
 cp "$JS_PATH" "$SERVE_DIR/$NAME.js"
 
+# Copy assets if present
+FONT_LOAD_SNIPPET=""
+if [ -d "$EXAMPLE_DIR/assets" ]; then
+  cp -r "$EXAMPLE_DIR/assets" "$SERVE_DIR/assets"
+  # Auto-detect TTF files for font preloading
+  FONT_ENTRIES=""
+  for ttf in "$SERVE_DIR/assets/"*.ttf; do
+    [ -f "$ttf" ] || continue
+    fname=$(basename "$ttf")
+    key="assets/$fname"
+    if [ -n "$FONT_ENTRIES" ]; then FONT_ENTRIES="$FONT_ENTRIES, "; fi
+    FONT_ENTRIES="${FONT_ENTRIES}[\"$key\", \"./assets/$fname\"]"
+  done
+  if [ -n "$FONT_ENTRIES" ]; then
+    FONT_LOAD_SNIPPET="  await loadFonts([$FONT_ENTRIES]);"
+  fi
+fi
+
 # Generate loader
 cat > "$SERVE_DIR/loader.js" <<LOADER
-import { initWebGPU, setupGlobalState, loadGameScript } from "./lib/kagura-init.js";
+import { initWebGPU, setupGlobalState, loadFonts, loadGameScript } from "./lib/kagura-init.js";
 async function init() {
   const result = await initWebGPU("#app");
   if (result) setupGlobalState(result.canvas, result.device, result.format, result.context);
+${FONT_LOAD_SNIPPET}
   await loadGameScript("./${NAME}.js");
 }
 init().catch(console.error);
@@ -73,23 +92,24 @@ HTML
 echo "Serving $NAME at http://localhost:$PORT"
 echo "Press Ctrl+C to stop."
 
-# Serve (use python or node)
-if command -v python3 &>/dev/null; then
-  cd "$SERVE_DIR" && python3 -m http.server "$PORT"
-elif command -v node &>/dev/null; then
+# Serve (prefer node for reliable MIME types)
+if command -v node &>/dev/null; then
   node -e "
     const http = require('http');
     const fs = require('fs');
     const path = require('path');
-    const TYPES = {'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript'};
+    const TYPES = {'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.ttf':'font/ttf','.wasm':'application/wasm'};
     http.createServer((req, res) => {
-      const p = path.join('$SERVE_DIR', new URL(req.url, 'http://localhost').pathname);
+      let p = path.join('$SERVE_DIR', new URL(req.url, 'http://localhost').pathname);
+      if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, 'index.html');
       if (!fs.existsSync(p) || !fs.statSync(p).isFile()) { res.writeHead(404); res.end('not found'); return; }
       res.writeHead(200, {'content-type': TYPES[path.extname(p)] || 'application/octet-stream', 'cache-control': 'no-store'});
       res.end(fs.readFileSync(p));
     }).listen($PORT, () => console.log('Ready'));
   "
+elif command -v python3 &>/dev/null; then
+  cd "$SERVE_DIR" && python3 -m http.server "$PORT"
 else
-  echo "Error: python3 or node required to serve"
+  echo "Error: node or python3 required to serve"
   exit 1
 fi

@@ -39,6 +39,7 @@ export function setupGlobalState(canvas, device, format, context) {
       clear: [0, 0, 0, 1], commands: [], textures: null, lastError: "",
     },
   });
+  state.fonts = state.fonts || {};
   state.canvas = canvas;
   state.surfaceId = state.nextSurfaceId++;
   canvas.__kaguraSurfaceId = state.surfaceId;
@@ -46,6 +47,24 @@ export function setupGlobalState(canvas, device, format, context) {
   state.webgpu.device = device;
   state.webgpu.format = format;
   return state;
+}
+
+export async function loadFonts(entries) {
+  const state = globalThis.__kaguraWebRuntime;
+  if (!state) return;
+  state.fonts = state.fonts || {};
+  await Promise.all(
+    entries.map(async ([key, url]) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const buf = await res.arrayBuffer();
+        state.fonts[key] = new Uint8Array(buf);
+      } catch (e) {
+        console.warn(`Failed to load font "${key}" from ${url}:`, e);
+      }
+    })
+  );
 }
 
 export function loadGameScript(scriptPath) {

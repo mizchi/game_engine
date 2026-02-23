@@ -18,7 +18,6 @@ pub fn run(
   title? : String = "kagura",
   canvas? : String = "#app",
 ) -> Unit {
-  let game = @core.new_noop_game(width, height)
   let platform = @platform.create_web_canvas_platform(canvas)
   let surface = platform.current_surface() catch {
     _ => @platform.create_offscreen_surface_token(width, height)
@@ -27,13 +26,14 @@ pub fn run(
     surface,
     @gfx.default_graphics_backend_options(),
   )
-  @runtime.run_loop(
-    game,
-    platform,
-    graphics,
-    @core.default_run_options(),
-    @runtime.default_runtime_config(),
+  // NOTE: run_loop is NOT called on JS — it contains a blocking while-loop
+  // for native targets. JS uses requestAnimationFrame below instead.
+  platform.initialize(
+    @platform.new_window_options(title, width, height, false, true),
   ) catch {
+    _ => ()
+  }
+  graphics.initialize() catch {
     _ => ()
   }
   let dst = graphics.new_image(width, height) catch {

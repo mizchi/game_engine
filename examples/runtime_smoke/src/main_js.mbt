@@ -273,7 +273,6 @@ fn[T : @gfx.GraphicsDriver] run_draw_payload_probe(graphics : T) -> Unit raise {
 ///|
 fn main {
   @web_hooks.install("#app")
-  let game = @core.new_noop_game(320, 240)
   let platform = @platform.create_web_canvas_platform("#app")
   let surface = platform.current_surface() catch {
     _ => @platform.create_offscreen_surface_token(320, 240)
@@ -282,13 +281,14 @@ fn main {
     surface,
     @gfx.default_graphics_backend_options(),
   )
-  @runtime.run_loop(
-    game,
-    platform,
-    graphics,
-    @core.default_run_options(),
-    @runtime.default_runtime_config(),
+  // NOTE: run_loop contains a blocking while-loop incompatible with JS.
+  // Initialize platform/graphics manually instead.
+  platform.initialize(
+    @platform.new_window_options("kagura", 320, 240, false, true),
   ) catch {
+    _ => ()
+  }
+  graphics.initialize() catch {
     _ => ()
   }
   run_draw_payload_probe(graphics) catch {

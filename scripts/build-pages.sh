@@ -27,12 +27,31 @@ for name in "${EXAMPLES[@]}"; do
   # Copy build output
   cp "$ROOT/examples/$name/_build/js/debug/build/$name.js" "$dir/$name.js"
 
+  # Copy assets if present
+  FONT_LOAD_SNIPPET=""
+  if [ -d "$ROOT/examples/$name/assets" ]; then
+    cp -r "$ROOT/examples/$name/assets" "$dir/assets"
+    # Auto-detect TTF files for font preloading
+    FONT_ENTRIES=""
+    for ttf in "$dir/assets/"*.ttf; do
+      [ -f "$ttf" ] || continue
+      fname=$(basename "$ttf")
+      key="assets/$fname"
+      if [ -n "$FONT_ENTRIES" ]; then FONT_ENTRIES="$FONT_ENTRIES, "; fi
+      FONT_ENTRIES="${FONT_ENTRIES}[\"$key\", \"./assets/$fname\"]"
+    done
+    if [ -n "$FONT_ENTRIES" ]; then
+      FONT_LOAD_SNIPPET="  await loadFonts([$FONT_ENTRIES]);"
+    fi
+  fi
+
   # Generate loader.js
   cat > "$dir/loader.js" <<LOADER
-import { initWebGPU, setupGlobalState, loadGameScript } from "../lib/kagura-init.js";
+import { initWebGPU, setupGlobalState, loadFonts, loadGameScript } from "../lib/kagura-init.js";
 async function init() {
   const result = await initWebGPU("#app");
   if (result) setupGlobalState(result.canvas, result.device, result.format, result.context);
+${FONT_LOAD_SNIPPET}
   await loadGameScript("./${name}.js?v=${CACHE_BUST}");
 }
 init().catch(console.error);
