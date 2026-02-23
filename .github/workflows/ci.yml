@@ -10,7 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: hustcer/setup-moonbit@v1
+      - name: Install MoonBit CLI
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
       - name: Setup pnpm
         run: corepack enable
       - uses: actions/setup-node@v4
@@ -38,6 +41,40 @@ jobs:
       - name: API Info
         run: moon info
 
+  native-linux:
+    runs-on: ubuntu-latest
+    env:
+      MOON_CC: clang
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MoonBit CLI
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Update MoonBit registry
+        run: moon update
+      - name: Check
+        run: moon check --target native
+
+  native-windows:
+    runs-on: windows-latest
+    env:
+      MOON_CC: clang
+      CPATH: C:\vcpkg\installed\x64-windows-static\include
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MoonBit CLI
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          echo "$env:USERPROFILE\.moon\bin" >> $env:GITHUB_PATH
+      - name: Install GLFW headers (vcpkg)
+        run: vcpkg install glfw3:x64-windows-static
+      - name: Update MoonBit registry
+        run: moon update
+      - name: Check
+        run: moon check --target native
+
   native-macos:
     runs-on: macos-latest
     env:
@@ -46,7 +83,10 @@ jobs:
       CPATH: /opt/homebrew/include:/usr/local/include
     steps:
       - uses: actions/checkout@v4
-      - uses: hustcer/setup-moonbit@v1
+      - name: Install MoonBit CLI
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
       - name: Update MoonBit registry
         run: moon update
       - name: Setup wgpu-native and glfw

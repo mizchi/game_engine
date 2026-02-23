@@ -41,6 +41,8 @@ pages:
 check-release:
     @echo "Checking for local path dependencies..."
     @if grep -q '"path"' moon.mod.json; then echo "ERROR: moon.mod.json contains local path dependencies"; grep '"path"' moon.mod.json; exit 1; else echo "OK: No local path dependencies found"; fi
+    moon check --target js
+    moon check --target native
 
 clean:
     moon clean
