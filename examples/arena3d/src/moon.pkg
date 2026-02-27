@@ -1,4 +1,5 @@
 import {
+  "mizchi/kagura/audio" @audio,
   "mizchi/kagura/camera3d" @camera3d,
   "mizchi/kagura/core" @core,
   "mizchi/kagura/debugutil" @debugutil,
@@ -7,7 +8,6 @@ import {
   "mizchi/kagura/inpututil" @inpututil,
   "mizchi/kagura/light3d" @light3d,
   "mizchi/kagura/math3d" @math3d,
-  "mizchi/kagura/scene3d" @scene3d,
   "mizchi/kagura/mesh3d" @mesh3d,
   "mizchi/kagura/platform" @platform,
   "mizchi/kagura/transform3d" @transform3d,

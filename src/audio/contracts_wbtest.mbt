@@ -196,10 +196,10 @@ test "MixerAudioContext create and lifecycle" {
   let data = Bytes::make(44100 * 2, 0) // 1 second mono 16-bit
   let clip = new_audio_clip(fmt, data, false)
   let id = ctx.create_player(clip)
-  // Initial state
+  // Initial state is Paused (voice is paused to prevent GC, not stopped)
   match ctx.state(id) {
-    PlayerState::Stopped => ()
-    _ => fail("expected Stopped")
+    PlayerState::Paused => ()
+    _ => fail("expected Paused")
   }
 }
 

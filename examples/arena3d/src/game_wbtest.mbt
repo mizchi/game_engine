@@ -294,23 +294,21 @@ test "benchmark: build_draw_commands 10000 iterations" {
 }
 
 ///|
-test "benchmark: render_scene3d single object 10000 iterations" {
+test "benchmark: project_mesh_batched only 10000 iterations" {
   let state = GameState::new()
-  let dst = @gfx.new_image_handle(1, screen_w, screen_h)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let scene = @scene3d.scene3d(
-    objects=[
-      @scene3d.object3d(
-        mesh=state.meshes.player,
-        position=state.player.position,
-        color=color_player,
-      ),
-    ],
-    camera=state.camera.to_camera3d(),
-    lighting=state.lighting,
+  let cam3d = state.camera.to_camera3d()
+  let vp = cam3d.view_projection_matrix()
+  let player_cdw = compute_mesh_color(state.lighting, color_player)
+  let player_mvp = vp.multiply(
+    @math3d.Mat4::translation(
+      state.player.position.x,
+      state.player.position.y,
+      state.player.position.z,
+    ),
   )
   for _ in 0..<10000 {
-    let _ = @scene3d.render_scene3d(scene, dst, shader, screen_w, screen_h)
+    let batch = MeshBatch::new(player_cdw)
+    project_mesh_batched(state.meshes.player, player_mvp, batch)
   }
   assert_true(true)
 }

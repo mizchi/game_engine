@@ -570,8 +570,9 @@ pub impl AudioContext for MixerAudioContext with create_player(self, clip) {
   let buffer = clip_to_audio_buffer(clip)
   let voice = @ma.new_voice_from_buffer(self.mixer, buffer, looping=clip.loop_)
   let voice_id = @ma.add_voice(self.mixer, voice)
-  // Stop immediately - AudioContext contract expects Stopped initial state
-  let _ = @ma.stop_voice(self.mixer, voice_id)
+  // Pause immediately - AudioContext contract expects Stopped initial state.
+  // Using pause (not stop) so the voice is not garbage-collected by collect_stopped.
+  let _ = @ma.pause_voice(self.mixer, voice_id)
   let player_id : PlayerId = { value: self.next_id }
   self.next_id = self.next_id + 1
   self.player_map.push((player_id, voice_id))
@@ -581,9 +582,11 @@ pub impl AudioContext for MixerAudioContext with create_player(self, clip) {
 ///|
 pub impl AudioContext for MixerAudioContext with play(self, id) {
   match self.find_voice_id(id) {
-    Some(vid) => {
-      let _ = @ma.resume_voice(self.mixer, vid)
-    }
+    Some(vid) =>
+      match @ma.find_voice(self.mixer, vid) {
+        Some(voice) => voice.state = @ma.VoiceState::Playing
+        None => ()
+      }
     None => ()
   }
 }
@@ -691,6 +694,17 @@ pub fn MixerAudioContext::render(
   output : FixedArray[Float],
 ) -> Unit {
   @ma.tick(self.mixer, frames, output)
+  // Protect managed voices from GC: set Stopped → Paused before collect
+  for pair in self.player_map {
+    let (_, vid) = pair
+    match @ma.find_voice(self.mixer, vid) {
+      Some(voice) =>
+        if voice.state == @ma.VoiceState::Stopped {
+          voice.state = @ma.VoiceState::Paused
+        }
+      None => ()
+    }
+  }
   @ma.collect_stopped(self.mixer)
 }
 

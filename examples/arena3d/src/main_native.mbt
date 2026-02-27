@@ -1,6 +1,7 @@
 ///|
 fn main {
   @native_hooks.install("arena3d")
+  let _audio_ok = @audio.audio_try_initialize(@audio.default_audio_format())
   let platform = @platform.create_desktop_glfw_platform()
   let surface = platform.current_surface() catch {
     _ => @platform.create_offscreen_surface_token(screen_w, screen_h)
@@ -37,6 +38,7 @@ fn main {
     @debugutil.render_commands(graphics, cmds) catch {
       _ => ()
     }
+    let _ = @audio.audio_render_and_write(state.audio_ctx, 735)
   }
   @native_hooks.shutdown()
   @native_hooks.uninstall()
