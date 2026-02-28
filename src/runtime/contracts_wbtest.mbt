@@ -1,10 +1,11 @@
 ///|
-fn install_test_web_hooks() -> Unit {
+fn install_test_web_hooks(max_polls~ : Int = 3) -> Unit {
+  let poll_count : Ref[Int] = Ref::new(0)
   @platform.set_web_canvas_hooks(
     @platform.new_web_canvas_hooks(
       fn(_canvas_selector, _options) { true },
-      fn(_active) { () },
-      fn() { false },
+      fn(_active) { poll_count.val = poll_count.val + 1 },
+      fn() { poll_count.val >= max_polls },
       fn(width, height) {
         @core.new_outside_size(width.to_double(), height.to_double())
       },
@@ -45,12 +46,13 @@ fn install_test_web_hooks() -> Unit {
 }
 
 ///|
-fn install_test_web_hooks_with_tick_input() -> Unit {
+fn install_test_web_hooks_with_tick_input(max_polls~ : Int = 3) -> Unit {
+  let poll_count : Ref[Int] = Ref::new(0)
   @platform.set_web_canvas_hooks(
     @platform.new_web_canvas_hooks(
       fn(_canvas_selector, _options) { true },
-      fn(_active) { () },
-      fn() { false },
+      fn(_active) { poll_count.val = poll_count.val + 1 },
+      fn() { poll_count.val >= max_polls },
       fn(width, height) {
         @core.new_outside_size(width.to_double(), height.to_double())
       },
@@ -99,12 +101,13 @@ fn reset_test_web_hooks() -> Unit {
 }
 
 ///|
-fn install_test_native_hooks() -> Unit {
+fn install_test_native_hooks(max_polls~ : Int = 3) -> Unit {
+  let poll_count : Ref[Int] = Ref::new(0)
   @platform.set_desktop_native_hooks(
     @platform.new_desktop_native_hooks(
       fn(_options) { true },
-      fn(_active) { () },
-      fn() { false },
+      fn(_active) { poll_count.val = poll_count.val + 1 },
+      fn() { poll_count.val >= max_polls },
       fn(width, height) {
         @core.new_outside_size(width.to_double(), height.to_double())
       },
@@ -135,12 +138,13 @@ fn install_test_native_hooks() -> Unit {
 }
 
 ///|
-fn install_test_native_hooks_with_tick_input() -> Unit {
+fn install_test_native_hooks_with_tick_input(max_polls~ : Int = 3) -> Unit {
+  let poll_count : Ref[Int] = Ref::new(0)
   @platform.set_desktop_native_hooks(
     @platform.new_desktop_native_hooks(
       fn(_options) { true },
-      fn(_active) { () },
-      fn() { false },
+      fn(_active) { poll_count.val = poll_count.val + 1 },
+      fn() { poll_count.val >= max_polls },
       fn(width, height) {
         @core.new_outside_size(width.to_double(), height.to_double())
       },
@@ -519,7 +523,7 @@ fn run_resized_frame_sizes_with_webgpu() -> (Array[Int], Array[Int]) raise {
     @platform.new_web_canvas_hooks(
       fn(_canvas_selector, _options) { true },
       fn(_active) { poll_count.val = poll_count.val + 1 },
-      fn() { false },
+      fn() { poll_count.val >= 3 },
       fn(_width, _height) {
         if poll_count.val <= 1 {
           @core.new_outside_size(320.0, 240.0)
@@ -593,7 +597,7 @@ fn run_resized_frame_sizes_with_native() -> (Array[Int], Array[Int]) raise {
     @platform.new_desktop_native_hooks(
       fn(_options) { true },
       fn(_active) { poll_count.val = poll_count.val + 1 },
-      fn() { false },
+      fn() { poll_count.val >= 3 },
       fn(_width, _height) {
         if poll_count.val <= 1 {
           @core.new_outside_size(320.0, 240.0)
@@ -659,6 +663,7 @@ test "plan_frame clamps updates by max_skip_frames" {
 
 ///|
 test "run_loop works with noop game + stub platform/gfx" {
+  install_test_web_hooks()
   let game = @core.new_noop_game(320, 240)
   let platform = @platform.create_web_canvas_platform("#app")
   let surface = platform.current_surface()
@@ -672,6 +677,7 @@ test "run_loop works with noop game + stub platform/gfx" {
   }
   run_loop(game, platform, graphics, options, runtime_config)
   assert_true(!platform.is_vsync_enabled())
+  reset_test_web_hooks()
 }
 
 ///|
