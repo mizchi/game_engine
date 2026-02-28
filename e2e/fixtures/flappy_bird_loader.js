@@ -1,5 +1,5 @@
 // Flappy Bird loader for JS target
-import { initWebGPU, setupGlobalState, loadGameScript } from "./lib/kagura-init.js";
+import { initWebGPU, setupGlobalState, loadGameScript } from "../../lib/web/kagura-init.js";
 
 async function init() {
   const result = await initWebGPU("#app");

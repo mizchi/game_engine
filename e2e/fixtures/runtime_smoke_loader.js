@@ -1,5 +1,5 @@
-import { createAudioBackend, advanceAudioWrite, closeAudio } from "./lib/kagura-audio.js";
-import { renderGpu, releaseGpuResources, finalizeTextureUpload } from "./lib/kagura-gfx.js";
+import { createAudioBackend, advanceAudioWrite, closeAudio } from "../../lib/web/kagura-audio.js";
+import { renderGpu, releaseGpuResources, finalizeTextureUpload } from "../../lib/web/kagura-gfx.js";
 
 const statusElement = document.getElementById("status");
 const outputElement = document.getElementById("output");

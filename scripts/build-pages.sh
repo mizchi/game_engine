@@ -17,9 +17,9 @@ for name in "${EXAMPLES[@]}"; do
 done
 
 # Copy shared lib
-cp "$ROOT/e2e/fixtures/lib/kagura-init.js" "$SITE/lib/kagura-init.js"
-cp "$ROOT/e2e/fixtures/lib/kagura-audio.js" "$SITE/lib/kagura-audio.js"
-cp "$ROOT/e2e/fixtures/lib/kagura-gfx.js" "$SITE/lib/kagura-gfx.js"
+cp "$ROOT/lib/web/kagura-init.js" "$SITE/lib/kagura-init.js"
+cp "$ROOT/lib/web/kagura-audio.js" "$SITE/lib/kagura-audio.js"
+cp "$ROOT/lib/web/kagura-gfx.js" "$SITE/lib/kagura-gfx.js"
 
 # Generate per-example pages
 for name in "${EXAMPLES[@]}"; do

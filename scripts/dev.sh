@@ -28,9 +28,9 @@ SERVE_DIR=$(mktemp -d)
 trap 'rm -rf "$SERVE_DIR"' EXIT
 
 mkdir -p "$SERVE_DIR/lib"
-cp "$ROOT/e2e/fixtures/lib/kagura-init.js" "$SERVE_DIR/lib/kagura-init.js"
-cp "$ROOT/e2e/fixtures/lib/kagura-audio.js" "$SERVE_DIR/lib/kagura-audio.js"
-cp "$ROOT/e2e/fixtures/lib/kagura-gfx.js" "$SERVE_DIR/lib/kagura-gfx.js"
+cp "$ROOT/lib/web/kagura-init.js" "$SERVE_DIR/lib/kagura-init.js"
+cp "$ROOT/lib/web/kagura-audio.js" "$SERVE_DIR/lib/kagura-audio.js"
+cp "$ROOT/lib/web/kagura-gfx.js" "$SERVE_DIR/lib/kagura-gfx.js"
 cp "$JS_PATH" "$SERVE_DIR/$NAME.js"
 
 # Copy assets if present
