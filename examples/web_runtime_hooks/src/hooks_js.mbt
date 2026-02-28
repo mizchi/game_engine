@@ -1186,6 +1186,8 @@ extern "js" fn js_release_webgpu_resources() -> Unit =
   #|   const state = globalThis.__kaguraWebRuntime;
   #|   const gpu = state == null ? null : state.webgpu;
   #|   if (gpu == null) return;
+  #|   const gfx = globalThis.__kaguraGfx;
+  #|   if (gfx != null) { gfx.release(gpu); gpu.presentScheduled = false; return; }
   #|   const releaseBufferEntries = (entries) => {
   #|     if (!Array.isArray(entries)) return;
   #|     for (let i = 0; i < entries.length; i += 1) {
@@ -1366,6 +1368,8 @@ extern "js" fn js_gfx_upload_texture_end() -> Unit =
   #|   if (state == null) return;
   #|   const gpu = state.webgpu;
   #|   if (gpu == null || gpu._pendingTexture == null || gpu.device == null) return;
+  #|   const gfx = globalThis.__kaguraGfx;
+  #|   if (gfx != null) { gfx.finalizeTexture(gpu); return; }
   #|   const { imageId, width, height, pixels } = gpu._pendingTexture;
   #|   gpu._pendingTexture = null;
   #|   if (width <= 0 || height <= 0) return;
@@ -1436,6 +1440,10 @@ extern "js" fn js_webgpu_present() -> Bool =
   #|     const currentContext = currentGpu == null ? null : currentGpu.context;
   #|     if (currentGpu == null || currentDevice == null || currentContext == null) return false;
   #|     const format = typeof currentGpu.format === "string" ? currentGpu.format : "bgra8unorm";
+  #|     const gfx = globalThis.__kaguraGfx;
+  #|     if (gfx != null) {
+  #|       return gfx.render(currentGpu, currentDevice, currentContext, currentGpu.clear, format);
+  #|     }
   #|     currentContext.configure({ device: currentDevice, format, alphaMode: "opaque" });
   #|     if (currentGpu._pipeline == null || currentGpu._pipelineFormat !== format) {
   #|       const shaderCode = `

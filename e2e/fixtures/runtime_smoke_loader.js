@@ -1,4 +1,5 @@
 import { createAudioBackend, advanceAudioWrite, closeAudio } from "./lib/kagura-audio.js";
+import { renderGpu, releaseGpuResources, finalizeTextureUpload } from "./lib/kagura-gfx.js";
 
 const statusElement = document.getElementById("status");
 const outputElement = document.getElementById("output");
@@ -201,306 +202,12 @@ const ensureWebGpu = () => {
   return true;
 };
 
-const ensureWebGpuPipeline = (device, format) => {
-  if (webState.webgpu._pipeline != null && webState.webgpu._pipelineFormat === format) {
-    return true;
-  }
-  try {
-    const shaderModule = device.createShaderModule({
-      code: `
-struct Uniforms { color: vec4f }
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(1) @binding(0) var tex: texture_2d<f32>;
-@group(1) @binding(1) var tex_sampler: sampler;
-struct VertexOutput {
-  @builtin(position) position: vec4f,
-  @location(0) uv: vec2f,
-}
-@vertex fn vs_main(@location(0) pos: vec2f, @location(1) uv: vec2f) -> VertexOutput {
-  var out: VertexOutput;
-  out.position = vec4f(pos, 0.0, 1.0);
-  out.uv = uv;
-  return out;
-}
-@fragment fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-  let tex_color = textureSample(tex, tex_sampler, input.uv);
-  return tex_color * uniforms.color;
-}
-`,
-    });
-    const texBGL = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "float" } },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
-      ],
-    });
-    const uniformBGL = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
-      ],
-    });
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [uniformBGL, texBGL] });
-    const pipeline = device.createRenderPipeline({
-      layout: pipelineLayout,
-      vertex: {
-        module: shaderModule,
-        entryPoint: "vs_main",
-        buffers: [{
-          arrayStride: 16,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: "float32x2" },
-            { shaderLocation: 1, offset: 8, format: "float32x2" },
-          ],
-        }],
-      },
-      fragment: {
-        module: shaderModule,
-        entryPoint: "fs_main",
-        targets: [{
-          format,
-          blend: {
-            color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
-            alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
-          },
-        }],
-      },
-      primitive: { topology: "triangle-list", cullMode: "none" },
-    });
-    // Create default 1x1 white texture
-    const defaultTex = device.createTexture({
-      size: { width: 1, height: 1 },
-      format: "rgba8unorm",
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-    });
-    device.queue.writeTexture(
-      { texture: defaultTex },
-      new Uint8Array([255, 255, 255, 255]),
-      { bytesPerRow: 4 },
-      { width: 1, height: 1 },
-    );
-    webState.webgpu._pipeline = pipeline;
-    webState.webgpu._pipelineFormat = format;
-    webState.webgpu._uniformBGL = uniformBGL;
-    webState.webgpu._texBGL = texBGL;
-    webState.webgpu._defaultTexture = defaultTex;
-    webState.webgpu._defaultTexView = defaultTex.createView();
-    webState.webgpu._defaultSampler = device.createSampler({
-      magFilter: "nearest",
-      minFilter: "nearest",
-    });
-    webState.webgpu._drawResourceCache = null;
-    return true;
-  } catch (_) {
-    webState.webgpu._pipeline = null;
-    webState.webgpu._pipelineFormat = "";
-    webState.webgpu._uniformBGL = null;
-    webState.webgpu._texBGL = null;
-    webState.webgpu._defaultTexture = null;
-    webState.webgpu._defaultTexView = null;
-    webState.webgpu._defaultSampler = null;
-    webState.webgpu._drawResourceCache = null;
-    return false;
-  }
-};
-
-const releaseBufferEntries = (entries) => {
-  if (!Array.isArray(entries)) return;
-  for (let i = 0; i < entries.length; i += 1) {
-    const entry = entries[i];
-    const buffer = entry == null ? null : entry.buffer;
-    if (buffer != null && typeof buffer.destroy === "function") {
-      try { buffer.destroy(); } catch (_) {}
-    }
-  }
-};
-
-const releaseWebGpuResources = () => {
-  const gpu = webState.webgpu;
-  if (gpu == null) return;
-  const cache = gpu._drawResourceCache;
-  if (cache != null) {
-    releaseBufferEntries(cache.vertexBuffers);
-    releaseBufferEntries(cache.indexBuffers);
-    releaseBufferEntries(cache.uniformBuffers);
-  }
-  const textures = gpu.textures;
-  if (textures != null && typeof textures.values === "function") {
-    for (const entry of textures.values()) {
-      const texture = entry == null ? null : entry.texture;
-      if (texture != null && typeof texture.destroy === "function") {
-        try { texture.destroy(); } catch (_) {}
-      }
-    }
-  }
-  if (textures != null && typeof textures.clear === "function") {
-    textures.clear();
-  }
-  if (gpu._defaultTexture != null && typeof gpu._defaultTexture.destroy === "function") {
-    try { gpu._defaultTexture.destroy(); } catch (_) {}
-  }
-  if (gpu.context != null && typeof gpu.context.unconfigure === "function") {
-    try { gpu.context.unconfigure(); } catch (_) {}
-  }
-  gpu._pipeline = null;
-  gpu._pipelineFormat = "";
-  gpu._uniformBGL = null;
-  gpu._texBGL = null;
-  gpu._defaultTexture = null;
-  gpu._defaultTexView = null;
-  gpu._defaultSampler = null;
-  gpu._drawResourceCache = null;
-  gpu._pendingTexture = null;
-  gpu._currentDraw = null;
-  gpu.commands = [];
-  gpu.textures = new Map();
-};
-
-const renderWebGpu = () => {
-  const device = webState.webgpu.device;
-  const context = webState.webgpu.context;
-  if (device == null || context == null) {
-    return false;
-  }
-  try {
-    const format = typeof webState.webgpu.format === "string"
-      ? webState.webgpu.format
-      : "bgra8unorm";
-    if (!ensureWebGpuPipeline(device, format)) {
-      return false;
-    }
-    context.configure({ device, format, alphaMode: "opaque" });
-    const [r, g, b, a] = webState.frame.clear;
-    const texture = context.getCurrentTexture();
-    const view = texture.createView();
-    const encoder = device.createCommandEncoder();
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [{
-        view,
-        clearValue: { r, g, b, a },
-        loadOp: "clear",
-        storeOp: "store",
-      }],
-    });
-    const drawCommands = webState.webgpu.commands;
-    if (webState.webgpu._drawResourceCache == null) {
-      webState.webgpu._drawResourceCache = {
-        vertexBuffers: [],
-        indexBuffers: [],
-        uniformBuffers: [],
-        uniformBindGroups: [],
-        uniformBindBuffers: [],
-        textureBindGroups: [],
-        textureBindImageIds: [],
-        textureBindRevisions: [],
-      };
-    }
-    const cache = webState.webgpu._drawResourceCache;
-    const ensureBufferEntry = (slots, slotIndex, minSize, usage) => {
-      const requiredSize = Math.max(16, Number(minSize) | 0);
-      let entry = slots[slotIndex];
-      const currentSize = entry == null ? 0 : (Number(entry.size ?? 0) | 0);
-      if (entry == null || currentSize < requiredSize) {
-        if (entry != null && entry.buffer != null && typeof entry.buffer.destroy === "function") {
-          try { entry.buffer.destroy(); } catch (_) {}
-        }
-        entry = {
-          size: requiredSize,
-          buffer: device.createBuffer({ size: requiredSize, usage }),
-        };
-        slots[slotIndex] = entry;
-      }
-      return entry;
-    };
-    for (let drawIndex = 0; drawIndex < drawCommands.length; drawIndex += 1) {
-      const cmd = drawCommands[drawIndex];
-      if (cmd.vertexData == null || cmd.vertexData.length === 0) continue;
-      if (cmd.indices == null || cmd.indices.length === 0) continue;
-      const vbEntry = ensureBufferEntry(
-        cache.vertexBuffers,
-        drawIndex,
-        cmd.vertexData.byteLength,
-        GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-      );
-      device.queue.writeBuffer(vbEntry.buffer, 0, cmd.vertexData);
-      const ibEntry = ensureBufferEntry(
-        cache.indexBuffers,
-        drawIndex,
-        cmd.indices.byteLength,
-        GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-      );
-      device.queue.writeBuffer(ibEntry.buffer, 0, cmd.indices);
-      const ubEntry = ensureBufferEntry(
-        cache.uniformBuffers,
-        drawIndex,
-        16,
-        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      );
-      device.queue.writeBuffer(ubEntry.buffer, 0, new Float32Array([
-        cmd.uniformR, cmd.uniformG, cmd.uniformB, cmd.uniformA,
-      ]));
-      let uniformBG = cache.uniformBindGroups[drawIndex];
-      if (uniformBG == null || cache.uniformBindBuffers[drawIndex] !== ubEntry.buffer) {
-        uniformBG = device.createBindGroup({
-          layout: webState.webgpu._uniformBGL,
-          entries: [{ binding: 0, resource: { buffer: ubEntry.buffer } }],
-        });
-        cache.uniformBindGroups[drawIndex] = uniformBG;
-        cache.uniformBindBuffers[drawIndex] = ubEntry.buffer;
-      }
-      let texView = webState.webgpu._defaultTexView;
-      let texSampler = webState.webgpu._defaultSampler;
-      let resolvedImageId = 0;
-      let resolvedRevision = -1;
-      if (cmd.srcImageId > 0) {
-        const texEntry = webState.webgpu.textures.get(cmd.srcImageId);
-        if (texEntry != null) {
-          texView = texEntry.view;
-          texSampler = texEntry.sampler;
-          resolvedImageId = Number(cmd.srcImageId) | 0;
-          resolvedRevision = Number.isFinite(texEntry.revision)
-            ? (texEntry.revision | 0)
-            : 0;
-        }
-      }
-      let texBG = cache.textureBindGroups[drawIndex];
-      if (
-        texBG == null ||
-        cache.textureBindImageIds[drawIndex] !== resolvedImageId ||
-        cache.textureBindRevisions[drawIndex] !== resolvedRevision
-      ) {
-        texBG = device.createBindGroup({
-          layout: webState.webgpu._texBGL,
-          entries: [
-            { binding: 0, resource: texView },
-            { binding: 1, resource: texSampler },
-          ],
-        });
-        cache.textureBindGroups[drawIndex] = texBG;
-        cache.textureBindImageIds[drawIndex] = resolvedImageId;
-        cache.textureBindRevisions[drawIndex] = resolvedRevision;
-      }
-      pass.setPipeline(webState.webgpu._pipeline);
-      pass.setBindGroup(0, uniformBG);
-      pass.setBindGroup(1, texBG);
-      pass.setVertexBuffer(0, vbEntry.buffer);
-      pass.setIndexBuffer(ibEntry.buffer, "uint32");
-      pass.drawIndexed(cmd.indices.length);
-    }
-    pass.end();
-    device.queue.submit([encoder.finish()]);
-    webState.webgpu.commands = [];
-    return true;
-  } catch (_) {
-    return false;
-  }
-};
-
 const run = async () => {
   if (wasmPath == null || wasmPath.length === 0) {
     throw new Error("data-wasm-path is required");
   }
   webState.backendMode = "";
-  releaseWebGpuResources();
+  releaseGpuResources(webState.webgpu);
   webState.webgpu.context = null;
   webState.webgpu.device = null;
   webState.webgpu.pending = null;
@@ -635,48 +342,7 @@ const run = async () => {
         tex.pixels[base + 3] = Number(a) & 0xff;
       },
       gfx_upload_texture_end: () => {
-        const tex = webState.webgpu._pendingTexture;
-        webState.webgpu._pendingTexture = null;
-        if (tex == null) return;
-        const { imageId, width, height, pixels } = tex;
-        if (width <= 0 || height <= 0) return;
-        const device = webState.webgpu.device;
-        if (device == null) return;
-        const existing = webState.webgpu.textures.get(imageId);
-        if (existing != null && (existing.width !== width || existing.height !== height)) {
-          if (existing.texture != null && typeof existing.texture.destroy === "function") {
-            existing.texture.destroy();
-          }
-          webState.webgpu.textures.delete(imageId);
-        }
-        let entry = webState.webgpu.textures.get(imageId);
-        if (entry == null) {
-          const nextRevision = existing != null && Number.isFinite(existing.revision)
-            ? ((existing.revision | 0) + 1)
-            : 1;
-          const gpuTex = device.createTexture({
-            size: { width, height },
-            format: "rgba8unorm",
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-          });
-          const view = gpuTex.createView();
-          const sampler = device.createSampler({
-            magFilter: "nearest",
-            minFilter: "nearest",
-            addressModeU: "clamp-to-edge",
-            addressModeV: "clamp-to-edge",
-          });
-          entry = { texture: gpuTex, view, sampler, width, height, revision: nextRevision };
-          webState.webgpu.textures.set(imageId, entry);
-        } else if (!Number.isFinite(entry.revision)) {
-          entry.revision = 1;
-        }
-        device.queue.writeTexture(
-          { texture: entry.texture },
-          pixels,
-          { bytesPerRow: width * 4 },
-          { width, height },
-        );
+        finalizeTextureUpload(webState.webgpu);
       },
       gfx_end: (_kind, present) => {
         if ((Number(present) | 0) === 0) {
@@ -684,7 +350,8 @@ const run = async () => {
         }
         ensureCanvas(webState.width, webState.height);
         let renderedBackend = "none";
-        if (renderWebGpu()) {
+        const gpu = webState.webgpu;
+        if (renderGpu(gpu, gpu.device, gpu.context, webState.frame.clear, gpu.format)) {
           renderedBackend = "webgpu";
         }
         const samplePixels = captureCanvasSample();
@@ -748,7 +415,7 @@ const run = async () => {
         webState._readPixelsBuffer = null;
       },
       shutdown: () => {
-        releaseWebGpuResources();
+        releaseGpuResources(webState.webgpu);
         webState.webgpu.context = null;
         webState.webgpu.device = null;
         webState.webgpu.pending = null;
