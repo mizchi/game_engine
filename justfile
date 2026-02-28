@@ -6,15 +6,15 @@ default: check test
 
 fmt:
     moon fmt
-    for dir in examples/*/; do (cd "$dir" && moon fmt); done
+    for dir in examples/*/; do [ -f "$dir/moon.mod.json" ] && (cd "$dir" && moon fmt); done
 
 check:
     moon check --deny-warn --target {{target}}
-    for dir in examples/*/; do (cd "$dir" && moon check --deny-warn --target {{target}}); done
+    for dir in examples/*/; do [ -f "$dir/moon.mod.json" ] && (cd "$dir" && moon check --deny-warn --target {{target}}); done
 
 test:
     moon test --target {{target}}
-    for dir in examples/*/; do (cd "$dir" && moon test --target {{target}}); done
+    for dir in examples/*/; do [ -f "$dir/moon.mod.json" ] && (cd "$dir" && moon test --target {{target}}); done
 
 test-update:
     moon test --update --target {{target}}

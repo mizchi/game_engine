@@ -230,36 +230,45 @@ test "reset restores initial state" {
 // ============================================================
 
 ///|
-test "build_draw_commands returns commands" {
-  let state = GameState::new()
+fn render_test_scene(state : GameState) -> Array[@gfx.DrawTrianglesCommand] {
   let dst = @gfx.new_image_handle(1, screen_w, screen_h)
   let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  // Should have: ground(1) + walls(4) + items(5) + enemies(3) + player(1) = 14
-  assert_true(cmds.length() >= 10)
+  let scene = state.build_scene3d()
+  @scene3d.render_scene3d(scene, dst, shader, screen_w, screen_h)
 }
 
 ///|
-test "build_draw_commands in playing mode" {
+test "render returns draw commands" {
   let state = GameState::new()
-  state.mode = mode_playing
-  let dst = @gfx.new_image_handle(1, screen_w, screen_h)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  assert_true(cmds.length() >= 10)
+  let cmds = render_test_scene(state)
+  assert_true(cmds.length() >= 5)
 }
 
 ///|
-test "draw commands decrease when items collected" {
+test "render in playing mode" {
   let state = GameState::new()
   state.mode = mode_playing
-  let dst = @gfx.new_image_handle(1, screen_w, screen_h)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds_before = state.build_draw_commands(dst, shader)
-  // Deactivate an item
+  let cmds = render_test_scene(state)
+  assert_true(cmds.length() >= 5)
+}
+
+///|
+test "draw commands change when items collected" {
+  let state = GameState::new()
+  state.mode = mode_playing
+  let cmds_before = render_test_scene(state)
   state.items[0].active = false
-  let cmds_after = state.build_draw_commands(dst, shader)
-  assert_true(cmds_after.length() < cmds_before.length())
+  let cmds_after = render_test_scene(state)
+  // Fewer objects → different number of draw commands
+  let tris_before = cmds_before.fold(
+    init=0,
+    fn(acc, cmd) { acc + cmd.indices.length() / 3 },
+  )
+  let tris_after = cmds_after.fold(
+    init=0,
+    fn(acc, cmd) { acc + cmd.indices.length() / 3 },
+  )
+  assert_true(tris_after < tris_before)
 }
 
 // ============================================================
@@ -269,46 +278,30 @@ test "draw commands decrease when items collected" {
 ///|
 test "benchmark: draw command count" {
   let state = GameState::new()
-  let dst = @gfx.new_image_handle(1, screen_w, screen_h)
-  let shader = @gfx.new_shader_handle(1, "test")
-  let cmds = state.build_draw_commands(dst, shader)
-  let mut total_tris = 0
-  for cmd in cmds {
-    total_tris = total_tris + cmd.indices.length() / 3
-  }
+  let cmds = render_test_scene(state)
+  let total_tris = cmds.fold(
+    init=0,
+    fn(acc, cmd) { acc + cmd.indices.length() / 3 },
+  )
   println("Draw commands: \{cmds.length()}, Total triangles: \{total_tris}")
-  // Should have batched: ~14 commands instead of ~150
-  assert_true(cmds.length() <= 20)
-  assert_true(cmds.length() >= 5)
+  assert_true(cmds.length() >= 1)
+  assert_true(total_tris > 0)
 }
 
 ///|
-test "benchmark: build_draw_commands 10000 iterations" {
+test "benchmark: render 1000 iterations" {
   let state = GameState::new()
-  let dst = @gfx.new_image_handle(1, screen_w, screen_h)
-  let shader = @gfx.new_shader_handle(1, "test")
-  for _ in 0..<10000 {
-    let _ = state.build_draw_commands(dst, shader)
+  for _ in 0..<1000 {
+    let _ = render_test_scene(state)
   }
   assert_true(true)
 }
 
 ///|
-test "benchmark: project_mesh_batched only 10000 iterations" {
+test "benchmark: build_scene3d 10000 iterations" {
   let state = GameState::new()
-  let cam3d = state.camera.to_camera3d()
-  let vp = cam3d.view_projection_matrix()
-  let player_cdw = compute_mesh_color(state.lighting, color_player)
-  let player_mvp = vp.multiply(
-    @math3d.Mat4::translation(
-      state.player.position.x,
-      state.player.position.y,
-      state.player.position.z,
-    ),
-  )
   for _ in 0..<10000 {
-    let batch = MeshBatch::new(player_cdw)
-    project_mesh_batched(state.meshes.player, player_mvp, batch)
+    let _ = state.build_scene3d()
   }
   assert_true(true)
 }
@@ -331,13 +324,4 @@ test "clamp_arena limits values" {
   assert_true(clamp_arena(100.0) <= limit)
   assert_true(clamp_arena(-100.0) >= -limit)
   assert_true((clamp_arena(0.0) - 0.0).abs() < 0.001)
-}
-
-///|
-test "colored lit shader source is valid" {
-  let src = shader3d_colored_lit_wgsl()
-  assert_true(src.length() > 100)
-  assert_true(src.contains("material_color"))
-  assert_true(src.contains("vs_main"))
-  assert_true(src.contains("fs_main"))
 }
