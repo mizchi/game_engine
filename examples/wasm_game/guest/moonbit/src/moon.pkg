@@ -1,0 +1,16 @@
+warnings = "-29"
+
+options(
+  "is-main": true,
+  link: {
+    "wasm": {
+      "exports": [
+        "kagura_init",
+        "kagura_update_export:kagura_update",
+        "kagura_draw",
+        "kagura_alloc",
+      ],
+      "export-memory-name": "memory",
+    },
+  },
+)

@@ -1,0 +1,51 @@
+// kagura-game WIT contract
+// Defines the interface between Host (JS+WebGPU) and Guest (WASM game module)
+//
+// This is a documentation-only WIT file. The actual protocol uses
+// a binary shared-memory format described below.
+
+package kagura:game;
+
+/// Guest exports — functions the WASM module must provide.
+interface game {
+  /// Initialize the game and return a pointer to GameConfig in linear memory.
+  /// GameConfig layout:
+  ///   offset 0: i32 width
+  ///   offset 4: i32 height
+  ///   offset 8: i32 title_len
+  ///   offset 12: u8[title_len] title (UTF-8)
+  kagura-init: func() -> s32;
+
+  /// Allocate `size` bytes in guest memory via bump allocator.
+  /// Returns pointer to the allocated region.
+  kagura-alloc: func(size: s32) -> s32;
+
+  /// Read InputSnapshot from (ptr, len) and update game state.
+  /// InputSnapshot layout:
+  ///   offset 0:  f64 cursor_x
+  ///   offset 8:  f64 cursor_y
+  ///   offset 16: f64 wheel_x
+  ///   offset 24: f64 wheel_y
+  ///   offset 32: i32 key_count (K)
+  ///   offset 36: i32[K] keys (KeyCode values)
+  ///   offset 36+K*4: i32 mouse_btn_count (M)
+  ///   offset 36+K*4+4: i32[M] mouse_btns
+  ///   then: i32 touch_count (0 for PoC)
+  ///   then: i32 gamepad_count (0 for PoC)
+  kagura-update: func(ptr: s32, len: s32);
+
+  /// Generate draw commands and return pointer to DrawCommands in linear memory.
+  /// DrawCommands layout:
+  ///   offset 0: i32 command_count (N)
+  ///   then N variable-length commands, each:
+  ///     offset 0:  i32 vertex_count (V)
+  ///     offset 4:  i32 index_count (I)
+  ///     offset 8:  i32 src_image_id
+  ///     offset 12: i32 uniform_r (0-255)
+  ///     offset 16: i32 uniform_g (0-255)
+  ///     offset 20: i32 uniform_b (0-255)
+  ///     offset 24: i32 uniform_a (0-255)
+  ///     offset 28: f32[V*4] vertices (x,y,u,v in NDC)
+  ///     offset 28+V*16: i32[I] indices
+  kagura-draw: func() -> s32;
+}

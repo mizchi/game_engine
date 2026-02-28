@@ -1,0 +1,6 @@
+{
+  "name": "kagura/wasm_game_guest",
+  "version": "0.1.0",
+  "source": "src",
+  "warn-list": "-6-29-53-68"
+}
