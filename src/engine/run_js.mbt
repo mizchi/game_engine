@@ -13,6 +13,7 @@ pub fn run(
   title~ : String = "kagura",
   canvas~ : String = "#app",
 ) -> Unit {
+  invoke_on_start(canvas, title)
   let platform = @platform.create_web_canvas_platform(canvas)
   let surface = platform.current_surface() catch {
     _ => @platform.create_offscreen_surface_token(width, height)

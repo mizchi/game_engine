@@ -10,6 +10,7 @@ pub fn run(
   canvas~ : String = "",
 ) -> Unit {
   let _ = canvas
+  invoke_on_start(canvas, title)
   let platform = @platform.create_desktop_glfw_platform()
   let surface = platform.current_surface() catch {
     _ => @platform.create_offscreen_surface_token(width, height)
@@ -59,4 +60,5 @@ pub fn run(
       None => ()
     }
   }
+  invoke_on_stop()
 }

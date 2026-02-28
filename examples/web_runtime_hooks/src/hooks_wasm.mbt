@@ -1160,3 +1160,10 @@ pub fn source_image_pixel_channel(
 pub fn request_animation_frame(_f : () -> Unit) -> Unit {
   ()
 }
+
+///|
+fn init {
+  @engine.set_lifecycle_hooks(
+    { on_start: fn(canvas, _title) { install(canvas) }, on_stop: fn() { shutdown() } },
+  )
+}

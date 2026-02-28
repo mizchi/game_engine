@@ -3385,3 +3385,10 @@ extern "js" fn js_request_animation_frame(f : () -> Unit) -> Unit =
 pub fn request_animation_frame(f : () -> Unit) -> Unit {
   js_request_animation_frame(f)
 }
+
+///|
+fn init {
+  @engine.set_lifecycle_hooks(
+    { on_start: fn(canvas, _title) { install(canvas) }, on_stop: fn() { shutdown() } },
+  )
+}

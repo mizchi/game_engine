@@ -131,3 +131,10 @@ pub fn sync_dirty_atlas_pages_from_repository(
 pub fn shutdown_context() -> Unit {
   ()
 }
+
+///|
+fn init {
+  @engine.set_lifecycle_hooks(
+    { on_start: fn(_canvas, _title) { () }, on_stop: fn() { () } },
+  )
+}

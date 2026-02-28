@@ -1,6 +1,5 @@
 ///|
 fn main {
-  @native_hooks.install("flappy_bird")
   let game = Game::new()
   @scene.run(
     view=fn() { game.view() },
@@ -8,7 +7,6 @@ fn main {
     width=screen_w,
     height=screen_h,
     title="Flappy Bird",
+    canvas="#app",
   )
-  @native_hooks.shutdown()
-  @native_hooks.uninstall()
 }

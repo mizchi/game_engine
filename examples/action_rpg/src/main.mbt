@@ -1,6 +1,5 @@
 ///|
 fn main {
-  @web_hooks.install("#app")
   let state = ShowcaseState::new()
   @scene.run(
     view=fn() { state.view() },
@@ -10,7 +9,7 @@ fn main {
     },
     width=screen_w.to_int(),
     height=screen_h.to_int(),
-    title="action_rpg",
+    title="Action RPG",
     canvas="#app",
   )
 }

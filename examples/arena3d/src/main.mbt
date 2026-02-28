@@ -1,6 +1,5 @@
 ///|
 fn main {
-  @native_hooks.install("arena3d")
   let state = GameState::new()
   @engine.run(
     update=fn(input) { state.update(input) },
@@ -9,7 +8,6 @@ fn main {
     width=screen_w,
     height=screen_h,
     title="3D Arena Collector",
+    canvas="#app",
   )
-  @native_hooks.shutdown()
-  @native_hooks.uninstall()
 }

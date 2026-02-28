@@ -2,6 +2,7 @@ import {
   "mizchi/kagura/asset" @asset,
   "mizchi/kagura/audio" @audio,
   "mizchi/kagura/core" @core,
+  "mizchi/kagura/engine" @engine,
   "mizchi/kagura/gfx" @gfx,
   "mizchi/kagura/image_palette" @image_palette,
   "mizchi/kagura/payload2d" @payload2d,

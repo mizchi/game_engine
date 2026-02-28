@@ -753,3 +753,13 @@ pub fn shutdown_context() -> Unit {
   shutdown()
   uninstall()
 }
+
+///|
+fn init {
+  @engine.set_lifecycle_hooks(
+    {
+      on_start: fn(_canvas, title) { install(title) },
+      on_stop: fn() { shutdown(); uninstall() },
+    },
+  )
+}
