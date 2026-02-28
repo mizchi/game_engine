@@ -15,6 +15,9 @@ const CONTENT_TYPES = {
   ".map": "application/json; charset=utf-8",
   ".wasm": "application/wasm",
   ".css": "text/css; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
 };
 
 const buildRuntimeSmoke = (target) => {
@@ -30,6 +33,17 @@ const buildRuntimeSmoke = (target) => {
 
 buildRuntimeSmoke("wasm");
 buildRuntimeSmoke("wasm-gc");
+
+const buildJsExample = (name) => {
+  const result = spawnSync("moon", ["build", "src", "--target", "js"], {
+    cwd: join(ROOT, "examples", name),
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+};
+buildJsExample("fetch_image");
 
 const resolvePath = (pathname) => {
   const normalized = normalize(pathname).replace(/^(\.\.[/\\])+/, "");
