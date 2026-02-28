@@ -35,8 +35,13 @@ buildRuntimeSmoke("wasm");
 buildRuntimeSmoke("wasm-gc");
 
 const buildJsExample = (name) => {
+  const dir = join(ROOT, "examples", name);
+  if (!existsSync(join(dir, "moon.mod.json"))) {
+    console.log(`[e2e] skipping ${name} (not found)`);
+    return;
+  }
   const result = spawnSync("moon", ["build", "src", "--target", "js"], {
-    cwd: join(ROOT, "examples", name),
+    cwd: dir,
     stdio: "inherit",
   });
   if (result.status !== 0) {
