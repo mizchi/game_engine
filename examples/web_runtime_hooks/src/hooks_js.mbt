@@ -2870,7 +2870,54 @@ extern "js" fn js_audio_try_initialize(
   #|       readPos = (readPos + frames) % ringSize;
   #|     };
   #|     node.connect(ctx.destination);
-  #|     state.audio = { ctx, node, ring, ringSize, writePos, readPos: () => readPos, channels };
+  #|     state.audio = { ctx, node, ring, ringSize, writePos, readPos: () => readPos, channels, workletNode: null, useWorklet: false };
+  #|     if (ctx.audioWorklet) {
+  #|       const wCode = [
+  #|         'class KaguraProcessor extends AudioWorkletProcessor {',
+  #|         '  constructor() {',
+  #|         '    super();',
+  #|         '    this.ring = null; this.ringSize = 0; this.channels = 2;',
+  #|         '    this.readPos = 0; this.writePos = 0;',
+  #|         '    this.port.onmessage = (e) => {',
+  #|         '      const m = e.data;',
+  #|         '      if (m.t === "i") {',
+  #|         '        this.ringSize = m.s; this.channels = m.c;',
+  #|         '        this.ring = new Float32Array(m.s * m.c);',
+  #|         '        this.readPos = 0; this.writePos = 0;',
+  #|         '      } else if (m.t === "w") {',
+  #|         '        const d = m.d, len = this.ring.length;',
+  #|         '        let wi = this.writePos * this.channels;',
+  #|         '        for (let i = 0; i < d.length; i++) this.ring[(wi + i) % len] = d[i];',
+  #|         '        this.writePos = (this.writePos + d.length / this.channels) % this.ringSize;',
+  #|         '      }',
+  #|         '    };',
+  #|         '  }',
+  #|         '  process(inputs, outputs) {',
+  #|         '    if (!this.ring) return true;',
+  #|         '    const o = outputs[0], f = o[0].length;',
+  #|         '    for (let c = 0; c < this.channels && c < o.length; c++) {',
+  #|         '      const cd = o[c];',
+  #|         '      for (let i = 0; i < f; i++) cd[i] = this.ring[((this.readPos + i) % this.ringSize) * this.channels + c];',
+  #|         '    }',
+  #|         '    this.readPos = (this.readPos + f) % this.ringSize;',
+  #|         '    return true;',
+  #|         '  }',
+  #|         '}',
+  #|         'registerProcessor("kagura-processor", KaguraProcessor);',
+  #|       ].join("\n");
+  #|       const blob = new Blob([wCode], { type: "application/javascript" });
+  #|       const url = URL.createObjectURL(blob);
+  #|       ctx.audioWorklet.addModule(url).then(() => {
+  #|         URL.revokeObjectURL(url);
+  #|         const wn = new AudioWorkletNode(ctx, "kagura-processor", { outputChannelCount: [channels] });
+  #|         wn.port.postMessage({ t: "i", s: ringSize, c: channels });
+  #|         wn.connect(ctx.destination);
+  #|         node.disconnect();
+  #|         const a = state.audio;
+  #|         a.workletNode = wn;
+  #|         a.useWorklet = true;
+  #|       }).catch(() => {});
+  #|     }
   #|     return true;
   #|   } catch(e) { return false; }
   #| }
@@ -2904,6 +2951,14 @@ extern "js" fn js_audio_advance_write(frames : Int) -> Unit =
   #|   const root = globalThis;
   #|   const a = root.__kaguraWebRuntime?.audio;
   #|   if (!a) return;
+  #|   if (a.useWorklet && a.workletNode) {
+  #|     const count = frames * a.channels;
+  #|     const buf = new Float32Array(count);
+  #|     const ringLen = a.ringSize * a.channels;
+  #|     const start = (a.writePos % a.ringSize) * a.channels;
+  #|     for (let i = 0; i < count; i++) buf[i] = a.ring[(start + i) % ringLen];
+  #|     a.workletNode.port.postMessage({ t: "w", d: buf }, [buf.buffer]);
+  #|   }
   #|   a.writePos = (a.writePos + frames) % a.ringSize;
   #| }
 
@@ -2934,6 +2989,7 @@ extern "js" fn js_audio_close() -> Unit =
   #| () => {
   #|   const a = globalThis.__kaguraWebRuntime?.audio;
   #|   if (a) {
+  #|     if (a.workletNode) { a.workletNode.disconnect(); a.workletNode = null; }
   #|     if (a.node) { a.node.disconnect(); a.node = null; }
   #|     if (a.ctx) { a.ctx.close(); a.ctx = null; }
   #|     globalThis.__kaguraWebRuntime.audio = null;

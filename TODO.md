@@ -33,9 +33,10 @@
 
 arena3d で基本的な SE 再生（Web/Native 両方）は動作確認済み。
 
-- [ ] BGM 対応（ループ再生 + 音量調整）
-- [ ] AudioWorklet への移行（現在 ScriptProcessorNode、Chrome で非推奨警告）
-- [ ] フェードイン/アウト、クロスフェード
+- [x] BGM 対応（ループ再生 + 音量調整） — `MixerAudioContext::play_bgm` 等
+- [x] フェードイン/アウト — `fade_bgm + tick_bgm`
+- [x] AudioWorklet への移行（現在 ScriptProcessorNode、Chrome で非推奨警告）
+- [ ] クロスフェード
 
 ## 完了条件 (第一段階)
 
