@@ -3,6 +3,10 @@ extern "js" fn js_request_animation_frame(f : () -> Unit) -> Unit =
   #| (f) => { requestAnimationFrame(() => f()); }
 
 ///|
+extern "js" fn js_on_beforeunload(f : () -> Unit) -> Unit =
+  #| (f) => { window.addEventListener("beforeunload", () => f()); }
+
+///|
 pub fn run(
   update~ : (@core.InputSnapshot) -> Unit,
   draw~ : (EngineContext) -> Array[@gfx.DrawTrianglesCommand],
@@ -64,5 +68,6 @@ pub fn run(
     }
     js_request_animation_frame(frame)
   }
+  js_on_beforeunload(fn() { invoke_on_stop() })
   js_request_animation_frame(frame)
 }
