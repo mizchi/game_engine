@@ -54,6 +54,13 @@
 - P3-3: 複数フォント・複数サイズ本格運用（full-set TTF multi-char measure + multi-size + missing glyph degradation + atlas stress, 18 e2e tests）
 - P4-1: 日本語テキスト対応（CJK サブセットフォント + multi-page atlas + eviction + CJK E2E 検証, 21 e2e tests）
 
+### 3D / Audio (2026-02-28)
+
+- scene3d パッケージ抽出（`src/scene3d/`）— `scene3d()` ビルダー + `render_scene3d()` + CPU 側 3D→2D 投影
+- arena3d オーディオ SE 対応（サイン波 PCM 生成、Web/Native 両方で動作確認）
+- MixerAudioContext ボイスライフサイクル修正（create_player の GC 問題、play の状態遷移）
+- arena3d 初期化バグ修正（platform.initialize / graphics.initialize 欠落）
+
 ## NOTE
 
 - 現在進行中の項目は `TODO.md` を参照。

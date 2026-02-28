@@ -1,0 +1,18 @@
+import {
+  "mizchi/kagura/camera3d" @camera3d,
+  "mizchi/kagura/engine" @engine,
+  "mizchi/kagura/gfx" @gfx,
+  "mizchi/kagura/light3d" @light3d,
+  "mizchi/kagura/math3d" @math3d,
+  "mizchi/kagura/mesh3d" @mesh3d,
+  "mizchi/kagura/scene3d" @scene3d,
+  "mizchi/web_runtime_hooks" @web_hooks,
+  "mizchi/native_runtime_hooks" @native_hooks,
+}
+
+warnings = "-1-2-29-71"
+
+options(
+  "is-main": true,
+  targets: { "main_js.mbt": [ "js" ], "main_native.mbt": [ "native" ] },
+)

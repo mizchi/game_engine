@@ -10,14 +10,6 @@
 - 非目標: WebGL/WebGL2 フォールバック
 - 3D 拡張は 2D API/実装安定後
 
-## 実装状況スナップショット (2026-02-21)
-
-- `moon test --target native`: 575 passed / 0 failed
-- `moon test --target js`: 574 passed / 0 failed
-- `moon run src/examples/runtime_smoke --target js`: pass
-- `moon run src/examples/runtime_smoke_native --target native`: pass (hook_font_load + hook_font_load_full + hook_font_load_cjk + audio_smoke)
-- `pnpm e2e:smoke`: 21 passed / 0 failed
-
 ## 現在の優先タスク (優先順位順)
 
 ### Windows / Linux Native 対応
@@ -29,10 +21,21 @@
 - [ ] Audio バックエンドの抽象化（現在 AudioToolbox に依存 → Linux: PulseAudio/ALSA、Windows: WASAPI）
 - [ ] CI に `native-linux` (ubuntu-latest) / `native-windows` (windows-latest) ジョブ追加
 
-### scene3d API
+### scene3d API 改善
 
-- [ ] `arena3d` の CPU 側 3D→2D 投影パターンを汎用化した `src/scene3d/` パッケージの検討
-- [ ] 現在 arena3d は Low-level API 直接使用。scene API と同様の宣言的インタフェースが可能か調査
+`src/scene3d/` パッケージは抽出済み（`scene3d()` ビルダー + `render_scene3d()` レンダラー + テスト）。
+
+- [ ] arena3d を `scene3d` API に移行（現在は独自の MeshBatch で CPU 側投影を実装）
+- [ ] scene3d に material / texture サポート追加
+- [ ] scene3d のパフォーマンス最適化（バッチ投影、カリング改善）
+
+### オーディオ改善
+
+arena3d で基本的な SE 再生（Web/Native 両方）は動作確認済み。
+
+- [ ] BGM 対応（ループ再生 + 音量調整）
+- [ ] AudioWorklet への移行（現在 ScriptProcessorNode、Chrome で非推奨警告）
+- [ ] フェードイン/アウト、クロスフェード
 
 ## 完了条件 (第一段階)
 
