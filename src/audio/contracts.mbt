@@ -913,7 +913,8 @@ pub fn MixerAudioContext::crossfade_bgm(
       self.bgm_outgoing_id = Some(id)
       self.bgm_outgoing_volume = self.bgm_current_volume
       if duration_seconds > 0.0 {
-        self.bgm_outgoing_fade_speed = self.bgm_current_volume / duration_seconds
+        self.bgm_outgoing_fade_speed = self.bgm_current_volume /
+          duration_seconds
       } else {
         self.dispose_outgoing_bgm()
       }

@@ -15,7 +15,10 @@ priv struct MeshBatch {
 }
 
 ///|
-fn MeshBatch::new(color_dwords : Array[Int], src_image_id~ : Int = -1) -> MeshBatch {
+fn MeshBatch::new(
+  color_dwords : Array[Int],
+  src_image_id? : Int = -1,
+) -> MeshBatch {
   { vertices: [], indices: [], color_dwords, src_image_id, tri_count: 0 }
 }
 

@@ -5,7 +5,7 @@ pub fn object3d(
   rotation? : @math3d.Quaternion = @math3d.Quaternion::identity(),
   scale? : @math3d.Vec3 = @math3d.Vec3::one(),
   color? : @math3d.Vec4 = @math3d.Vec4::new(1.0, 1.0, 1.0, 1.0),
-  material~ : Material? = None,
+  material? : Material? = None,
 ) -> Object3D {
   {
     mesh,
@@ -22,7 +22,7 @@ pub fn object3d_with_transform(
   mesh~ : @mesh3d.Mesh3D,
   transform~ : @transform3d.Transform3D,
   color? : @math3d.Vec4 = @math3d.Vec4::new(1.0, 1.0, 1.0, 1.0),
-  material~ : Material? = None,
+  material? : Material? = None,
 ) -> Object3D {
   { mesh, transform, color, material }
 }
